@@ -1,6 +1,6 @@
 # D001 — concurrent dialogue systems spike
 
-**Status:** planned; no runtime claims yet.
+**Status:** evaluated for the specified scope; real implementation and native/Web evidence in [D001 decision report](D001-DECISION.md). Some browser persistence/UI and scale gates intentionally remain unproven.
 **Candidates:** Godot 4 GDScript + Dialogue Manager, Godot 4 GDScript + Ink/inkgd.
 **Goal:** select narrative scripting runtime for in-world social conversation in Nile Kiosk, or establish why neither qualifies.
 

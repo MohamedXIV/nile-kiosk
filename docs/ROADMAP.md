@@ -5,7 +5,7 @@ This roadmap records **work to prove**, not features already shipped. The game i
 | Order | Workstream | Delivery gate |
 | --- | --- | --- |
 | 0 | Foundation documentation | Core fantasy, era, visual assumptions and open choices recorded |
-| 1 | D001 Dialogue system spike | Head-to-head Dialogue Manager vs Ink: concurrent sessions, authored interjection, save, independent GameState, browser |
+| 1 | D001 Dialogue system spike — **complete for defined scope** | Both candidates passed native concurrency and disk save, full kiosk browser; Ink selected as provisional narrative baseline |
 | 2 | V001 Building cutaway spike | Street → building → correct apartment floor cutaway → movable furniture → persistence |
 | 3 | Technical decision | Lock runtime/visual/narrative combination based on D001/V001 evidence |
 | 4 | Kiosk vertical slice | One cooking recipe, one meaningful day, NPC arrivals/table/counter/Nile behavior, return home |
@@ -20,3 +20,9 @@ This roadmap records **work to prove**, not features already shipped. The game i
 - Use independent short modules, coherent assets and reproducible tests.
 - CI is welcome on this **public** repository. Prefer one useful smoke job after runnable tests exist, cache imports, cancel superseded runs; don't run empty workflows.
 - Arabic text and RTL testing **deferred** from D001 at user's request, not marked completed.
+
+## Completion boundaries
+
+- D001 acceptance completed for **headless Godot native** and **the two Web kiosk smoke exports**; see `spikes/D001-DECISION.md`.
+- **Browser refresh persistence**, visual inspection of dialogue rendering at production art resolution, Arabic/RTL, realistic NPC density/performance, and release build pipeline remain separate future work.
+- Next primary workstream: V001 apartment-building cutaway and a coherent 3D-authored → 2D-rendered workflow.
