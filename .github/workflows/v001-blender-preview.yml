@@ -55,12 +55,30 @@ jobs:
           git clone -q --depth 1 --branch godot4 https://github.com/ephread/inkgd.git /tmp/v001-ink
           git -C /tmp/v001-ink checkout -q fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
           cp -R /tmp/v001-ink/addons/inkgd addons/inkgd
+      - name: Temporarily hide editable Blender file from Godot importer
+        run: mv assets/v001/v001_cairo_building.blend assets/v001/v001_cairo_building.blend-source
       - name: Import rendered sprites in Godot
-        run: godot --headless --path . --import
+        run: |
+          godot --headless --path . --import 2>&1 | tee /tmp/v001-import.log
+          if grep -E 'Blender path is invalid|SCRIPT ERROR:|Parse Error:' /tmp/v001-import.log; then
+            echo "Godot importer failed"; exit 1
+          fi
       - name: Test sprite registration and scene switching
         run: |
+          set -o pipefail
           godot --headless --path . --script res://tests/test_v001_art.gd 2>&1 | tee /tmp/v001-art-test.log
-          if grep -E 'SCRIPT ERROR:|Parse Error:' /tmp/v001-art-test.log; then exit 1; fi
+          if grep -E 'SCRIPT ERROR:|Parse Error:|No loader found|V001 P1: texture missing|V001 P1 texture missing' /tmp/v001-art-test.log; then
+            echo "V001 Godot integration emitted runtime errors"; exit 1
+          fi
+          grep -q 'V001 P1 ART REGISTRATION PASS' /tmp/v001-art-test.log || {
+            echo "V001 art acceptance marker missing, even if Godot exits zero"; exit 1;
+          }
+      - name: Restore editable Blender file for artifact
+        if: always()
+        run: |
+          if test -f assets/v001/v001_cairo_building.blend-source; then
+            mv assets/v001/v001_cairo_building.blend-source assets/v001/v001_cairo_building.blend
+          fi
       - name: Upload editable Blender source and art review previews
         if: always()
         uses: actions/upload-artifact@v4
