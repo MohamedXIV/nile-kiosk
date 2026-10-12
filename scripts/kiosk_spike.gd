@@ -6,12 +6,15 @@ const STEP: float = 0.25
 const WALK_SPEED: float = 180.0
 
 @export var use_dialogue_manager: bool = false
+@export var use_ink: bool = false
 
 var model = Orchestrator.new()
 var _dm_tick_active: bool = false
 
 func _ready() -> void:
-    if use_dialogue_manager:
+    if use_ink:
+        model = load("res://scripts/ink_conversation_orchestrator.gd").new()
+    elif use_dialogue_manager:
         model = load("res://scripts/dm_conversation_orchestrator.gd").new()
 var accumulator: float = 0.0
 var event_cursor: int = 0

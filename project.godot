@@ -18,6 +18,7 @@ textures/default_filters/use_nearest_mipmap_filter=false
 
 [autoload]
 DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
+__InkRuntime="*res://addons/inkgd/ink_runtime.gd"
 
 [editor_plugins]
 enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg")
