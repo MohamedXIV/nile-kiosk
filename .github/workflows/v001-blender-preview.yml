@@ -1,0 +1,55 @@
+name: V001 Blender sprite previews
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/v001/**"
+      - "scripts/v001/**"
+      - "tests/test_v001_art.gd"
+      - ".github/workflows/v001-blender-preview.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v001-blender-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender python3-pil
+          blender --version | head -n 2
+      - name: Bake day/night transparent sprites with fixed camera
+        run: blender -b -t 2 --python tools/v001/bake_building.py -- --output assets/v001
+      - name: Validate exact projection, transparent layers, and compose previews
+        run: python3 tools/v001/validate_and_preview.py assets/v001 /tmp/v001-previews
+      - name: Install Godot 4.6.3
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: false
+      - name: Import rendered sprites in Godot
+        run: godot --headless --path . --import
+      - name: Test sprite registration and scene switching
+        run: |
+          godot --headless --path . --script res://tests/test_v001_art.gd 2>&1 | tee /tmp/v001-art-test.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:' /tmp/v001-art-test.log; then exit 1; fi
+      - name: Upload editable Blender source and art review previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v001-blender-layers-and-previews
+          path: |
+            assets/v001/
+            /tmp/v001-previews/
+          if-no-files-found: warn
+          retention-days: 14

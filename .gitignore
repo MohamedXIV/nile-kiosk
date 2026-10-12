@@ -39,3 +39,6 @@ mono_crash.*.json
 
 # Browser-export artifacts
 /build/
+
+# Blender bake output: reproducible from tools/v001/bake_building.py
+/assets/v001/
