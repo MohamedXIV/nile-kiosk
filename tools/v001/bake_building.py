@@ -55,15 +55,19 @@ def material(name, hex_rgb, lit=False):
             bsdf.inputs["Emission Strength"].default_value = 0.0
     return m
 
-plaster = material("warm aged limestone", "#cbbba2")
-mortar = material("molding pale", "#eee1c8")
-stone = material("weathered base stone", "#ab9678")
-shadowstone = material("balcony shadows", "#817b6b")
+plaster = material("warm aged limestone", "#bda98a")
+plaster_alt = material("slightly warmer aged plaster", "#bea888")
+mortar = material("molding pale", "#cdbd9f")
+stone = material("weathered base stone", "#998165")
+shadowstone = material("balcony shadows", "#777064")
 iron = material("wrought iron charcoal", "#3e5555")
-teal = material("Egyptian muted teal shutters", "#4e7775")
-window = material("blue-grey glass", "#40575b", True)
-warmglass = material("warm lived-in window", "#d69b63", True)
-wood = material("wood old walnut", "#6b513b")
+teal = material("Egyptian muted teal shutters", "#4b7670")
+terracotta = material("plant pots fired earthenware", "#ae7158")
+leaf = material("balcony pothos foliage", "#427148")
+sea_green = material("painted old shutters", "#688c7e")
+window = material("blue-grey glass", "#547c83", True)
+warmglass = material("warm lived-in window", "#be885a", True)
+wood = material("wood old walnut", "#75553b")
 floor_tile = material("warm cream worn tile", "#d6c3a0")
 floor_dark = material("tile grout", "#9e917b")
 mint = material("interior green paint", "#aebba9")
@@ -101,6 +105,17 @@ def cylinder(name, category, center, radius, depth, mat, verts=20):
     obj.data.materials.append(mat)
     return obj
 
+def foliage(name, category, center, radius, mat):
+    center=(center[1],center[0],center[2])
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1,radius=radius,location=center)
+    obj=bpy.context.object
+    obj.name=name
+    for c in list(obj.users_collection):
+        c.objects.unlink(obj)
+    layer(category).objects.link(obj)
+    obj.data.materials.append(mat)
+    return obj
+
 def rail(name, category, a, b, radius, mat):
     pa, pb = Vector(a), Vector(b)
     logical_direction = pb-pa
@@ -115,9 +130,24 @@ for storey in range(FLOORS):
     z0 = storey * FLOOR_H
     zmid = z0 + FLOOR_H*0.5
     box("east plaster %d"%storey, group, (WIDTH, DEPTH/2,zmid),
-        (.23, DEPTH, FLOOR_H-.12), plaster)
+        (.23, DEPTH, FLOOR_H-.12), plaster_alt if storey in (1,4) else plaster)
     box("south plaster %d"%storey, group, (WIDTH/2,DEPTH,zmid),
-        (WIDTH,.23,FLOOR_H-.12), plaster)
+        (WIDTH,.23,FLOOR_H-.12), plaster_alt if storey in (1,4) else plaster)
+    # Rounded corner pilaster softens the box and recalls pre-1960 Cairo facades.
+    cylinder("rounded stone corner pilaster %d"%storey,group,
+        (WIDTH+.02,DEPTH+.02,zmid),.29,FLOOR_H-.18,mortar,16)
+    for y in (0.8,5.5,10.15):
+        box("east vertical stone pilaster",group,(WIDTH+.12,y,zmid),
+            (.13,.16,FLOOR_H-.48),stone)
+    for x in (1.1,6.8,13.9):
+        box("south vertical stone pilaster",group,(x,DEPTH+.12,zmid),
+            (.16,.13,FLOOR_H-.48),stone)
+    if storey in (0,2,4):
+        # Period-correct external window AC units with open grille slats.
+        box("old AC body",group,(WIDTH+.43,5.1,zmid-.45),(.51,1.13,.64),mortar)
+        for slot in range(4):
+            box("AC grille slot",group,(WIDTH+.705,4.70+slot*.20,zmid-.48),
+                (.022,.11,.30),shadowstone)
     # Belts and restrained classical details, not a palace.
     for z in (z0+.22,z0+FLOOR_H-.18):
         box("east stone cornice %d"%storey,group,(WIDTH+.14,DEPTH/2,z),(.35,DEPTH,.16),mortar)
@@ -132,6 +162,15 @@ for storey in range(FLOORS):
             box("south glass",group,(x,DEPTH+.22,zmid),(1.17,.08,1.38),
                 warmglass if storey in (1,4,5) else window)
             box("south lintel",group,(x,DEPTH+.27,zmid+.86),(1.68,.22,.13),mortar)
+            # Visible frames and painted side shutters make the windows read at 960x540.
+            box("east central window mullion",group,(WIDTH+.335,y,zmid),
+                (.07,.085,1.36),mortar)
+            box("south central window mullion",group,(x,DEPTH+.335,zmid),
+                (.085,.07,1.40),mortar)
+            box("painted south shutter panel",group,(x+.83,DEPTH+.34,zmid),
+                (.32,.11,1.50),sea_green)
+            box("east shutter tongue",group,(WIDTH+.33,y-.72,zmid),
+                (.11,.31,1.50),teal)
             # shutters partially opened, cool aged blue-green wooden panels
             box("east shutter",group,(WIDTH+.3,y+.72,zmid),(.12,.3,1.55),teal)
             box("south shutter",group,(x-.76,DEPTH+.3,zmid),(.28,.12,1.55),teal)
@@ -142,6 +181,13 @@ for storey in range(FLOORS):
         for i in range(12):
             x=8.1+i*.32
             rail("balcony vertical",group,(x,DEPTH+1.42,h+.10),(x,DEPTH+1.42,h+1.02),.027,iron)
+        # Everyday plastic/terracotta pots and modest trailing foliage.
+        for bx in (8.42,11.35):
+            cylinder("balcony plant pot",group,(bx,DEPTH+1.20,h+.25),.20,.38,terracotta,12)
+            foliage("balcony pothos",group,(bx,DEPTH+1.19,h+.56),.31,leaf)
+        if storey==3:
+            box("faded drying cotton",group,(9.35,DEPTH+1.45,h+.73),
+                (1.05,.08,.65),linen)
 
 # Simple older doorway with shaded recessed entrance and narrow 1950s awning.
 box("arched doorway void silhouette","facade_lower",(WIDTH/2,DEPTH+.18,1.06),(2.5,.10,2.15),shadowstone)
@@ -180,6 +226,24 @@ box("old small CRT TV cabinet","apartment",(12.3,2.1,homez+.63),(1.2,.65,1.05),w
 box("CRT glass screen","apartment",(12.3,1.72,homez+1.34),(.79,.14,.52),window)
 box("cheap kitchenette","apartment",(1.0,8.95,homez+.77),(1.25,2.35,1.44),stone)
 box("kitchen shelf","apartment",(1.0,8.95,homez+1.59),(1.36,2.48,.12),wood)
+# A roof cutaway is NOT an open terrace: low front walls and room partitions
+# keep the spatial reading of an enclosed rented home.
+box("east cutaway knee wall","apartment",(WIDTH-.10,DEPTH/2,homez+.47),
+    (.20,DEPTH,.74),plaster)
+box("south cutaway knee wall","apartment",(WIDTH/2,DEPTH-.10,homez+.47),
+    (WIDTH,.20,.74),plaster)
+box("small kitchenette partition","apartment",(3.1,8.12,homez+.91),
+    (5.0,.21,1.65),mint)
+box("interior half-wall along old hallway","apartment",(11.85,1.9,homez+1.08),
+    (.21,3.6,2.03),mint)
+box("back wall wooden framed window","apartment",(5.5,.17,homez+1.70),
+    (1.42,.12,1.50),teal)
+box("back window warm translucent curtain","apartment",(5.5,.27,homez+1.64),
+    (1.12,.065,1.20),linen)
+box("faded 2001 wall calendar","apartment",(9.9,.16,homez+1.83),
+    (.73,.08,.95),cream)
+cylinder("standing fan stem","apartment",(6.2,2.8,homez+.79),.046,1.58,iron,12)
+foliage("standing fan cage approximation","apartment",(6.2,2.8,homez+1.57),.39,metal)
 # Thin railing denotes balcony/opening to the south, no blocking front wall.
 rail("small iron balcony rail","apartment",(WIDTH-1.7,DEPTH-.3,homez+.28),
     (WIDTH-1.7,DEPTH-.3,homez+1.24),.07,iron)
@@ -218,8 +282,8 @@ scene.render.film_transparent=True
 # Use Cycles CPU to avoid requiring an EGL/OpenGL display on GitHub runners.
 scene.render.engine="CYCLES"
 scene.cycles.device="CPU"
-scene.cycles.samples=12
-scene.cycles.use_denoising=False
+scene.cycles.samples=28
+scene.cycles.use_denoising=True
 scene.render.image_settings.color_depth='8'
 scene.view_settings.view_transform='Standard'
 scene.view_settings.look='Medium High Contrast'
@@ -301,14 +365,14 @@ manifest={
 }
 for time_of_day in ("day","night"):
     night=time_of_day=="night"
-    sun_data.energy=.24 if night else 2.4
+    sun_data.energy=.16 if night else 1.7
     sun_data.color=(.65,.73,1) if night else (1,.91,.78)
     background.inputs["Color"].default_value=(.07,.10,.18,1) if night else (.60,.66,.74,1)
-    background.inputs["Strength"].default_value=.32 if night else .86
+    background.inputs["Strength"].default_value=.40 if night else .76
     for m in (window,warmglass):
         bsdf=m.node_tree.nodes.get("Principled BSDF")
         if "Emission Strength" in bsdf.inputs:
-            bsdf.inputs["Emission Strength"].default_value = .22 if m==window and night else (1.8 if night else .0)
+            bsdf.inputs["Emission Strength"].default_value = (.25 if night else .33) if m==window else (1.18 if night else .38)
     for label in ("facade_lower","facade_upper","roof","apartment","lobby","chair","table"):
         for layer_name,collection in COLLECTIONS.items():
             visible=layer_name==label
