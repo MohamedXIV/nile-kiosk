@@ -215,8 +215,11 @@ scene.render.resolution_percentage=100
 scene.render.image_settings.file_format='PNG'
 scene.render.image_settings.color_mode='RGBA'
 scene.render.film_transparent=True
-scene.render.engine="BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in \
-    [i.identifier for i in scene.render.bl_rna.properties["engine"].enum_items] else "BLENDER_EEVEE"
+# Use Cycles CPU to avoid requiring an EGL/OpenGL display on GitHub runners.
+scene.render.engine="CYCLES"
+scene.cycles.device="CPU"
+scene.cycles.samples=12
+scene.cycles.use_denoising=False
 scene.render.image_settings.color_depth='8'
 scene.view_settings.view_transform='Standard'
 scene.view_settings.look='Medium High Contrast'

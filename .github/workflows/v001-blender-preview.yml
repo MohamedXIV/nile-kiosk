@@ -25,7 +25,7 @@ jobs:
       - name: Install Blender and Pillow
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender python3-pil
+          sudo apt-get install -y --no-install-recommends blender python3-pil libegl1 libgl1
           blender --version | head -n 2
       - name: Bake day/night transparent sprites with fixed camera
         run: |
@@ -38,13 +38,23 @@ jobs:
           test -s assets/v001/manifest.json
           test "$(find assets/v001 -maxdepth 1 -name '*.png' | wc -l)" -eq 14
       - name: Validate exact projection, transparent layers, and compose previews
-        run: python3 tools/v001/validate_and_preview.py assets/v001 /tmp/v001-previews
+        run: python3 tools/v001/validate_and_preview.py assets/v001 assets/v001/previews
       - name: Install Godot 4.6.3
         uses: chickensoft-games/setup-godot@v2.4.1
         with:
           version: 4.6.3
           use-dotnet: false
           include-templates: false
+      - name: Install pinned dialogue autoloads from the main game
+        run: |
+          mkdir -p addons
+          git clone -q --depth 1 https://github.com/nathanhoad/godot_dialogue_manager.git /tmp/v001-dm
+          git -C /tmp/v001-dm fetch -q --depth 1 origin 5487c524b9eac303b059e5859e2980b134c59d79
+          git -C /tmp/v001-dm checkout -q 5487c524b9eac303b059e5859e2980b134c59d79
+          cp -R /tmp/v001-dm/addons/dialogue_manager addons/dialogue_manager
+          git clone -q --depth 1 --branch godot4 https://github.com/ephread/inkgd.git /tmp/v001-ink
+          git -C /tmp/v001-ink checkout -q fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
+          cp -R /tmp/v001-ink/addons/inkgd addons/inkgd
       - name: Import rendered sprites in Godot
         run: godot --headless --path . --import
       - name: Test sprite registration and scene switching
@@ -56,8 +66,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v001-blender-layers-and-previews
-          path: |
-            assets/v001/
-            /tmp/v001-previews/
+          path: assets/v001/
           if-no-files-found: warn
           retention-days: 14
