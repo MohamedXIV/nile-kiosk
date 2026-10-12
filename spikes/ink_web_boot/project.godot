@@ -12,3 +12,6 @@ window/size/viewport_height=360
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[autoload]
+__InkRuntime="*res://addons/inkgd/ink_runtime.gd"
