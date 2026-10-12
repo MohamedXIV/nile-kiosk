@@ -1,6 +1,6 @@
 # D001 P0 — implementation status
 
-**Branch:** `spike/d001-p0-shared-godot-harness`
+**Merged:** PR #5 → `main` (`eae37fc51e4beb6b05f4c416512355b755242083`)
 **Scope:** Shared mock sessions and deterministic headless acceptance; no third-party runtime yet.
 
 ## Included
@@ -21,4 +21,4 @@
 
 ## Acceptance evidence
 
-Pending actual CI execution. Do not mark P0 PASS until a pinned Godot build runs the tests.
+**P0 headless smoke PASS** on [GitHub Actions run #38307147917](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38307147917), Godot `4.6.3.stable.official`: import succeeded, 4/4 deterministic test groups passed, headless main scene startup succeeded. This does **not** constitute visual acceptance, save/load, Web export or addon comparison. Subsequent push-to-main CI should also be inspected independently.
