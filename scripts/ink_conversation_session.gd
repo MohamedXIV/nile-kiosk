@@ -27,6 +27,10 @@ func _init(id: String, ink_json_path: String) -> void:
     story_resource.set("json", json)
     player.ink_file = story_resource
     player.loaded.connect(_on_loaded)
+    # The scene root may be busy during _ready; register players on the next idle turn.
+    call_deferred("_attach_player")
+
+func _attach_player() -> void:
     (Engine.get_main_loop() as SceneTree).root.add_child(player)
     player.create_story()
 

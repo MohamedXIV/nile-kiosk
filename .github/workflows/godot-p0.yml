@@ -83,4 +83,9 @@ jobs:
       - name: Headless Dialogue Manager scene smoke
         run: godot --headless --path . res://scenes/dialogue_manager_spike.tscn --quit-after 10
       - name: Headless Ink scene smoke
-        run: godot --headless --path . res://scenes/ink_spike.tscn --quit-after 10
+        run: |
+          godot --headless --path . res://scenes/ink_spike.tscn --quit-after 10 2>&1 | tee /tmp/ink-scene.log
+          if grep -E '(SCRIPT ERROR:|Parent node is busy)' /tmp/ink-scene.log; then
+            echo "Godot scene emitted a runtime error even though process exited successfully"
+            exit 1
+          fi
