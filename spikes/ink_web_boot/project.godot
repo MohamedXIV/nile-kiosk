@@ -1,0 +1,14 @@
+; Isolated D001 P2 Ink runtime boot project; not the game engine decision.
+config_version=5
+
+[application]
+config/name="Nile Kiosk - Ink Web Boot"
+run/main_scene="res://scenes/ink_boot.tscn"
+
+[display]
+window/size/viewport_width=640
+window/size/viewport_height=360
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

@@ -1,0 +1,67 @@
+name: D001 Ink Web boot
+
+on:
+  pull_request:
+    paths:
+      - "spikes/ink_web_boot/**"
+      - ".github/workflows/ink-web-boot.yml"
+  push:
+    branches: [main]
+    paths:
+      - "spikes/ink_web_boot/**"
+      - ".github/workflows/ink-web-boot.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ink-boot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ink-web-boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned upstream inkgd (Godot 4 branch)
+        uses: actions/checkout@v4
+        with:
+          repository: ephread/inkgd
+          ref: fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
+          path: _upstream_inkgd
+          persist-credentials: false
+      - name: Install inkgd into isolated project
+        run: |
+          mkdir -p spikes/ink_web_boot/addons
+          cp -R _upstream_inkgd/addons/inkgd spikes/ink_web_boot/addons/inkgd
+          rm -rf _upstream_inkgd
+      - name: Install pinned Godot 4.6.3 and Web templates
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: true
+      - name: Import isolated Ink project
+        run: godot --headless --path spikes/ink_web_boot --import
+      - name: Native InkPlayer boot smoke
+        run: godot --headless --path spikes/ink_web_boot --script res://tests/test_native_boot.gd
+      - name: Export actual Web app
+        run: |
+          mkdir -p spikes/ink_web_boot/build/web
+          godot --headless --path spikes/ink_web_boot --export-release Web build/web/index.html
+      - name: Chromium Web runtime smoke
+        run: |
+          cd spikes/ink_web_boot
+          python3 -m http.server 8765 --directory build/web >/tmp/ink-web-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npm install --no-save --no-package-lock playwright-core@1.56.1
+          node tools/check_web.mjs http://127.0.0.1:8765
+      - name: Upload browser screenshot (on success or failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ink-web-boot-screenshot
+          path: /tmp/ink-web-boot.png
+          if-no-files-found: ignore
