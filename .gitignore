@@ -27,3 +27,8 @@ mono_crash.*.json
 # Pinned narrative addon installed from upstream by tool/CI
 /addons/dialogue_manager/
 /_upstream_dialogue_manager/
+
+# Isolated Ink experiment downloads and exports
+/spikes/ink_web_boot/addons/inkgd/
+/spikes/ink_web_boot/build/
+/spikes/ink_web_boot/node_modules/
