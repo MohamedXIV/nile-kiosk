@@ -1,6 +1,6 @@
 # D001 P2 — Ink/inkgd native integration
 
-**Status:** implementation submitted, awaiting main-project CI evidence (separate P2 Web boot gate already passed).
+**Status:** D001 P2 native adapter merged via [PR #11](https://github.com/MohamedXIV/nile-kiosk/pull/11). The isolated inkgd Chromium Web boot was verified separately in PR #10; full-session Web acceptance remains issue #8.
 
 - Uses Godot 4.6.3, inkgd pinned at `fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a` and compiler inklecate v1.2.1 (verified SHA256 in CI).
 - Source files `content/ink/*.ink` are compiled to JSON during CI via `tools/compile-ink.sh`. Generated JSON is intentionally ignored to avoid hand-editing compiler output.
@@ -16,4 +16,8 @@ Run `bash tools/install-dialogue-manager.sh` and `bash tools/install-inkgd.sh` a
 
 ## Evidence
 
-**Pending.** Verify compiler, test `D001 P2 Ink sessions`, P0/P1 regressions and actual scene boot on PR checks before merging.
+**Verified:** [GitHub Actions #38309510460](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38309510460) on Godot 4.6.3: P0 4/4 groups PASS; Dialogue Manager P1 3/3 groups PASS; real InkPlayer P2 3/3 groups PASS; project import and all three headless scene boots PASS. Compiler v1.2.1 download verified by SHA256.
+
+**Resolved during spike:** Ink authored content under knot `start` required explicit `choose_path("start")` after story load. The InkPlayer also needed deferred scene-tree attachment to avoid root busy errors during `_ready`.
+
+**Residual:** Dialogue Manager headless suite still logs 3 resources in use on quit. Earlier Godot headless export can log resource/RID leaks. These are tracked as shutdown diagnostics, not clean acceptance. Full dual-session Web export, save/load, Arabic and visual review remain untested.
