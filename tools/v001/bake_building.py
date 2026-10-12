@@ -283,7 +283,7 @@ scene.render.film_transparent=True
 scene.render.engine="CYCLES"
 scene.cycles.device="CPU"
 scene.cycles.samples=28
-scene.cycles.use_denoising=True
+scene.cycles.use_denoising=False  # Ubuntu 24.04 Blender 4.0 package lacks OpenImageDenoiser
 scene.render.image_settings.color_depth='8'
 scene.view_settings.view_transform='Standard'
 scene.view_settings.look='Medium High Contrast'
@@ -365,6 +365,8 @@ manifest={
 }
 for time_of_day in ("day","night"):
     night=time_of_day=="night"
+    # More unbiased samples at night; system Blender does not ship OIDN.
+    scene.cycles.samples=64 if night else 28
     sun_data.energy=.16 if night else 1.7
     sun_data.color=(.65,.73,1) if night else (1,.91,.78)
     background.inputs["Color"].default_value=(.07,.10,.18,1) if night else (.60,.66,.74,1)
