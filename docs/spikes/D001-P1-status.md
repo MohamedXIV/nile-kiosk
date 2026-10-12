@@ -1,6 +1,6 @@
 # D001 P1 — Dialogue Manager integration
 
-**Status:** integration branch; tests awaiting CI result.
+**Status:** P1 implementation merged into `main` via [PR #9](https://github.com/MohamedXIV/nile-kiosk/pull/9); headless integration tests passed.
 **Issue:** #6; parent #2.
 **Engine:** Godot 4.6.3 Standard/GDScript, Compatibility.
 **Addon:** Nathan Hoad Dialogue Manager **v3.10.4**, commit `5487c524b9eac303b059e5859e2980b134c59d79` (pinned and installed on CI).
@@ -23,4 +23,6 @@ After clone run `bash tools/install-dialogue-manager.sh` once to install the pin
 - Save/load and actual Web export are **not** part of the P1 claim; tracked in issue #8.
 - Arabic/RTL remain deferred. No full art, voice or advanced NPC AI.
 
-Record CI run IDs and any failures before treating this phase as verified.
+**Evidence:** [GitHub Actions run #38308027392](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38308027392) on Godot 4.6.3: P0 4/4 groups PASS, Dialogue Manager P1 3/3 groups PASS, project import and both headless scene startup smoke steps PASS. Original first P1 CI failed because the addon autoload was not registered in headless runtime; fixed explicitly in `project.godot` and retested successfully.
+
+**Residual:** the P1 test process logs `ObjectDB instances leaked at exit` and `3 resources still in use at exit` despite exit 0. Treat as cleanup investigation; not a claim of leak-free shutdown. No Web export / save/load pass claimed.
