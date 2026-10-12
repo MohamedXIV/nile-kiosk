@@ -64,7 +64,6 @@ func _test_player_choice_and_independence() -> void:
         world.advance_async(0.25)
         if world.sessions["football"].phase == "choice":
             break
-    print("INK_DEBUG_A ", JSON.stringify(world.events), " current_choices=", world.sessions["football"].player.current_choices.size(), " can_continue=", world.sessions["football"].player.can_continue)
     _check(world.sessions["football"].phase == "choice", "Ink did not expose gated choice")
     var waiting_lines: int = world.sessions["football"].line_count
     var rumor_lines: int = world.sessions["rumor"].line_count
@@ -91,7 +90,6 @@ func _test_rumor_and_cooking() -> void:
     await _await_ready(world)
     world.player_position = Core.TABLE_B
     _advance(world, 40)
-    print("INK_DEBUG_B ", JSON.stringify(world.events))
     _check(world.game_state.has_fact("hassan_shop_rumor"), "Ink rumor fact did not reach GameState")
     var fact_count := 0
     for item in world.events:

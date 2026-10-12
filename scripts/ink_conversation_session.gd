@@ -31,6 +31,9 @@ func _init(id: String, ink_json_path: String) -> void:
     player.create_story()
 
 func _on_loaded(success: bool) -> void:
+    if success:
+        # InkPlayer starts at the story root; our authored content lives in the start knot.
+        player.choose_path("start")
     ready = success
     load_failed = not success
 
