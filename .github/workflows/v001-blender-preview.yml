@@ -28,7 +28,15 @@ jobs:
           sudo apt-get install -y --no-install-recommends blender python3-pil
           blender --version | head -n 2
       - name: Bake day/night transparent sprites with fixed camera
-        run: blender -b -t 2 --python tools/v001/bake_building.py -- --output assets/v001
+        run: |
+          set -o pipefail
+          blender -b -t 2 --python tools/v001/bake_building.py -- --output assets/v001 2>&1 | tee /tmp/v001-bake.log
+          if grep -E 'Traceback|ZeroDivisionError|RuntimeError' /tmp/v001-bake.log; then
+            echo "Blender emitted a Python error, even if exit code is zero"
+            exit 1
+          fi
+          test -s assets/v001/manifest.json
+          test "$(find assets/v001 -maxdepth 1 -name '*.png' | wc -l)" -eq 14
       - name: Validate exact projection, transparent layers, and compose previews
         run: python3 tools/v001/validate_and_preview.py assets/v001 /tmp/v001-previews
       - name: Install Godot 4.6.3

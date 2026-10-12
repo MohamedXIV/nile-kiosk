@@ -233,6 +233,7 @@ def place_camera(target):
     vertical=distance*math.sin(pitch)
     cam.location=target+Vector((horizontal/math.sqrt(2),horizontal/math.sqrt(2),vertical))
     cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
+    bpy.context.view_layer.update()  # synchronize camera matrix before world_to_camera_view()
 
 def sample(coord):
     p=world_to_camera_view(scene,cam,Vector(coord))
