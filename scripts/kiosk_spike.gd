@@ -5,7 +5,14 @@ const Orchestrator = preload("res://scripts/conversation_orchestrator.gd")
 const STEP: float = 0.25
 const WALK_SPEED: float = 180.0
 
-var model := Orchestrator.new()
+@export var use_dialogue_manager: bool = false
+
+var model = Orchestrator.new()
+var _dm_tick_active: bool = false
+
+func _ready() -> void:
+    if use_dialogue_manager:
+        model = load("res://scripts/dm_conversation_orchestrator.gd").new()
 var accumulator: float = 0.0
 var event_cursor: int = 0
 var latest_football: String = ""
@@ -25,9 +32,16 @@ func _process(delta: float) -> void:
     model.player_position.y = clampf(model.player_position.y, 93.0, 430.0)
 
     accumulator += minf(delta, 0.5)
-    while accumulator >= STEP:
-        model.advance(STEP)
-        accumulator -= STEP
+    if model.has_method("advance_async"):
+        if not _dm_tick_active and accumulator >= STEP:
+            _dm_tick_active = true
+            accumulator -= STEP
+            await model.advance_async(STEP)
+            _dm_tick_active = false
+    else:
+        while accumulator >= STEP:
+            model.advance(STEP)
+            accumulator -= STEP
 
     while event_cursor < model.events.size():
         var event: Dictionary = model.events[event_cursor]

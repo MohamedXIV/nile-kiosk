@@ -30,6 +30,18 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch pinned upstream Dialogue Manager 3.10.4
+        uses: actions/checkout@v4
+        with:
+          repository: nathanhoad/godot_dialogue_manager
+          ref: 5487c524b9eac303b059e5859e2980b134c59d79
+          path: _upstream_dialogue_manager
+          persist-credentials: false
+      - name: Install Dialogue Manager addon
+        run: |
+          mkdir -p addons
+          cp -R _upstream_dialogue_manager/addons/dialogue_manager addons/dialogue_manager
+          rm -rf _upstream_dialogue_manager
       - name: Install pinned Godot standard
         uses: chickensoft-games/setup-godot@v2.4.1
         with:
@@ -40,5 +52,9 @@ jobs:
         run: godot --headless --path . --import
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
+      - name: Run Dialogue Manager P1 integration tests
+        run: godot --headless --path . --script res://tests/test_dm_p1.gd
       - name: Headless scene startup smoke
         run: godot --headless --path . --quit-after 10
+      - name: Headless Dialogue Manager scene smoke
+        run: godot --headless --path . res://scenes/dialogue_manager_spike.tscn --quit-after 10
