@@ -1,0 +1,44 @@
+name: Godot P0 smoke
+
+on:
+  pull_request:
+    paths:
+      - project.godot
+      - "scenes/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/godot-p0.yml"
+  push:
+    branches: [main]
+    paths:
+      - project.godot
+      - "scenes/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/godot-p0.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-p0-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot standard
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: false
+      - name: Import project
+        run: godot --headless --path . --import
+      - name: Run deterministic P0 tests
+        run: godot --headless --path . --script res://tests/test_p0.gd
+      - name: Headless scene startup smoke
+        run: godot --headless --path . --quit-after 10
