@@ -16,6 +16,8 @@ func _ready() -> void:
             var path: String = BAKED + layer_key + "_" + time_key + ".png"
             if ResourceLoader.exists(path):
                 _baked_cache[layer_key + "_" + time_key] = load(path)
+    if _has_baked_art():
+        print("V001_BAKED_READY")
 
 func _has_baked_art() -> bool:
     var suffix: String = "_night" if model.night else "_day"
@@ -88,6 +90,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_G:
             if model.move_furniture(selected_item, model.player_local + Vector2(24.0, -12.0)):
                 notice = "Moved %s" % selected_item
+                print("V001_FURNITURE_MOVED: %s" % selected_item)
             else:
                 notice = "No free space for %s" % selected_item
         KEY_N:
@@ -96,6 +99,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
             notice = "Saved" if model.save_to_file("user://v001-cutaway.json") else "Save failed"
         KEY_F7:
             notice = "Restored" if model.load_from_file("user://v001-cutaway.json") else "No valid save"
+    print("V001_MODE: %s | night: %s" % [model.mode, str(model.night)])
     queue_redraw()
 
 func _draw() -> void:

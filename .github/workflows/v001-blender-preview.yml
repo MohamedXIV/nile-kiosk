@@ -44,7 +44,7 @@ jobs:
         with:
           version: 4.6.3
           use-dotnet: false
-          include-templates: false
+          include-templates: true
       - name: Install pinned dialogue autoloads from the main game
         run: |
           mkdir -p addons
@@ -73,6 +73,20 @@ jobs:
           grep -q 'V001 P1 ART REGISTRATION PASS' /tmp/v001-art-test.log || {
             echo "V001 art acceptance marker missing, even if Godot exits zero"; exit 1;
           }
+      - name: Export V001 scene to browser
+        run: |
+          mkdir -p build/v001-web
+          cp project.godot /tmp/v001-original-project.godot
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/building_cutaway_spike.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/v001-web/index.html
+          cp /tmp/v001-original-project.godot project.godot
+      - name: Real Chromium walk-through and screenshots
+        run: |
+          python3 -m http.server 8767 --directory build/v001-web >/tmp/v001-web-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npm install --no-save --no-package-lock playwright-core@1.56.1
+          node tools/v001/check_web.mjs http://127.0.0.1:8767 assets/v001/web-previews
       - name: Restore editable Blender file for artifact
         if: always()
         run: |
