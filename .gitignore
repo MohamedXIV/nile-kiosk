@@ -32,3 +32,7 @@ mono_crash.*.json
 /spikes/ink_web_boot/addons/inkgd/
 /spikes/ink_web_boot/build/
 /spikes/ink_web_boot/node_modules/
+
+# Second pinned narrative candidate
+/addons/inkgd/
+/content/ink/*.ink.json

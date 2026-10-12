@@ -42,6 +42,28 @@ jobs:
           mkdir -p addons
           cp -R _upstream_dialogue_manager/addons/dialogue_manager addons/dialogue_manager
           rm -rf _upstream_dialogue_manager
+      - name: Fetch pinned inkgd Godot 4 runtime
+        uses: actions/checkout@v4
+        with:
+          repository: ephread/inkgd
+          ref: fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
+          path: _upstream_inkgd
+          persist-credentials: false
+      - name: Install inkgd addon
+        run: |
+          mkdir -p addons
+          cp -R _upstream_inkgd/addons/inkgd addons/inkgd
+          rm -rf _upstream_inkgd
+      - name: Install and verify pinned Ink compiler
+        run: |
+          curl -fL --retry 3 --output /tmp/inklecate_linux.zip https://github.com/inkle/ink/releases/download/v1.2.1/inklecate_linux.zip
+          echo "1997ff5bca618c90003ecd5fecb286e7468abb955005a2a185042949642f8fb5  /tmp/inklecate_linux.zip" | sha256sum --check
+          mkdir -p /tmp/inklecate
+          unzip -q /tmp/inklecate_linux.zip -d /tmp/inklecate
+          INKLECATE="$(find /tmp/inklecate -type f -name inklecate | head -n 1)"
+          test -n "$INKLECATE"
+          chmod +x "$INKLECATE"
+          INKLECATE="$INKLECATE" bash tools/compile-ink.sh
       - name: Install pinned Godot standard
         uses: chickensoft-games/setup-godot@v2.4.1
         with:
@@ -54,7 +76,11 @@ jobs:
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
         run: godot --headless --path . --script res://tests/test_dm_p1.gd
+      - name: Run real Ink P2 two-session tests
+        run: godot --headless --path . --script res://tests/test_ink_p2.gd
       - name: Headless scene startup smoke
         run: godot --headless --path . --quit-after 10
       - name: Headless Dialogue Manager scene smoke
         run: godot --headless --path . res://scenes/dialogue_manager_spike.tscn --quit-after 10
+      - name: Headless Ink scene smoke
+        run: godot --headless --path . res://scenes/ink_spike.tscn --quit-after 10
