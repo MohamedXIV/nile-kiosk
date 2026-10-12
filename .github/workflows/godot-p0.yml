@@ -78,6 +78,8 @@ jobs:
         run: godot --headless --path . --script res://tests/test_dm_p1.gd
       - name: Run real Ink P2 two-session tests
         run: godot --headless --path . --script res://tests/test_ink_p2.gd
+      - name: Run D001 P3 dual-engine save/load acceptance
+        run: godot --headless --path . --script res://tests/test_save_roundtrip.gd
       - name: Headless scene startup smoke
         run: godot --headless --path . --quit-after 10
       - name: Headless Dialogue Manager scene smoke

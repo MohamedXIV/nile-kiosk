@@ -15,6 +15,8 @@ var quiet_response: Variant = null
 func _init(id: String, resource_path: String) -> void:
     session_id = id
     resource = load(resource_path)
+    if session_id == "rumor":
+        delay_remaining = 1.0
     assert(resource != null, "Missing imported Dialogue Manager resource: " + resource_path)
 
 func tick(delta: float, can_interject: bool) -> Array[Dictionary]:
@@ -91,3 +93,28 @@ func _take_quiet_branch() -> void:
     quiet_response = null
     phase = "running"
     delay_remaining = 0.5
+
+## Persist the *logical* cursor and pending response destinations, never plugin objects.
+func snapshot() -> Dictionary:
+    return {
+        "session_id": session_id,
+        "next_id": next_id,
+        "phase": phase,
+        "delay_remaining": delay_remaining,
+        "choice_remaining": choice_remaining,
+        "choice_next_id": choice_response.next_id if choice_response != null else "",
+        "quiet_next_id": quiet_response.next_id if quiet_response != null else ""
+    }
+
+func restore(data: Dictionary) -> void:
+    assert(data.get("session_id", "") == session_id, "Dialogue Manager session identity mismatch")
+    next_id = str(data.get("next_id", "start"))
+    phase = str(data.get("phase", "running"))
+    delay_remaining = float(data.get("delay_remaining", 0.5))
+    choice_remaining = float(data.get("choice_remaining", 0.0))
+    pending_responses.clear()
+    var choice_target: String = str(data.get("choice_next_id", ""))
+    var quiet_target: String = str(data.get("quiet_next_id", ""))
+    choice_response = {"next_id": choice_target} if not choice_target.is_empty() else null
+    quiet_response = {"next_id": quiet_target} if not quiet_target.is_empty() else null
+    assert(phase != "choice" or (choice_response != null and quiet_response != null), "Pending choice missing its branch targets")

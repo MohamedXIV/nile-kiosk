@@ -27,6 +27,8 @@ func _init(id: String, ink_json_path: String) -> void:
     story_resource.set("json", json)
     player.ink_file = story_resource
     player.loaded.connect(_on_loaded)
+    if session_id == "rumor":
+        delay_remaining = 1.0
     # The scene root may be busy during _ready; register players on the next idle turn.
     call_deferred("_attach_player")
 
@@ -118,3 +120,29 @@ func _take_quiet_choice() -> void:
 func dispose() -> void:
     if is_instance_valid(player):
         player.queue_free()
+
+## Save real Ink's native story state (including choices and visit history).
+func snapshot() -> Dictionary:
+    assert(ready, "Cannot serialize Ink before story load")
+    return {
+        "session_id": session_id,
+        "ink_state": player.get_state(),
+        "phase": phase,
+        "delay_remaining": delay_remaining,
+        "choice_remaining": choice_remaining,
+        "offered_choice": offered_choice,
+        "quiet_choice": quiet_choice,
+        "line_count": line_count
+    }
+
+func restore(data: Dictionary) -> void:
+    assert(ready, "Cannot restore Ink before story load")
+    assert(data.get("session_id", "") == session_id, "Ink session identity mismatch")
+    player.set_state(str(data.get("ink_state", "")))
+    phase = str(data.get("phase", "running"))
+    delay_remaining = float(data.get("delay_remaining", 0.5))
+    choice_remaining = float(data.get("choice_remaining", 0.0))
+    offered_choice = int(data.get("offered_choice", -1))
+    quiet_choice = int(data.get("quiet_choice", -1))
+    line_count = int(data.get("line_count", 0))
+    assert(phase != "choice" or (offered_choice >= 0 and quiet_choice >= 0), "Ink pending choice indices missing")
