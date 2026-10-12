@@ -5,6 +5,57 @@ const Building = preload("res://scripts/v001/building_model.gd")
 var model := Building.new()
 var selected_item: String = "chair"
 var notice: String = "E: enter building"
+const BAKED := "res://assets/v001/"
+const SPRITE_LAYERS := ["facade_lower", "facade_upper", "roof", "apartment", "lobby", "chair", "table"]
+var _baked_cache: Dictionary = {}
+
+func _ready() -> void:
+    # Without baked PNGs this stays a fully playable P0 fallback.
+    for time_key in ["day", "night"]:
+        for layer_key in SPRITE_LAYERS:
+            var path: String = BAKED + layer_key + "_" + time_key + ".png"
+            if ResourceLoader.exists(path):
+                _baked_cache[layer_key + "_" + time_key] = load(path)
+
+func _has_baked_art() -> bool:
+    var suffix: String = "_night" if model.night else "_day"
+    for key in SPRITE_LAYERS:
+        if not _baked_cache.has(key + suffix):
+            return false
+    return true
+
+func _baked_layer(key: String, offset: Vector2 = Vector2.ZERO) -> void:
+    var suffix: String = "_night" if model.night else "_day"
+    var image: Texture2D = _baked_cache.get(key + suffix)
+    if image != null:
+        draw_texture(image, offset)
+
+func _draw_baked_building() -> void:
+    _baked_layer("facade_lower")
+    if model.mode == "street":
+        _baked_layer("facade_upper")
+        _baked_layer("roof")
+    elif model.mode == "lobby":
+        _baked_layer("lobby")
+        _actor(Building.project(model.player_local, 1))
+    elif model.mode == "apartment":
+        _baked_layer("apartment")
+        var level: int = Building.PLAYER_FLOOR
+        var objects: Array[String] = ["chair", "table"]
+        objects.sort_custom(func(a: String, b: String) -> bool:
+            return Building.project(model.furniture[a], level).y < Building.project(model.furniture[b], level).y)
+        var player_y: float = Building.project(model.player_local, level).y
+        var drawn: bool = false
+        for id in objects:
+            var pos: Vector2 = Building.project(model.furniture[id], level)
+            if not drawn and player_y < pos.y:
+                _actor(Building.project(model.player_local, level))
+                drawn = true
+            var original_pos: Vector2 = Vector2(45.0, 68.0) if id == "chair" else Vector2(129.0, 84.0)
+            _baked_layer(id, pos - Building.project(original_pos, level))
+        if not drawn:
+            _actor(Building.project(model.player_local, level))
+
 
 func _process(delta: float) -> void:
     var direction: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
@@ -50,7 +101,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _draw() -> void:
     draw_rect(Rect2(0, 0, 960, 540), Color("#243d4a") if model.night else Color("#9cc3bc"))
     _street()
-    if model.mode == "street":
+    if _has_baked_art():
+        _draw_baked_building()
+    elif model.mode == "street":
         _building_facade(Building.FLOOR_COUNT)
         _roof()
     elif model.mode == "lobby":
@@ -59,16 +112,16 @@ func _draw() -> void:
         _lobby_details()
     else:
         _building_facade(Building.PLAYER_FLOOR - 1)
-        _room_floor(Building.PLAYER_FLOOR + 1, false)
+        _room_floor(Building.PLAYER_FLOOR, false)
         _apartment_details()
 
     var layers: Dictionary = model.visible_layers()
-    _txt(Vector2(18, 26), "NILE KIOSK — V001 P0 BUILDING CUTAWAY", 20)
+    _txt(Vector2(18, 26), "NILE KIOSK — V001 BUILDING CUTAWAY", 20)
     _txt(Vector2(18, 52), "View: %s | Logical floor: %d | roof: %s | upper facade: %s" %
         [model.mode, model.floor_id, str(layers.roof), str(layers.upper_facade)], 14)
     _txt(Vector2(18, 80), "E enter / stairs   Backspace return   WASD move   1 chair / 2 table   G move", 13)
     _txt(Vector2(18, 103), "N day-night   F6 save   F7 load   |  %s" % notice, 13)
-    _txt(Vector2(18, 523), "Placeholder shapes. V001 requires real Blender-authored layers and readability review.", 12)
+    _txt(Vector2(18, 523), "Blender baked layers (art review pending)" if _has_baked_art() else "P0 fallback — bake Blender assets to preview P1", 12)
 
 func _street() -> void:
     draw_rect(Rect2(0, 411, 960, 129), Color("#3d4544") if model.night else Color("#6c7772"))
@@ -138,7 +191,7 @@ func _lobby_details() -> void:
     _actor(Building.project(model.player_local, 1))
 
 func _apartment_details() -> void:
-    var level: int = Building.PLAYER_FLOOR + 1
+    var level: int = Building.PLAYER_FLOOR
     _prop(Building.project(Vector2(40, 30), level), Color("#8c7661"), "bed")
     var items: Array[String] = ["chair", "table"]
     items.sort_custom(func(a: String, b: String) -> bool:
