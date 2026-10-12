@@ -76,6 +76,9 @@ tile = material("roof tile slab", "#908a7c")
 cream = material("room fan / CRT light", "#e2d2b0")
 
 def box(name, category, center, size, mat):
+    # Swap authored logical X/Y into the camera's physical right-handed world axes.
+    center=(center[1], center[0], center[2])
+    size=(size[1], size[0], size[2])
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=center)
     obj = bpy.context.object
     obj.name = name
@@ -88,6 +91,7 @@ def box(name, category, center, size, mat):
     return obj
 
 def cylinder(name, category, center, radius, depth, mat, verts=20):
+    center=(center[1], center[0], center[2])
     bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=radius, depth=depth, location=center)
     obj = bpy.context.object
     obj.name = name
@@ -99,7 +103,8 @@ def cylinder(name, category, center, radius, depth, mat, verts=20):
 
 def rail(name, category, a, b, radius, mat):
     pa, pb = Vector(a), Vector(b)
-    direction = pb-pa
+    logical_direction = pb-pa
+    direction = Vector((logical_direction.y, logical_direction.x, logical_direction.z))
     obj = cylinder(name, category, (pa+pb)*0.5, radius, direction.length, mat, 10)
     obj.rotation_euler = direction.to_track_quat('Z','Y').to_euler()
     return obj
@@ -241,18 +246,18 @@ def sample(coord):
 
 place_camera((0,0,0))
 origin=sample((0,0,0))
-x_1=sample((1,0,0))
-y_1=sample((0,1,0))
+x_1=sample((0,1,0))  # logical X is Blender world Y
+y_1=sample((1,0,0))  # logical Y is Blender world X
 z_1=sample((0,0,1))
 dx,dy,dz=[(v[0]-origin[0],v[1]-origin[1]) for v in (x_1,y_1,z_1)]
 # Move camera target to register world (0,0,0) exactly with Godot ORIGIN.
 # The x-axis target offset uses opposing X/Y positions; Z raises projected ground.
-a=-(490-origin[0])/(dx[0]-dy[0])
+a=(490-origin[0])/(dx[0]-dy[0])
 c=-(390-origin[1])/dz[1]
 place_camera((a,-a,c))
 finalorigin=sample((0,0,0))
-finalx=sample((1,0,0))
-finaly=sample((0,1,0))
+finalx=sample((0,1,0))
+finaly=sample((1,0,0))
 finalz=sample((0,0,FLOOR_H))
 actual={"origin":list(finalorigin),
         "axis_x":list(Vector(finalx)-Vector(finalorigin)),
