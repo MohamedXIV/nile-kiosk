@@ -77,6 +77,9 @@ func _check_engine(engine_id: String, Factory) -> void:
         return
     _check(Codec.restore(restored, disk, engine_id), engine_id + " refused valid disk save")
     _check(restored.sessions["football"].phase == "choice", engine_id + " lost pending choice")
+    if JSON.stringify(restored.events) != JSON.stringify(original.events):
+        print(engine_id, " LOAD_TRACE_ORIGINAL: ", JSON.stringify(original.events))
+        print(engine_id, " LOAD_TRACE_RESTORED: ", JSON.stringify(restored.events))
     _check(JSON.stringify(restored.events) == JSON.stringify(original.events), engine_id + " lost past event log")
     _check(restored.game_state.has_fact("knows_match"), engine_id + " lost player match knowledge")
     _check(restored.tick_number == original.tick_number, engine_id + " lost world clock")

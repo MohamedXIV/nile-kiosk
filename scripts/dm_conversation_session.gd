@@ -15,6 +15,8 @@ var quiet_response: Variant = null
 func _init(id: String, resource_path: String) -> void:
     session_id = id
     resource = load(resource_path)
+    if session_id == "rumor":
+        delay_remaining = 1.0
     assert(resource != null, "Missing imported Dialogue Manager resource: " + resource_path)
 
 func tick(delta: float, can_interject: bool) -> Array[Dictionary]:

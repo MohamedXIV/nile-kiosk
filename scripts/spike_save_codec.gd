@@ -40,7 +40,12 @@ static func restore(model, data: Dictionary, engine_id: String) -> bool:
     model.game_state.applied_effects = (data.applied_effects as Dictionary).duplicate(true)
     model.world.events.clear()
     for entry in data.get("events", []):
-        model.world.events.append(entry)
+        var event: Dictionary = (entry as Dictionary).duplicate(true)
+        # JSON.parse_string can decode numeric tokens as floats; event IDs/ticks are integer world truth.
+        event["tick"] = int(event.get("tick", 0))
+        if event.has("step"):
+            event["step"] = int(event["step"])
+        model.world.events.append(event)
     for id in ["football", "rumor"]:
         model.sessions[id].restore(data.sessions[id])
     return true
