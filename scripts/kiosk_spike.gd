@@ -10,6 +10,7 @@ const WALK_SPEED: float = 180.0
 
 var model = Orchestrator.new()
 var _dm_tick_active: bool = false
+var _full_web_probe_reported: bool = false
 
 func _ready() -> void:
     if use_ink:
@@ -60,7 +61,29 @@ func _process(delta: float) -> void:
             last_notice = "Tea served!"
         elif event.get("kind") == "choice_expired":
             last_notice = "Conversation continues without you."
+    _report_full_web_probe_when_ready()
     queue_redraw()
+
+func _report_full_web_probe_when_ready() -> void:
+    if _full_web_probe_reported or not (use_ink or use_dialogue_manager):
+        return
+    if model.sessions["football"].phase != "finished" or model.sessions["rumor"].phase != "finished":
+        return
+    var football_lines: int = 0
+    var rumor_lines: int = 0
+    var tea_served: bool = false
+    for event in model.events:
+        if event.get("kind") == "line":
+            if event.get("session") == "football":
+                football_lines += 1
+            elif event.get("session") == "rumor":
+                rumor_lines += 1
+        elif event.get("kind") == "tea_served":
+            tea_served = true
+    if football_lines >= 2 and rumor_lines >= 2 and tea_served:
+        _full_web_probe_reported = true
+        var engine_name: String = "INK" if use_ink else "DM"
+        print("D001_FULL_WEB_%s_PASS" % engine_name)
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and not event.echo:

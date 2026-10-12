@@ -1,0 +1,97 @@
+name: D001 full dialogue Web smoke
+
+on:
+  pull_request:
+    paths:
+      - "content/ink/**"
+      - "content/dialogue_manager/**"
+      - "scripts/**"
+      - "scenes/**"
+      - "export_presets.cfg"
+      - "tools/web-dialogue-smoke.mjs"
+      - ".github/workflows/dialogue-full-web.yml"
+  push:
+    branches: [main]
+    paths:
+      - "content/ink/**"
+      - "content/dialogue_manager/**"
+      - "scripts/**"
+      - "scenes/**"
+      - "export_presets.cfg"
+      - "tools/web-dialogue-smoke.mjs"
+      - ".github/workflows/dialogue-full-web.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d001-full-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Dialogue Manager
+        uses: actions/checkout@v4
+        with:
+          repository: nathanhoad/godot_dialogue_manager
+          ref: 5487c524b9eac303b059e5859e2980b134c59d79
+          path: _upstream_dialogue_manager
+          persist-credentials: false
+      - name: Fetch pinned inkgd
+        uses: actions/checkout@v4
+        with:
+          repository: ephread/inkgd
+          ref: fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
+          path: _upstream_inkgd
+          persist-credentials: false
+      - name: Install addons
+        run: |
+          mkdir -p addons
+          cp -R _upstream_dialogue_manager/addons/dialogue_manager addons/dialogue_manager
+          cp -R _upstream_inkgd/addons/inkgd addons/inkgd
+          rm -rf _upstream_dialogue_manager _upstream_inkgd
+      - name: Compile authored Ink with pinned inklecate
+        run: |
+          curl -fL --retry 3 --output /tmp/inklecate_linux.zip https://github.com/inkle/ink/releases/download/v1.2.1/inklecate_linux.zip
+          echo "1997ff5bca618c90003ecd5fecb286e7468abb955005a2a185042949642f8fb5  /tmp/inklecate_linux.zip" | sha256sum --check
+          mkdir -p /tmp/inklecate
+          unzip -q /tmp/inklecate_linux.zip -d /tmp/inklecate
+          INKLECATE="$(find /tmp/inklecate -type f -name inklecate | head -n 1)"
+          chmod +x "$INKLECATE"
+          INKLECATE="$INKLECATE" bash tools/compile-ink.sh
+      - name: Install Godot 4.6.3 and Web templates
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: true
+      - name: Import project resources
+        run: godot --headless --path . --import
+      - name: Export both narrative candidates
+        run: |
+          mkdir -p build/dialogue-web/dm build/dialogue-web/ink
+          cp project.godot /tmp/nile-project.godot
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/dialogue_manager_spike.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/dialogue-web/dm/index.html
+          cp /tmp/nile-project.godot project.godot
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_spike.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/dialogue-web/ink/index.html
+          cp /tmp/nile-project.godot project.godot
+      - name: Chromium acceptance — both engines
+        run: |
+          python3 -m http.server 8765 --directory build/dialogue-web >/tmp/d001-dialogue-web-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npm install --no-save --no-package-lock playwright-core@1.56.1
+          node tools/web-dialogue-smoke.mjs http://127.0.0.1:8765
+      - name: Attach browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d001-full-web-screenshots
+          path: /tmp/d001-full-web-*.png
+          if-no-files-found: ignore
