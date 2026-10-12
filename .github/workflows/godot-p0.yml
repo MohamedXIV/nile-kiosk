@@ -80,6 +80,14 @@ jobs:
         run: godot --headless --path . --script res://tests/test_ink_p2.gd
       - name: Run D001 P3 dual-engine save/load acceptance
         run: godot --headless --path . --script res://tests/test_save_roundtrip.gd
+      - name: Run V001 P0 logical floor, cutaway and furniture tests
+        run: godot --headless --path . --script res://tests/test_v001_p0.gd
+      - name: Headless V001 building cutaway scene smoke
+        run: |
+          godot --headless --path . res://scenes/building_cutaway_spike.tscn --quit-after 10 2>&1 | tee /tmp/v001-scene.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|Invalid call)' /tmp/v001-scene.log; then
+            exit 1
+          fi
       - name: Headless scene startup smoke
         run: godot --headless --path . --quit-after 10
       - name: Headless Dialogue Manager scene smoke
