@@ -36,3 +36,6 @@ mono_crash.*.json
 # Second pinned narrative candidate
 /addons/inkgd/
 /content/ink/*.ink.json
+
+# Browser-export artifacts
+/build/
