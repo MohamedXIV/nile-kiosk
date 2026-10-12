@@ -17,7 +17,7 @@
 | Renderer | Godot Compatibility, Web export | Trial only |
 | Visual pipeline | Blender / 3D-authored → baked 2D with independent sprites | Trial only |
 | World layout | Fixed 3/4 oblique/dimetric view; logical per-floor spaces | Trial only |
-| Dialogue | Dialogue Manager vs Ink/inkgd | Comparative spike D001 |
+| Dialogue | **Ink + inkgd** (authored primary), Dialogue Manager retained as tested fallback | D001 accepted in small-scope proof; scale/performance not proven |
 | State | Canonical GameState outside dialogue engine | Architectural requirement |
 | CI | GitHub Actions for lean meaningful checks, public repo | Add when runnable project exists |
 
@@ -36,3 +36,11 @@
 - **D001:** Dialogue Manager vs Ink/inkgd must each undergo same two-conversation, state, save/load, gameplay-continuity and web tests.
 - **V001:** Godot 2D presentation must prove building cutaway, room traversability, independently moveable props, persistent changes and acceptable visual readability.
 - Reevaluate Phaser / Babylon / 3D-runtime only with direct evidence from the spikes. Don't convert provisional choices into permanent architecture via documentation alone.
+
+## D001 decision (2026-10-12)
+
+**Choose Ink + inkgd as the authoring/runtime baseline for the next game slice**, with Dialogue Manager kept in the repository as a working comparison/fallback until we establish a production-quality workflow.
+
+Both real alternatives passed native independent concurrent conversations, conditional authored interjection, canonical fact effects, deterministic save/resume mid-choice, and separate full-kiosk Chromium Web smokes. There is no measured runtime performance advantage established for either. Ink wins **as a design/workflow tradeoff**: compositional authored narrative (short branches with rapid reconvergence), plain text scripts, and portability if the game later leaves Godot. It costs a compiler build step, requires a Git-pinned Godot-4 branch of inkgd, and has a more involved integration than Dialogue Manager. These are explicit costs, not ignored.
+
+Decision evidence: [D001 comparison report](spikes/D001-DECISION.md). Next visual/engine trial (V001) remains required before we commit to Godot as the final game engine.
