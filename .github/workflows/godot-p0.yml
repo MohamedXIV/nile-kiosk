@@ -123,7 +123,7 @@ jobs:
       - name: Run SYS P7 production whole-world integration, real Ink and disk reload acceptance
         run: |
           set -o pipefail
-          godot --headless --path . --script res://tests/test_sys_p7.gd 2>&1 | tee /tmp/sys-p7.log
+          timeout 90s godot --headless --path . --script res://tests/test_sys_p7.gd 2>&1 | tee /tmp/sys-p7.log
           grep -q 'SYS P7: PASS' /tmp/sys-p7.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P7: FAIL)' /tmp/sys-p7.log; then exit 1; fi
       - name: Run deterministic P0 tests
