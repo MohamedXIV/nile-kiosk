@@ -108,6 +108,18 @@ jobs:
           godot --headless --path . --script res://tests/test_sys_p5.gd 2>&1 | tee /tmp/sys-p5.log
           grep -q 'SYS P5: PASS' /tmp/sys-p5.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P5: FAIL)' /tmp/sys-p5.log; then exit 1; fi
+      - name: Run SYS P6 narrative domain hearing and replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_sys_p6_domain.gd 2>&1 | tee /tmp/sys-p6-domain.log
+          grep -q 'SYS P6 domain PASS' /tmp/sys-p6-domain.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P6 domain FAIL)' /tmp/sys-p6-domain.log; then exit 1; fi
+      - name: Run SYS P6 real Ink narrative, independent sessions and mid-choice disk restore
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_sys_p6_ink.gd 2>&1 | tee /tmp/sys-p6-ink.log
+          grep -q 'SYS P6 Ink PASS' /tmp/sys-p6-ink.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P6 Ink FAIL)' /tmp/sys-p6-ink.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests

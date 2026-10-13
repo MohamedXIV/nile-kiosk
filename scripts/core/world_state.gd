@@ -1,5 +1,5 @@
 extends RefCounted
-## SYS P0–P5 canonical event reducer. No scene or dialogue runtime owns time.
+## SYS P0–P6 canonical event reducer. No scene or dialogue runtime owns time.
 const Clock = preload("res://scripts/core/world_clock.gd")
 const Scheduler = preload("res://scripts/core/world_scheduler.gd")
 const NpcWorld = preload("res://scripts/core/npc_world.gd")
@@ -7,7 +7,8 @@ const CookingWorld = preload("res://scripts/core/cooking_world.gd")
 const OrderWorld = preload("res://scripts/core/order_world.gd")
 const EconomyWorld = preload("res://scripts/core/economy_world.gd")
 const HousingWorld = preload("res://scripts/core/housing_world.gd")
-const VERSION: int = 6
+const NarrativeWorld = preload("res://scripts/core/narrative_world.gd")
+const VERSION: int = 7
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -22,6 +23,7 @@ var cooking: RefCounted = CookingWorld.new()
 var service: RefCounted = OrderWorld.new()
 var economy: RefCounted = EconomyWorld.new()
 var housing: RefCounted = HousingWorld.new()
+var narrative: RefCounted = NarrativeWorld.new()
 var facts: Dictionary = {}
 var receipts: Dictionary = {}
 var events: Array[Dictionary] = []
@@ -123,6 +125,8 @@ static func _exact_keys(value: Dictionary, expected: Array) -> bool:
     return true
 
 static func _event_kind(command_kind: String) -> String:
+    if NarrativeWorld.owns(command_kind):
+        return NarrativeWorld.event_kind(command_kind)
     if EconomyWorld.owns(command_kind):
         return EconomyWorld.event_kind(command_kind)
     if HousingWorld.owns(command_kind):
@@ -146,6 +150,8 @@ static func _event_kind(command_kind: String) -> String:
     return ""
 
 static func _command_kind(event_kind: String) -> String:
+    var narrative_command: String = NarrativeWorld.command_kind(event_kind)
+    if not narrative_command.is_empty(): return narrative_command
     var economy_command: String = EconomyWorld.command_kind(event_kind)
     if not economy_command.is_empty(): return economy_command
     var housing_command: String = HousingWorld.command_kind(event_kind)
@@ -181,6 +187,8 @@ func _find_fire(fire_id: String) -> bool:
     return false
 
 func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
+    if NarrativeWorld.owns(kind):
+        return narrative.plan(kind, payload, actor_id, society, jobs, world_minute)
     if EconomyWorld.owns(kind):
         return economy.plan(kind, payload, actor_id, service, cooking)
     if HousingWorld.owns(kind):
@@ -339,6 +347,8 @@ func _apply_event(raw: Dictionary) -> bool:
     if not matching_json(raw, expected):
         return false
     sequence = int(next_seq)
+    if NarrativeWorld.owns(kind):
+        narrative.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], society, sequence)
     if EconomyWorld.owns(kind):
         economy.apply_command(kind, request, planned["effect"], expected["event_id"], world_minute, service)
     if HousingWorld.owns(kind):
@@ -406,6 +416,7 @@ func snapshot() -> Dictionary:
         "jobs": jobs.duplicate(true), "acknowledgements": acknowledgements.duplicate(true),
         "society": society.snapshot(), "cooking": cooking.snapshot(), "service": service.snapshot(),
         "economy": economy.snapshot(), "housing": housing.snapshot(),
+        "narrative": narrative.snapshot(),
         "facts": facts.duplicate(true), "receipts": receipts.duplicate(true),
         "events": events.duplicate(true)
     }

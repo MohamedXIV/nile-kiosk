@@ -1,5 +1,5 @@
 extends RefCounted
-## Sole public production command/time/scheduling boundary (SYS P0–P5).
+## Sole public production command/time/scheduling boundary (SYS P0–P6).
 const WorldState = preload("res://scripts/core/world_state.gd")
 const Clock = preload("res://scripts/core/world_clock.gd")
 
@@ -22,6 +22,15 @@ func npc_routines() -> Dictionary:
 
 func player_knows(fact_id: String) -> bool:
     return _state.society.knowledge.get("player", {}).has(fact_id)
+
+func narrative_view() -> Dictionary:
+    return _state.narrative.snapshot()
+
+func narrative_session(session_id: String) -> Dictionary:
+    return _state.narrative.sessions.get(session_id, {}).duplicate(true)
+
+func narrative_choices(session_id: String) -> Array[Dictionary]:
+    return _state.narrative.available(session_id, _state.society)
 
 func economy_view() -> Dictionary:
     return _state.economy.snapshot()
@@ -159,8 +168,8 @@ static func _matches(actual: Variant, expected: Variant) -> bool:
     return actual == expected
 
 func restore_snapshot(data: Dictionary) -> bool:
-    # Explicit rejection of v1–v5: no silent ledger or housing-state migration.
-    if data.size() != 16 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
+    # Explicit rejection of v1–v6: no silent narrative cursor/state migration.
+    if data.size() != 17 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
         return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
