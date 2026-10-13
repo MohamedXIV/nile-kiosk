@@ -2,9 +2,9 @@
 
 *A quiet Egyptian life simulation about finding enough.*
 
-**Status:** pre-production — design and technical spikes, not a playable game yet.
+**Status:** pre-production; runnable Godot/Blender and browser-tested prototype scenes exist, but this is **not yet a complete playable game** and V001 visual art is not approved.
 
-Set in an intentionally unnamed early-2000s Egypt (roughly 2000–2005), Nile Kiosk follows a person who runs a modest riverside food-and-tea kiosk and returns each evening to a small rented apartment in a graceful, aging Cairo residential building.
+Set in an intentionally unnamed early-2000s Egypt (roughly 2000–2005), Nile Kiosk follows a person who runs a modest riverside food-and-tea kiosk and returns home to a **4×6m rented rooftop room** in a graceful, aging Cairo residential building; a modest **~60m² private flat one floor below** is a possible later step.
 
 The game is **not** a restaurant empire, a misery simulator, or a quest-driven visual novel. Its center is everyday work, a neighborhood with lives of its own, social familiarity, and the gradual pleasure of turning a sparse apartment into a home.
 
@@ -19,13 +19,22 @@ The game is **not** a restaurant empire, a misery simulator, or a quest-driven v
 
 ## Current direction — provisional
 
-- **Preferred visual candidate:** fixed overhead oblique/dimetric 2D presentation; neither strict 2:1 isometric nor a rotating camera is mandatory.
-- **Asset-production candidate:** model environments and interactive props in 3D, then render coherent 2D layers/sprites; compare against hybrid 3D runtime before committing.
-- **Engine candidate under test:** Godot 4 + GDScript + Compatibility/Web export. **Not selected yet.**
-- **Narrative candidates under test:** Dialogue Manager and Ink/inkgd; neither has been selected.
+- **Visual experience:** fixed-angle **playable** angled-isometric rooms, not web-SVG/building icons, toy dioramas or giant detached luxury rooms. Camera pan/zoom may frame spaces but not rotate.
+- **Asset workflow to validate:** **3D-authored, 2D-delivered**; Blender is measured spatial guide, distinct painted/cleaned game sprites are the deliverable; props/occluders/collisions are modular.
+- **Projection:** existing V001 uses ~2.067:1; exact **2:1** is documented as a *proposed v0.1 production contract* only. Never mix their sprite generations.
+- **Engine candidate:** Godot 4 + GDScript + Web export, **tested, not yet permanently selected**.
+- **Narrative choice for next slice:** **Ink + inkgd** after D001 comparison; Dialogue Manager remains tested fallback; Ink Web hard-refresh state passed its scoped Chromium smoke.
 - **Authored dialogue first:** optional AI flavor must never own canonical facts, choices, consequences or progression.
 
-## What is next?
+## Documentation and project memory
+
+- **[Decision register — start here](docs/DECISION_REGISTER.md)**: agreed decisions vs provisional details vs implementation proof.
+- **[Visual World Bible](docs/design/VISUAL_WORLD_BIBLE.md)**: what playable isometric means, art look and Cairo/home direction.
+- **[Home building topology and cutaways](docs/architecture/HOME_BUILDING_SPATIAL_SPEC.md)**: 24m² roof room, two opposed doors, 60m² southern unit, roof/shared landing.
+- **[3D-authored → 2D-delivered production workflow](docs/art/3D_AUTHORED_2D_PRODUCTION.md)**: modular sprites, pivots/crops, light masks, art acceptance.
+- **[Isometric projection contract v0.1](docs/architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md)**: proposed math, manifest and migration rules.
+
+## Other references
 
 - [Game vision](docs/GAME_VISION.md)
 - [Architecture and technical decisions](docs/TECH_DECISIONS.md)

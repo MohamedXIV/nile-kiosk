@@ -11,3 +11,13 @@
 - Use GitHub Actions when they provide real value: public-runner CI is allowed, but do not add repeated heavy jobs or empty placeholder workflows.
 - Report actually run tests separately from proposed acceptance gates. Failed or unrun checks are not PASS.
 - Prefer official engine features before inventing custom substitutes. Pin add-on versions/commits for reproducible spikes.
+
+## Canonical design memory — read before visual work
+
+- Start with [decision register](docs/DECISION_REGISTER.md): agreed user direction, implemented proof, proposed values and unapproved art must **not** be conflated.
+- [Visual World Bible](docs/design/VISUAL_WORLD_BIBLE.md): a **playable** Cairo home and kiosk; never replace it with glossy isometric icons or a floating luxury penthouse. The game's emotional economy is **enough**, not wealth.
+- [Home spatial spec](docs/architecture/HOME_BUILDING_SPATIAL_SPEC.md): player **starts in 24m² (4×6) roof room**; 60m² (10×6) southern apartment below, **two opposing landing doors** and **unrendered northern neighbor**. Roof room is over the player's future flat. Rents and duplex are deferred.
+- [3D → 2D pipeline](docs/art/3D_AUTHORED_2D_PRODUCTION.md): Blender measured spatial authoring, distinct game-ready 2D sprites/layers, world contact/pivots/crop offsets, dynamic lighting, explicit visual acceptance. **Concept images are not automatically runnable assets.**
+- [Iso projection v0.1](docs/architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md) is **proposed 2:1**, while [open PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) still uses validated **~2.067:1**. Do not silently swap cameras, mix sprite generations or claim the proposed contract is implemented.
+- Structural collision survives cutting roofs/walls. Reveal **only the relevant unit**, keep low front sills and correct light occluders, and preserve stairs/shared landing/neighbor door continuity.
+- Do not merge/close art work solely on green headless/Chromium acceptance if the user has not approved the visual result.
