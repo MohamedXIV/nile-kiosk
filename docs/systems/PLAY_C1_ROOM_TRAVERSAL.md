@@ -1,5 +1,7 @@
 # PLAY C1 — Authored Room Traversal and Player/World Input
 
+**Status: VERIFIED / MERGED** — [PR #44](https://github.com/MohamedXIV/nile-kiosk/pull/44), squash `a95da39c3ef0db4c0395ca2a968081f19d61f705`. [Godot P0–P7 + C0/C1 + D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38443455765), [real Chromium PLAY_C1_CHROMIUM_PASS + P7 and D001 regressions](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38443455886), GitGuardian PASS. Actual browser accepted movement across roof/landing/street/kiosk, proximity-limited public knowledge, independent NPC arrival and identical world digests across two reloads.
+
 [Issue #43](https://github.com/MohamedXIV/nile-kiosk/issues/43). This is the first physically navigable Godot/Web **production-kernel consumer**, not an approved visual scene and not a replacement for V001 PR #20.
 
 ## Owned and explicitly not owned
