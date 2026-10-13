@@ -9,7 +9,7 @@ const browser=await chromium.launch({
 });
 const context=await browser.newContext({viewport:{width:1100,height:760}});
 const page=await context.newPage();
-const traces={fresh:[],choice:[],saved:[],restored:[],interjected:[]};
+const traces={fresh:[],choice:[],saved:[],restored:[],interjected:[],at_table:[],known:[],tick:[]};
 const errors=[];
 const prefixes={
   fresh:"D001_WEB_FRESH",
