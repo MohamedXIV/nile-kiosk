@@ -3,6 +3,7 @@ extends RefCounted
 ## This component does not generate cash, time, NPCs or dialogue facts.
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const InkAdapter = preload("res://scripts/core/ink_world_bridge.gd")
+const ContentBootstrap = preload("res://scripts/integration/world_content_bootstrap.gd")
 
 var world: RefCounted
 var ink: RefCounted
@@ -34,6 +35,23 @@ func projection() -> Dictionary:
         "cooking": view["cooking"].duplicate(true), "orders": view["service"].duplicate(true),
         "economy": view["economy"].duplicate(true), "housing": view["housing"].duplicate(true),
         "narrative": view["narrative"].duplicate(true), "jobs": view["jobs"].duplicate(true)}
+
+func bootstrap_from_content(path: String) -> Dictionary:
+    # Deliberately only a fresh world, with no disk slot and no live InkPlayers.
+    # A failed bundle never changes the current world or its save slot.
+    if restored or ink != null or int(world.view()["sequence"]) != 0:
+        return {"ok": false, "code": "WORLD_ALREADY_INITIALIZED"}
+    if FileAccess.file_exists(save_path):
+        return {"ok": false, "code": "SAVE_EXISTS"}
+    var staged: Dictionary = ContentBootstrap.from_file(path, int(world.view()["seed"]))
+    if not staged.get("ok", false):
+        last_error = str(staged.get("code", "BUNDLE_REJECTED"))
+        return staged
+    world = staged["candidate"]
+    last_error = ""
+    return {"ok": true, "code": "BOOTSTRAPPED",
+        "bundle_id": staged["bundle_id"], "revision": staged["revision"],
+        "commands": staged["commands"]}
 
 func load_existing() -> Dictionary:
     if not FileAccess.file_exists(save_path):
