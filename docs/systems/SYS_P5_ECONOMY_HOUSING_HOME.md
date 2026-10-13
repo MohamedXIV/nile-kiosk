@@ -1,5 +1,7 @@
 # SYS P5 — Economy Ledger, Rental Housing and Home Objects
 
+**Status: VERIFIED / MERGED** — [PR #38](https://github.com/MohamedXIV/nile-kiosk/pull/38), squash merge `9bea6bd81f7fa53cc4e17b7d8de9260d43c90468`. [Godot P0–P5, D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38412511881), [Chromium DM/Ink and browser refresh PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38412511851), GitGuardian success.
+
 Issue [#29](https://github.com/MohamedXIV/nile-kiosk/issues/29). Production modules: `economy_world.gd`, `housing_world.gd` under `scripts/core/`. The WorldKernel is **the only mutation boundary**: core snapshot schema **v6** includes full `economy` and `housing` state and always rebuilds them from audited events. D001 `tea_steps` and V001 furnishings remain **spikes**, not the source of gameplay truth.
 
 ## Currency and audit: no arbitrary balance or loan mechanics
