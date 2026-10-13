@@ -128,6 +128,8 @@ func _roof_home_and_access() -> void:
     check(fund(k,"furniture_cash",120)["ok"], "furniture cash")
     check(send(k,"purchase","home.object.acquire",{"object_id":"bed1","type_id":"bed","transaction_id":"tx:bed"})["ok"], "buy furniture")
     check(k.balance_minor() == 0, "furniture uncharged")
+    check(send(k,"refund_bed","economy.refund",{"transaction_id":"tx:bed:refund",
+        "original_transaction_id":"tx:bed"},"system:treasury")["code"] == "DOMAIN_REFUND_REQUIRED", "free furniture via standalone refund")
     check(send(k,"place_bed","home.object.place",{"object_id":"bed1","unit_id":"roof_room","slot_id":"wall"})["ok"], "place bed into freed slot")
     check(send(k,"place_other","home.object.place",{"object_id":"starter_cupboard","unit_id":"roof_room","slot_id":"wall"})["code"] == "SLOT_OCCUPIED", "slot collision")
     check(send(k,"leave","social.player.place",{"location_id":"market"})["ok"], "leave roof")
@@ -142,6 +144,8 @@ func _rental_and_deterministic_dues() -> void:
     check(send(a,"start","housing.lease.start",{"lease_id":"lease1","unit_id":"south_apartment",
         "transaction_id":"tx:first"})["ok"], "lease start")
     check(a.balance_minor() == 700, "first rent debit")
+    check(send(a,"refund_lease","economy.refund",{"transaction_id":"tx:lease:refund",
+        "original_transaction_id":"tx:first"},"system:treasury")["code"] == "DOMAIN_REFUND_REQUIRED", "money-only refund kept rental entitlement")
     check(a.can_access_unit("south_apartment"), "paid-up lease access")
     check(send(a,"start2","housing.lease.start",{"lease_id":"lease2","unit_id":"south_apartment",
         "transaction_id":"tx:another"})["code"] == "UNIT_OCCUPIED", "double lease")
