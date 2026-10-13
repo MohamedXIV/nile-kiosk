@@ -26,6 +26,9 @@ func player_knows(fact_id: String) -> bool:
 func orders_view() -> Dictionary:
     return _state.service.snapshot()
 
+func service_queue(venue_id: String, route: String) -> Array[Dictionary]:
+    return _state.service.queue(venue_id, route)
+
 func order(order_id: String) -> Dictionary:
     return _state.service.orders.get(order_id, {}).duplicate(true)
 
