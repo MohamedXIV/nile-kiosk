@@ -1,5 +1,7 @@
 # SYS P6 — Production Ink Narrative Bridge and Social Sessions
 
+**Status: VERIFIED / MERGED** — [PR #39](https://github.com/MohamedXIV/nile-kiosk/pull/39), squash commit `8f298726dc1fcd13c2717d243ee65f08b651f8fe`. [Godot P0–P6 + D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38417014553), [Chromium DM/Ink and refresh regression PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38417014473), GitGuardian success. Native SYS P6 test is the acceptance evidence for the **production Ink adapter and mid-choice save**, not D001 Chromium smoke.
+
 [Issue #30](https://github.com/MohamedXIV/nile-kiosk/issues/30). Production files: `scripts/core/narrative_world.gd` (versioned WorldKernel domain), `scripts/core/ink_world_bridge.gd` (actual inkgd runtime boundary), plus `world_state.gd` and `world_kernel.gd`. **D001 spike session orchestrators and the Dialogue Manager fallback remain unchanged**, and are not authoritative. Real Ink is the selected authoring runtime, not a world database.
 
 ## Ownership and contract
