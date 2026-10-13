@@ -84,6 +84,10 @@ func _corruption() -> void:
     check(not world.restore_snapshot(bad),"accepted missing command receipts")
     check(JSON.stringify(world.view())==before,"missing receipts partially changed world")
     bad=world.view()
+    bad["receipts"]["a"]["result"]["revision"]=1.5
+    check(not world.restore_snapshot(bad),"accepted fractional event revision")
+    check(JSON.stringify(world.view())==before,"fractional revision partially changed world")
+    bad=world.view()
     bad["version"]=999
     check(not world.restore_snapshot(bad),"accepted future schema")
     check(JSON.stringify(world.view())==before,"schema failure partially changed world")

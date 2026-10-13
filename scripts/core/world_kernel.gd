@@ -77,20 +77,36 @@ func restore_snapshot(data: Dictionary) -> bool:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
     for raw in data["events"]:
-        if typeof(raw) != TYPE_DICTIONARY:
-            print("SYS_P0_RESTORE_DIAG: non-dict event")
-            return false
-        if not candidate._apply_event(raw):
-            print("SYS_P0_RESTORE_DIAG: rejected event ", JSON.stringify(raw))
+        if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
     if candidate.sequence != int(data["sequence"]):
         return false
     if candidate.facts != data["facts"]:
-        print("SYS_P0_RESTORE_DIAG: fact projection mismatch ", JSON.stringify(candidate.facts), " | ", JSON.stringify(data["facts"]))
         return false
-    if candidate.receipts != data["receipts"]:
-        print("SYS_P0_RESTORE_DIAG: receipt projection mismatch ", JSON.stringify(candidate.receipts), " | ", JSON.stringify(data["receipts"]))
+    # Godot JSON parses numeric tokens as float. Compare receipts by exact
+    # fields, validating integer revision values and normalizing 1.0 -> 1.
+    # No unverified parsed dictionary becomes authoritative state.
+    var persisted: Dictionary = data["receipts"]
+    if persisted.size() != candidate.receipts.size():
         return false
+    for command_id in candidate.receipts:
+        var raw_receipt: Variant = persisted.get(command_id)
+        if typeof(raw_receipt) != TYPE_DICTIONARY or raw_receipt.size() != 2:
+            return false
+        var expected: Dictionary = candidate.receipts[command_id]
+        if raw_receipt.get("signature") != expected["signature"]:
+            return false
+        var raw_result: Variant = raw_receipt.get("result")
+        if typeof(raw_result) != TYPE_DICTIONARY or raw_result.size() != 4:
+            return false
+        var correct: Dictionary = expected["result"]
+        if typeof(raw_result.get("ok")) != TYPE_BOOL or raw_result["ok"] != correct["ok"]:
+            return false
+        if raw_result.get("code") != correct["code"] or raw_result.get("event_id") != correct["event_id"]:
+            return false
+        var revision: Variant = raw_result.get("revision")
+        if not WorldState.integral(revision, 1) or int(revision) != int(correct["revision"]):
+            return false
     _state = candidate # Atomic swap after full replay/validation.
     return true
 
