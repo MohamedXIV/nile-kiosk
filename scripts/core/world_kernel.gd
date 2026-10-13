@@ -1,5 +1,5 @@
 extends RefCounted
-## Sole public production command/time/scheduling boundary (SYS P0–P3).
+## Sole public production command/time/scheduling boundary (SYS P0–P4).
 const WorldState = preload("res://scripts/core/world_state.gd")
 const Clock = preload("res://scripts/core/world_clock.gd")
 
@@ -22,6 +22,12 @@ func npc_routines() -> Dictionary:
 
 func player_knows(fact_id: String) -> bool:
     return _state.society.knowledge.get("player", {}).has(fact_id)
+
+func orders_view() -> Dictionary:
+    return _state.service.snapshot()
+
+func order(order_id: String) -> Dictionary:
+    return _state.service.orders.get(order_id, {}).duplicate(true)
 
 func cooking_view() -> Dictionary:
     return _state.cooking.snapshot()
@@ -138,8 +144,8 @@ static func _matches(actual: Variant, expected: Variant) -> bool:
     return actual == expected
 
 func restore_snapshot(data: Dictionary) -> bool:
-    # Explicit rejection of v1/v2/v3: no implicit NPC or cooking-state migration.
-    if data.size() != 13 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
+    # Explicit rejection of v1–v4: no implicit NPC, cooking or service state migration.
+    if data.size() != 14 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
         return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
