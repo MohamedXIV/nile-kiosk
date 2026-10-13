@@ -36,7 +36,7 @@ jobs:
             exit 1
           fi
           test -s assets/v001/manifest.json
-          test "$(find assets/v001 -maxdepth 1 -name '*.png' | wc -l)" -eq 14
+          test "$(find assets/v001 -maxdepth 1 -name '*.png' | wc -l)" -eq 24
       - name: Validate exact projection, transparent layers, and compose previews
         run: python3 tools/v001/validate_and_preview.py assets/v001 assets/v001/previews
       - name: Install Godot 4.6.3

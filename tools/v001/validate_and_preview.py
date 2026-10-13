@@ -26,7 +26,9 @@ for name in manifest["assets"]:
     assert alpha.getextrema()[0]==0,("missing transparency",name)
     images[name]=frame
     print("V001_LAYER_PASS",name,box)
-assert len(images)==14,len(images)
+assert len(images)==24,len(images)
+assert manifest["south_apartment_m2"]==60
+assert manifest["roof_room_m2"]==24
 
 def compose(mode,time):
     night=time=="night"
@@ -37,13 +39,20 @@ def compose(mode,time):
     for x in (110,300,765,880):
         canvas.rectangle((x-4,325,x+4,400),fill="#5b5443")
         canvas.ellipse((x-32,290,x+32,360),fill="#2c4e40" if night else "#537653")
-    layers=["facade_lower","facade_upper","roof"] if mode=="street" else ["facade_lower","apartment","chair","table"]
+    views={
+        "street":["facade_lower","facade_upper","roof","roof_room"],
+        "roof_room":["facade_lower","roof","roof_room_cut"],
+        "landing":["facade_lower","neighbor","landing"],
+        "apartment":["facade_lower","neighbor","landing","apartment","front_wall_cut","chair","table"]
+    }
+    layers=views[mode]
     for layer in layers:
         frame.alpha_composite(images[f"{layer}_{time}.png"])
-    if mode!="street":
-        # P0 actor as a small placeholder at floor 6. Sprites stay untrimmed/registered.
-        x=490+.93*86-.93*58
-        y=390+.45*(86+58)-47*5
+    if mode in ("apartment","roof_room"):
+        level=7 if mode=="roof_room" else 6
+        px,py=(85,99) if mode=="roof_room" else (114,85)
+        x=490+.93*px-.93*py
+        y=390+.45*(px+py)-47*(level-1)
         canvas=ImageDraw.Draw(frame)
         canvas.ellipse((x-8,y-8,x+8,y+8),fill="#275783",outline="#faf1d8",width=2)
     canvas=ImageDraw.Draw(frame)
@@ -52,7 +61,7 @@ def compose(mode,time):
     output=preview_dir/f"{mode}_{time}.png"
     frame.convert("RGB").save(output)
     print("V001_PREVIEW",output)
-for mode in ("street","apartment"):
+for mode in ("street","roof_room","landing","apartment"):
     for time in ("day","night"):
         compose(mode,time)
-print("V001_IMAGE_VALIDATION_PASS",len(images),"transparent sprite layers, four previews")
+print("V001_IMAGE_VALIDATION_PASS",len(images),"transparent sprite layers, eight previews")

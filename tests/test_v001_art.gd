@@ -26,7 +26,7 @@ func _verify() -> void:
             push_error("V001 P1 camera registration mismatch " + key)
             quit(1)
             return
-    for layer in ["facade_lower","facade_upper","roof","apartment","lobby","chair","table"]:
+    for layer in ["facade_lower","facade_upper","roof","apartment","lobby","chair","table","neighbor","landing","front_wall_cut","roof_room","roof_room_cut"]:
         for time in ["day","night"]:
             var texture: Texture2D = load("res://assets/v001/%s_%s.png" % [layer,time])
             if texture == null or texture.get_size() != Vector2(960,540):
@@ -39,7 +39,13 @@ func _verify() -> void:
         push_error("V001 P1 did not use baked textures")
         quit(1)
         return
-    instance.model.enter_building()
+    if instance.model.mode != "roof_room":
+        push_error("V001 P1: player must begin in roof room")
+        quit(1)
+        return
+    instance.model.leave_roof_room()
+    instance.model.descend_from_roof()
+    instance.model.rent_apartment_for_spike()
     instance.model.go_to_apartment()
     instance.model.toggle_night()
     if not instance._has_baked_art():
@@ -47,7 +53,7 @@ func _verify() -> void:
         quit(1)
         return
     var before: Vector2 = Building.project(instance.model.furniture["chair"], Building.PLAYER_FLOOR)
-    if not instance.model.move_furniture("chair", Vector2(52,100)):
+    if not instance.model.move_furniture("chair", Vector2(90,115)):
         push_error("V001 P1 chair placement refused")
         quit(1)
         return
@@ -56,7 +62,7 @@ func _verify() -> void:
         push_error("V001 P1 translated chair not moving")
         quit(1)
         return
-    print("V001 P1 ART REGISTRATION PASS (14 imported textures, day/night, camera and furniture)")
+    print("V001 P1 ART REGISTRATION PASS (24 imported textures, day/night, camera and furniture)")
     instance.queue_free()
     await process_frame
     quit(0)
