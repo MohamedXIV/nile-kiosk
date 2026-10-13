@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "plan": {
+    "plan_id": "qa:reda:regular",
+    "npc_id": "reda",
+    "venue_id": "kiosk",
+    "recipe_id": "tea",
+    "route": "counter",
+    "first_minute": 6,
+    "interval_minutes": 1440,
+    "wait_minutes": 20,
+    "chance_bp": 10000
+  }
+}

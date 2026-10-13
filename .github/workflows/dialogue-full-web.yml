@@ -13,6 +13,7 @@ on:
       - "tools/web-production-world-smoke.mjs"
       - "tools/web-play-c1-smoke.mjs"
       - "tools/web-play-c3-smoke.mjs"
+      - "tools/web-play-c4-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -103,6 +104,13 @@ jobs:
           sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_world_traversal.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/play-c1/index.html
           cp /tmp/nile-project.godot project.godot
+      - name: Export autonomous NPC customer-demand QA scene
+        run: |
+          cp project.godot /tmp/nile-project.godot
+          mkdir -p build/dialogue-web/play-c4
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_autonomous_kiosk.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/dialogue-web/play-c4/index.html
+          cp /tmp/nile-project.godot project.godot
       - name: Chromium acceptance — both engines
         run: |
           python3 -m http.server 8765 --directory build/dialogue-web >/tmp/d001-dialogue-web-server.log 2>&1 &
@@ -114,6 +122,7 @@ jobs:
           node tools/web-production-world-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c1-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c3-smoke.mjs http://127.0.0.1:8765
+          node tools/web-play-c4-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

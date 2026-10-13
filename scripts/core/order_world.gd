@@ -24,11 +24,12 @@ static func exact(p: Dictionary, keys: Array) -> bool:
     return true
 
 static func owns(kind: String) -> bool:
-    return kind in ["service.configure", "order.offer", "order.accept", "order.cancel", "order.abandon", "order.deliver"]
+    return kind in ["service.configure", "service.demand.configure", "order.offer", "order.accept", "order.cancel", "order.abandon", "order.deliver"]
 
 static func event_kind(kind: String) -> String:
     match kind:
         "service.configure": return "service.configured"
+        "service.demand.configure": return "service.demand_configured"
         "order.offer": return "order.offered"
         "order.accept": return "order.accepted"
         "order.cancel": return "order.cancelled"
@@ -39,6 +40,7 @@ static func event_kind(kind: String) -> String:
 static func command_kind(kind: String) -> String:
     match kind:
         "service.configured": return "service.configure"
+        "service.demand_configured": return "service.demand.configure"
         "order.offered": return "order.offer"
         "order.accepted": return "order.accept"
         "order.cancelled": return "order.cancel"
@@ -117,6 +119,33 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
                     return fail("INVALID_SEATS")
                 seen[seat] = true
             return {"ok": true, "effect": {"venue_id": p["venue_id"]}}
+        "service.demand.configure":
+            if actor != "system:director" or not exact(p, ["plan_id", "npc_id", "venue_id", "recipe_id", "route", "first_minute", "interval_minutes", "wait_minutes", "chance_bp"]):
+                return fail("INVALID_AUTHOR_OR_PAYLOAD")
+            for field in ["plan_id","npc_id","venue_id","recipe_id"]:
+                if not ident(p.get(field)): return fail("INVALID_PAYLOAD")
+            if (p["plan_id"] as String).length() > 80 or p["route"] not in ["counter","takeaway","table"]:
+                return fail("INVALID_PAYLOAD")
+            if not integer(p.get("first_minute"),minute+1) or not integer(p.get("interval_minutes")) or not integer(p.get("wait_minutes"),1) or not integer(p.get("chance_bp")) or int(p["chance_bp"]) > 10000:
+                return fail("INVALID_PAYLOAD")
+            if int(p["wait_minutes"]) > MAXIMUM - int(p["first_minute"]):
+                return fail("TIME_OVERFLOW")
+            if int(p["interval_minutes"]) > 0 and int(p["interval_minutes"]) <= int(p["wait_minutes"]):
+                return fail("OVERLAPPING_DEMAND")
+            if not society.npcs.has(p["npc_id"]) or not venues.has(p["venue_id"]) or not cooking.recipes.has(p["recipe_id"]):
+                return fail("UNKNOWN_DEMAND_REFERENCE")
+            var venue: Dictionary = venues[p["venue_id"]]
+            if venue["counter_slots"] == 0 and p["route"] == "counter":
+                return fail("NO_ROUTE_CAPACITY")
+            if venue["takeaway_slots"] == 0 and p["route"] == "takeaway":
+                return fail("NO_ROUTE_CAPACITY")
+            if venue["table_ids"].is_empty() and p["route"] == "table":
+                return fail("NO_ROUTE_CAPACITY")
+            var offer_id: String = "service:demand:offer:" + str(p["plan_id"])
+            var expire_id: String = "service:demand:expire:" + str(p["plan_id"])
+            if scheduler_jobs.has(offer_id) or scheduler_jobs.has(expire_id):
+                return fail("DEMAND_ALREADY_CONFIGURED")
+            return {"ok":true,"effect":{"offer_job_id":offer_id,"expire_job_id":expire_id}}
         "order.offer":
             if not exact(p, ["order_id", "venue_id", "npc_id", "recipe_id", "route", "deadline_minute"]):
                 return fail("INVALID_PAYLOAD")
@@ -225,7 +254,7 @@ func _end_order(o: Dictionary, status: String, at: int, cause_id: String, schedu
     o["status"] = status
     o["closed_minute"] = at
     o["closure_event_id"] = cause_id
-    if cancel_deadline and scheduler_jobs[o["deadline_job_id"]]["status"] == "pending":
+    if cancel_deadline and not (o["deadline_job_id"] as String).begins_with("service:demand:expire:") and scheduler_jobs[o["deadline_job_id"]]["status"] == "pending":
         scheduler_jobs[o["deadline_job_id"]]["status"] = "cancelled"
 
 func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int, event_id: String,
@@ -238,6 +267,22 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
                 "counter_slots": int(p["counter_slots"]), "takeaway_slots": int(p["takeaway_slots"]),
                 "table_ids": p["table_ids"].duplicate(true), "created_event_id": event_id
             }
+        "service.demand.configure":
+            var template: Dictionary = p.duplicate(true)
+            var start: int = int(p["first_minute"])
+            var period: int = int(p["interval_minutes"])
+            for offset in [0,1]:
+                var offer: bool = offset == 0
+                var jid: String = effect["offer_job_id"] if offer else effect["expire_job_id"]
+                scheduler_jobs[jid] = {
+                    "job_id":jid, "due_minute":start if offer else start+int(p["wait_minutes"]),
+                    "priority":250 if offer else 300,
+                    "topic":"service.demand.offer" if offer else "service.demand.expire",
+                    "data":template.duplicate(true), "every_minutes":period,
+                    "created_sequence":seq,"source_actor_id":actor,
+                    "source_command_id":command_id,"status":"pending",
+                    "execution_count":0,"last_fire_id":""
+                }
         "order.offer":
             var job_id: String = effect["deadline_job_id"]
             orders[p["order_id"]] = {
@@ -286,7 +331,59 @@ func departing(npc_id: String, at: int, cause_id: String, scheduler_jobs: Dictio
             "at_minute": at, "cause_id": cause_id})
     return affected
 
-func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictionary) -> Array:
+static func _wants_service(seed: int, data: Dictionary, occurrence: int) -> bool:
+    var chance: int = int(data["chance_bp"])
+    if chance == 0: return false
+    if chance == 10000: return true
+    # Stable hash of authored plan and occurrence, independent of tick chunks.
+    var key: String = str(seed)+":"+str(data["plan_id"])+":"+str(occurrence)
+    return (key.sha256_text().substr(0,7).hex_to_int() % 10000) < chance
+
+func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictionary, seed: int) -> Dictionary:
+    var data: Dictionary = fire["data"]
+    var occurrence: int = int(fire["occurrence"])
+    var order_id: String = "demand:"+str(data["plan_id"])+":"+str(occurrence)
+    var result: Dictionary = {"order_id":order_id,"npc_id":data["npc_id"],
+        "at_minute":fire["world_minute"],"cause_id":fire["job_id"]+":"+str(occurrence),
+        "outcome":"skipped"}
+    if not _wants_service(seed,data,occurrence):
+        result["reason"] = "not_interested"
+        return result
+    var venue: Dictionary = venues[data["venue_id"]]
+    if not _customer_at(living,data["npc_id"],venue["location_id"]):
+        result["reason"] = "npc_absent"
+        return result
+    for order in orders.values():
+        if active(order) and order["npc_id"] == data["npc_id"]:
+            result["reason"] = "already_ordering"
+            return result
+    var capacity: int = int(venue["counter_slots"]) if data["route"] == "counter" else (int(venue["takeaway_slots"]) if data["route"] == "takeaway" else venue["table_ids"].size())
+    if _count(data["venue_id"],data["route"]) >= capacity:
+        result["reason"] = "queue_full"
+        return result
+    if orders.has(order_id):
+        result["reason"] = "id_collision"
+        return result
+    var deadline: int = int(fire["world_minute"])+int(data["wait_minutes"])
+    var cause: String = "schedule:"+str(fire["job_id"])+":"+str(occurrence)
+    var queue_position: int = _count(data["venue_id"],data["route"])+1
+    orders[order_id] = {
+        "order_id":order_id, "npc_id":data["npc_id"],"venue_id":data["venue_id"],
+        "recipe_id":data["recipe_id"],"route":data["route"],"status":"offered",
+        "deadline_minute":deadline,
+        "deadline_job_id":"service:demand:expire:"+str(data["plan_id"]),
+        "created_minute":int(fire["world_minute"]), "created_event_id":cause,
+        "queue_position_at_offer":queue_position,
+        "offer_sequence":int(fire["created_sequence"]),
+        "accepted_minute":-1,"seat_id":"","item_id":"",
+        "closed_minute":-1,"closure_event_id":"",
+        "payment_claim_id":"","payment_status":"none"
+    }
+    result["outcome"] = "offered"
+    result["reason"] = ""
+    return result
+
+func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> Array:
     var living: RefCounted = starting_society.clone_state()
     var outcomes: Array = []
     for fire in fires:
@@ -297,6 +394,17 @@ func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictio
             # smaller advances must reach the same completed scheduler state.
             var cause: String = "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])
             outcomes.append_array(departing(npc_result["npc_id"], int(fire["world_minute"]), cause, scheduler_jobs, false))
+        if fire["topic"] == "service.demand.offer":
+            outcomes.append(_demand_fire(fire,living,scheduler_jobs,seed))
+        if fire["topic"] == "service.demand.expire":
+            var plan: Dictionary = fire["data"]
+            var oid: String = "demand:"+str(plan["plan_id"])+":"+str(fire["occurrence"])
+            if orders.has(oid) and active(orders[oid]):
+                var o2: Dictionary = orders[oid]
+                var cause2: String = "schedule:"+str(fire["job_id"])+":"+str(fire["occurrence"])
+                _end_order(o2,"abandoned",int(fire["world_minute"]),cause2,scheduler_jobs,false)
+                outcomes.append({"order_id":oid,"npc_id":o2["npc_id"],
+                    "outcome":"deadline","at_minute":fire["world_minute"],"cause_id":cause2})
         if fire["topic"] == "order.deadline":
             var order_id: String = fire["data"]["order_id"]
             var o: Dictionary = orders[order_id]
@@ -307,8 +415,8 @@ func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictio
                     "outcome": "deadline", "at_minute": fire["world_minute"], "cause_id": "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])})
     return outcomes
 
-func project_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary) -> Array:
-    return duplicate_domain().simulate(fires, society, scheduler_jobs.duplicate(true))
+func project_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> Array:
+    return duplicate_domain().simulate(fires, society, scheduler_jobs.duplicate(true), seed)
 
-func apply_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary) -> void:
-    simulate(fires, society, scheduler_jobs)
+func apply_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> void:
+    simulate(fires, society, scheduler_jobs, seed)

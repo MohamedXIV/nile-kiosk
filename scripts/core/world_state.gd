@@ -269,7 +269,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 "to_minute": target["target"], "fires": fires["fires"],
                 "npc_outcomes": society.project_firings(fires["fires"]),
                 "cooking_outcomes": cooking.project_firings(fires["fires"], jobs),
-                "order_outcomes": service.project_firings(fires["fires"], society, jobs),
+                "order_outcomes": service.project_firings(fires["fires"], society, jobs, seed),
                 "housing_outcomes": housing.project_firings(fires["fires"])
             }}
         "schedule.create":
@@ -278,7 +278,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
             if not valid_identity(payload["job_id"]) or not valid_identity(payload["topic"]):
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             # Domain-owned firings can only be created as part of a verified NPC command.
-            if (payload["topic"] as String).begins_with("npc.visit.") or (payload["job_id"] as String).begins_with("npc:") or (payload["topic"] as String).begins_with("cook.") or (payload["job_id"] as String).begins_with("cook:") or payload["topic"] == "order.deadline" or (payload["job_id"] as String).begins_with("order:") or payload["topic"] == "housing.rent.due" or (payload["job_id"] as String).begins_with("housing:"):
+            if (payload["topic"] as String).begins_with("npc.visit.") or (payload["job_id"] as String).begins_with("npc:") or (payload["topic"] as String).begins_with("cook.") or (payload["job_id"] as String).begins_with("cook:") or (payload["topic"] as String).begins_with("service.demand.") or (payload["job_id"] as String).begins_with("service:demand:") or payload["topic"] == "order.deadline" or (payload["job_id"] as String).begins_with("order:") or payload["topic"] == "housing.rent.due" or (payload["job_id"] as String).begins_with("housing:") or (payload["job_id"] as String).begins_with("service:demand:"):
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not integral(payload["due_minute"], 1) or int(payload["due_minute"]) <= world_minute:
                 return {"ok": false, "code": "INVALID_DUE_TIME"}
@@ -294,7 +294,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not jobs.has(payload["job_id"]) or jobs[payload["job_id"]]["status"] != "pending":
                 return {"ok": false, "code": "JOB_NOT_PENDING"}
-            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:"):
+            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:") or (payload["job_id"] as String).begins_with("service:demand:"):
                 return {"ok": false, "code": "DOMAIN_OWNED_JOB"}
             return {"ok": true, "effect": {"job_id": payload["job_id"]}}
         "schedule.reschedule":
@@ -306,7 +306,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not jobs.has(payload["job_id"]) or jobs[payload["job_id"]]["status"] != "pending":
                 return {"ok": false, "code": "JOB_NOT_PENDING"}
-            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:"):
+            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:") or (payload["job_id"] as String).begins_with("service:demand:"):
                 return {"ok": false, "code": "DOMAIN_OWNED_JOB"}
             return {"ok": true, "effect": {"job_id": payload["job_id"]}}
         "schedule.ack":
@@ -410,7 +410,7 @@ func _apply_event(raw: Dictionary) -> bool:
                     job["status"] = "completed"
                 else:
                     job["due_minute"] += job["every_minutes"]
-            service.apply_firings(planned["effect"]["fires"], society, jobs)
+            service.apply_firings(planned["effect"]["fires"], society, jobs, seed)
             society.apply_firings(planned["effect"]["fires"])
             cooking.apply_firings(planned["effect"]["fires"], jobs)
             housing.apply_firings(planned["effect"]["fires"])
