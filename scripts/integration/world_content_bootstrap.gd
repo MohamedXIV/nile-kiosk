@@ -18,6 +18,7 @@ const AUTHORS: Dictionary = {
     "recipe.define": "system:director",
     "station.register": "system:director",
     "service.configure": "system:director",
+    "service.demand.configure": "system:director",
     "housing.unit.register": "system:housing",
     "housing.roof.grant": "system:bootstrap",
     "home.type.define": "system:catalog",
