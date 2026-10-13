@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "plan": {
+    "plan_id": "qa:reda:social",
+    "npc_id": "reda",
+    "venue_id": "kiosk",
+    "recipe_id": "tea",
+    "route": "counter",
+    "first_minute": 6,
+    "interval_minutes": 1440,
+    "wait_minutes": 20,
+    "chance_bp": 0,
+    "social_rule": {
+      "fact_id": "weather:nile",
+      "fact_bonus_bp": 0,
+      "trusted_peer_id": "amina",
+      "trust_bonus_bp": 10000
+    }
+  }
+}
