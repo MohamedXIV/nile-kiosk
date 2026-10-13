@@ -20,7 +20,7 @@
 | Narrative implementation | Ink/inkgd selected after D001 comparison, Dialogue Manager fallback | **Chosen baseline for next slice**; browser reload verified for Ink |
 | Language | Arabic/RTL not in first D001 test fixtures | **Deferred**, not cancelled or claimed complete |
 | Art review | Real Web screenshots and final user approval required beyond green tests | **Mandatory gate**, open on V001 PR #20 |
-| Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; gameplay kernel still to be implemented, D001/V001 remain spikes |
+| Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; SYS P0 kernel merged via [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33), P1–P7 incomplete; D001/V001 remain spikes |
 
 ## Verified against live GitHub when written
 

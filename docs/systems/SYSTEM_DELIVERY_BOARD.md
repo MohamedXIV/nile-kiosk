@@ -2,11 +2,13 @@
 
 **Status:** intended execution order, adopted 2026-10-13. [Architecture and ownership](../architecture/SYSTEM_FIRST_ARCHITECTURE.md). Implementation issues are the live execution board: [parent #23](https://github.com/MohamedXIV/nile-kiosk/issues/23).
 
+**SYS P0 kernel is verified/merged** ([PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33)); **P1 world time/scheduler is NEXT and NOT implemented.**
+
 A **complete system** is production-owned logic with all lifecycle and persistence edges; a visual demo is only a consumer, never the system of record. It is fine to land coherent, named foundations, but **do not mark a whole system complete because one tiny scenario works**.
 
 | Priority | Work package / boundary | Required completion evidence |
 | --- | --- | --- |
-| [P0 #24](https://github.com/MohamedXIV/nile-kiosk/issues/24) | **World Kernel** — schema, command validation/result, event ID/provenance and deterministic reducer/ordering, versioned whole-world envelope | accepted/rejected commands, stable event sequences, applied effect idempotency, deterministic replay, serialization roundtrip and malformed-save rejection |
+| [P0 #24 — DONE](https://github.com/MohamedXIV/nile-kiosk/issues/24) | **World Kernel** — schema, command validation/result, event ID/provenance and deterministic reducer/ordering, versioned whole-world envelope | accepted/rejected commands, stable event sequences, applied effect idempotency, deterministic replay, serialization roundtrip and malformed-save rejection |
 | [P1 #25](https://github.com/MohamedXIV/nile-kiosk/issues/25) | **Time & Scheduling** — calendar and deterministic durable event scheduler | [clock/scheduler contract](WORLD_TIME_AND_SCHEDULER.md); midnight, cancellation, recurring scheduling, step-size equivalence and real save/reload |
 | [P2 #26](https://github.com/MohamedXIV/nile-kiosk/issues/26) | **NPC Life/Presence** — identity, locations, routines, offscreen schedules, arrivals/departures, availability; separate Social & Knowledge service | multiple independent NPCs and shared space; player absence never stops world; test routine conflicts, idle and time skips, save/replay |
 | [P3 #27](https://github.com/MohamedXIV/nile-kiosk/issues/27) | **Kiosk Production** — inventory, ingredient quantities, recipe definitions, workstation states, action sequences, valid/invalid operations and waste/abandonment | distinct items/recipes data-driven, ingredient reservation/consumption, concurrency, interruption/refund policy, yield quality if adopted, persistence |

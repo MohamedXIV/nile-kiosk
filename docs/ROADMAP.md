@@ -10,7 +10,7 @@
 | 2a | **V001-A — roof-room real 2D asset pack** | 3D measured model → independently authored/cleaned 2D floor/walls/cutaway/bed/desk/fan/lamp; pivot/lighting/collision/save and real browser art review |
 | 2b | V001-B landing and V001-C south-flat pack | Two clearly opposed doors + opaque north neighbor; 60m² flat kitchen/bath and unit cutaway, without icon-like room framing |
 | 2c | Proposed 2:1 projection migration (only if adopted) | Rebuild Blender/Godot/manifest/sprites simultaneously from projection v0.1; no mixed generations; reprojection and real Chromium proof |
-| 3 | **World Kernel (P0)** | Canonical schema, deterministic command/event contracts, idempotency, versioned persistence and rejection paths |
+| 3 | **World Kernel (P0) — DONE, [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33)** | Tested canonical schema, deterministic commands/events, replay, versioned JSON saves, rejection paths |
 | 4 | **World Clock & Scheduler (P1)** | Durable ordering, boundary time advances, recurring events, save/replay and midnight behavior |
 | 5 | **NPC Life/Presence + Social Foundations (P2)** | Independent offscreen action, identities/routines, observed vs unknown facts; state persistence |
 | 6 | **Kiosk Production (P3)** | Data-defined recipes/stations/ingredients and full start/cancel/finish lifecycle, no hardcoded global tea counter |
