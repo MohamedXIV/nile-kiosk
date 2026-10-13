@@ -48,9 +48,9 @@ func _invalid_imports(source: Dictionary) -> void:
     invalid["commands"][6]["payload"]["ingredient_id"] = "leaves"
     check(Bootstrap.prepare(invalid, 42)["code"] == "BUNDLE_COMMAND_REJECTED", "domain conflict partially accepted")
     invalid = source.duplicate(true)
-    invalid["commands"][11]["payload"]["steps"][0]["inputs"] = {"nonexistent": 2}
+    invalid["commands"][13]["payload"]["steps"][0]["inputs"] = {"nonexistent": 2}
     var bad: Dictionary = Bootstrap.prepare(invalid, 42)
-    check(bad["code"] == "BUNDLE_COMMAND_REJECTED" and bad["command_index"] == 11, "dependency-invalid content")
+    check(bad["code"] == "BUNDLE_COMMAND_REJECTED" and bad["command_index"] == 13, "dependency-invalid content")
     check(not bad.has("candidate"), "invalid bundle leaked partially populated candidate")
     invalid = source.duplicate(true)
     invalid["commands"].append({"id": "x", "kind": "npc.register", "actor_id": "system:director", "payload": {"npc_id": "x", "location_id": "x"}, "extra": "no"})
@@ -97,7 +97,7 @@ func _run() -> void:
     var bad_content: Dictionary = session.bootstrap_from_content("res://content/world/missing.json")
     check(not bad_content.get("ok",false) and session.world.view()["sequence"] == 0, "failed boot mutated live session")
     var accepted: Dictionary = session.bootstrap_from_content(SAMPLE)
-    check(accepted.get("ok",false) and accepted.get("commands") == 22, "session did not apply catalog")
+    check(accepted.get("ok",false) and accepted.get("commands") == 24, "session did not apply catalog")
     check(JSON.stringify(session.world.view()) == JSON.stringify(first.view()), "session staged world differs")
     check(session.bootstrap_from_content(SAMPLE)["code"] == "WORLD_ALREADY_INITIALIZED", "duplicate catalog import")
     # Continue through real domain commands; the authored price/rent are QA data only.
