@@ -44,3 +44,7 @@
 Both real alternatives passed native independent concurrent conversations, conditional authored interjection, canonical fact effects, deterministic save/resume mid-choice, and separate full-kiosk Chromium Web smokes. There is no measured runtime performance advantage established for either. Ink wins **as a design/workflow tradeoff**: compositional authored narrative (short branches with rapid reconvergence), plain text scripts, and portability if the game later leaves Godot. It costs a compiler build step, requires a Git-pinned Godot-4 branch of inkgd, and has a more involved integration than Dialogue Manager. These are explicit costs, not ignored.
 
 Decision evidence: [D001 comparison report](spikes/D001-DECISION.md). Next visual/engine trial (V001) remains required before we commit to Godot as the final game engine.
+
+## Proposed iso authoring contract (2026-10-13)
+
+See [Isometric Projection Contract v0.1](architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md) and its JSON parameters and stdlib-only math validator. It **proposes** exact 2:1 dimetric projection for future modular 3D-authored → 2D-delivered assets. **PR #20 still uses its existing approximately 2.067:1 camera** and remains the validated-but-art-unapproved V001 spike. Do not mix renders or silently change the live camera; adoption requires a single separately gated Blender/Godot migration plus real Chromium proof. This is an authoring specification, not the final Godot engine commitment.
