@@ -1,5 +1,7 @@
 # SYS P2 — NPC Life, Presence and Social Knowledge
 
+**Status: VERIFIED / MERGED** — [PR #35](https://github.com/MohamedXIV/nile-kiosk/pull/35) merge `072a910726e6e4ce286b134b2fb4952931efeff9`, [Godot P0/P1/P2 + native regressions PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38401158052), [Chromium Ink + Dialogue Manager PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38401158037).
+
 Issue: [#26](https://github.com/MohamedXIV/nile-kiosk/issues/26). Production files: `scripts/core/npc_world.gd`, `world_state.gd`, `world_kernel.gd`.
 
 ## Scope and authority
