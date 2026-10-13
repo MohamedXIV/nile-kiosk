@@ -16,7 +16,10 @@ const prefixes={
   choice:"D001_WEB_CHOICE ",
   saved:"D001_WEB_SAVED ",
   restored:"D001_WEB_RESTORED ",
-  interjected:"D001_WEB_INTERJECTED "
+  interjected:"D001_WEB_INTERJECTED ",
+  at_table:"D001_WEB_AT_TABLE ",
+  known:"D001_WEB_KNOWN ",
+  tick:"D001_WEB_TICK "
 };
 page.on("console",msg=>{
   const line=msg.text();
@@ -48,6 +51,7 @@ try{
   await page.locator("canvas").first().click({position:{x:480,y:260}});
   await page.keyboard.press("t"); // deterministic browser fixture, real hearing/knowledge guards
   await page.keyboard.press("k");
+  await until(()=>traces.at_table?.length && traces.known?.length,"browser keyboard reached Godot",7000);
   const choice=await until(()=>traces.choice.at(-1),"real gated Ink choice");
   check(choice.match && choice.football==="choice","Original story was not in a gated interjection");
   await page.keyboard.press("p");

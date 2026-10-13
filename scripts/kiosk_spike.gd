@@ -135,6 +135,8 @@ func _process(delta: float) -> void:
             last_notice = "Conversation continues without you."
         elif event.get("kind") == "choice" and use_ink and OS.has_feature("web"):
             print("D001_WEB_CHOICE ", JSON.stringify(_browser_snapshot()))
+    if use_ink and OS.has_feature("web") and model.tick_number in [4, 8, 12]:
+        print("D001_WEB_TICK ", JSON.stringify(_browser_snapshot()))
     _report_full_web_probe_when_ready()
     queue_redraw()
 
