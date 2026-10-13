@@ -159,7 +159,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_2:
             selected_item = "table"
         KEY_G:
-            if model.move_furniture(selected_item, model.player_local + Vector2(20, 12)):
+            if model.move_furniture(selected_item, model.player_local + Vector2(-20, 25)):
                 notice = "Moved %s" % selected_item
                 print("V001_FURNITURE_MOVED: %s" % selected_item)
             else:
