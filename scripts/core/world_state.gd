@@ -190,7 +190,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
         var changes: Array = []
         if not departing_id.is_empty():
             var predicted: RefCounted = service.duplicate_domain()
-            changes = predicted.departing(departing_id, world_minute, "command:departure", jobs.duplicate(true))
+            changes = predicted.departing(departing_id, world_minute, "evt:%012d" % (sequence + 1), jobs.duplicate(true))
         result["effect"]["departing_npc_id"] = departing_id
         result["effect"]["abandoned_orders"] = changes
         return result
@@ -322,7 +322,7 @@ func _apply_event(raw: Dictionary) -> bool:
         cooking.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     if NpcWorld.is_domain_command(kind):
         if not planned["effect"]["departing_npc_id"].is_empty():
-            service.departing(planned["effect"]["departing_npc_id"], world_minute, "command:departure", jobs)
+            service.departing(planned["effect"]["departing_npc_id"], world_minute, expected["event_id"], jobs)
         society.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     match kind:
         "knowledge.grant":
