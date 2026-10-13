@@ -1,6 +1,8 @@
 # PLAY C3 — Player-driven Kiosk Service on the Canonical World
 
-Tracked by [Issue #47](https://github.com/MohamedXIV/nile-kiosk/issues/47). This is the next gameplay-facing integration after C0 data authored worlds and C1/C2 walkable/canonical room XY. It is **not** final content, balanced Egypt 2000–2005 economy or finished art.
+Tracked by **Status: VERIFIED / MERGED** — [PR #48](https://github.com/MohamedXIV/nile-kiosk/pull/48), squash `540760fe2a6ca666fa9ef7a8e269c3095a1c6edd`; [native P0–P7/C0/C1/C2/C3 and D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38463521522), [real Web Chrome PLAY_C3_CHROMIUM_PASS + P7/C1/D001 regressions](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38463521605), GitGuardian PASS. The real browser completed customer offer, accept, recipe heat/serve, mid-cook save and reload, delivery, quoted price, exact-once ledger settlement and second browser reload.
+
+[Issue #47](https://github.com/MohamedXIV/nile-kiosk/issues/47). This is the next gameplay-facing integration after C0 data authored worlds and C1/C2 walkable/canonical room XY. It is **not** final content, balanced Egypt 2000–2005 economy or finished art.
 
 ## Production boundary
 
