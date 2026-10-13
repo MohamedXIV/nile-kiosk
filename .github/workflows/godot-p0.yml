@@ -102,6 +102,12 @@ jobs:
           godot --headless --path . --script res://tests/test_sys_p4.gd 2>&1 | tee /tmp/sys-p4.log
           grep -q 'SYS P4: PASS' /tmp/sys-p4.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P4: FAIL)' /tmp/sys-p4.log; then exit 1; fi
+      - name: Run SYS P5 ledger housing and home production acceptance
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_sys_p5.gd 2>&1 | tee /tmp/sys-p5.log
+          grep -q 'SYS P5: PASS' /tmp/sys-p5.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P5: FAIL)' /tmp/sys-p5.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
