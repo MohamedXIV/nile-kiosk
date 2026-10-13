@@ -104,8 +104,11 @@ func plan(kind: String, p: Dictionary, actor: String, service: RefCounted, cooki
             if refunded.has(original_id):
                 return fail("ALREADY_REFUNDED")
             var original: Dictionary = transactions[original_id]
-            if original["from_account"] != "player":
-                return fail("NOT_REFUNDABLE")
+            if original["from_account"] != "player" or original["source_kind"] != "economy.pay":
+                # Housing access and bought objects are separate domain assets.
+                # A raw money refund cannot reverse them; a future domain-specific
+                # compensation command must settle both sides atomically.
+                return fail("DOMAIN_REFUND_REQUIRED")
             return _transfer_effect(str(p["transaction_id"]), original["to_account"], "player",
                 int(original["amount_minor"]), "refund:" + original_id)
         "economy.recipe.price.set":
@@ -142,7 +145,7 @@ func plan(kind: String, p: Dictionary, actor: String, service: RefCounted, cooki
                 int(quotes[p["claim_id"]]["amount_minor"]), p["claim_id"])
     return fail("UNKNOWN_COMMAND")
 
-func apply_transfer(effect: Dictionary, event_id: String, minute: int) -> void:
+func apply_transfer(effect: Dictionary, event_id: String, minute: int, source_kind: String) -> void:
     var tx_id: String = effect["transaction_id"]
     var amount: int = int(effect["amount_minor"])
     var from_id: String = effect["from_account"]
@@ -152,7 +155,7 @@ func apply_transfer(effect: Dictionary, event_id: String, minute: int) -> void:
     var row: Dictionary = {
         "transaction_id": tx_id, "from_account": from_id, "to_account": to_id,
         "amount_minor": amount, "cause_id": effect["cause_id"], "event_id": event_id,
-        "world_minute": minute,
+        "world_minute": minute, "source_kind": source_kind,
         "entries": [
             {"account_id": from_id, "delta_minor": -amount},
             {"account_id": to_id, "delta_minor": amount}
@@ -165,7 +168,7 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, event_id: St
         minute: int, service: RefCounted) -> void:
     match kind:
         "economy.fund", "economy.pay", "economy.refund", "economy.order.settle":
-            apply_transfer(effect, event_id, minute)
+            apply_transfer(effect, event_id, minute, kind)
             if kind == "economy.refund":
                 refunded[p["original_transaction_id"]] = effect["transaction_id"]
             if kind == "economy.order.settle":
