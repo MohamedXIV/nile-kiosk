@@ -23,19 +23,27 @@ func action(world: RefCounted, cid: String, actor: String, kind: String, p: Dict
 func _run() -> void:
     var path="user://nk-p7-integration.json"
     var world=World.new(97,path)
-    check(Fixture.populate(world).get("ok",false),"populate full world")
+    var setup: Dictionary = Fixture.populate(world)
+    if not setup.get("ok",false):
+        failures.append("populate full world: "+str(setup))
+        _done()
+        return
     check(world.attach_ink("a","res://content/ink/sys_p6_conversation.ink.json"),"Ink A")
     check(world.attach_ink("b","res://content/ink/sys_p6_gossip.ink.json"),"Ink B")
     if not await _ready_ink(world):
         failures.append("initial native Ink loading")
         _done()
         return
-    check(Fixture.seed_sessions(world).get("ok",false),"seed independent conversations")
+    var sessions: Dictionary = Fixture.seed_sessions(world)
+    if not sessions.get("ok",false):
+        failures.append("seed independent conversations: "+str(sessions))
+        _done()
+        return
     var v: Dictionary=world.world.view()
     check(v["sequence"]>20 and v["version"]==7,"P0 all-domain replay envelope")
     check(v["world_minute"]==12 and v["jobs"].has("housing:due:lease"),"P1/P5 world clock/scheduler")
     check(world.world.npc("visitor")["location_id"]=="kiosk","P2 scheduled presence")
-    check(v["cooking"]["preparations"]["batch"]["status"]=="active","P3 mid-cook")
+    check(v["cooking"]["preparations"]["batch"]["stage"]=="active","P3 mid-cook")
     check(world.world.order("order:tea")["status"]=="accepted","P4 mid-order")
     check(world.world.housing_view()["leases"]["lease"]["dues_owed"]==1,"P5 rent outstanding")
     check(world.world.narrative_session("a")["phase"]=="choice","P6 choice pending")
