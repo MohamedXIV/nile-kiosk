@@ -14,6 +14,18 @@ func view() -> Dictionary:
 func calendar() -> Dictionary:
     return Clock.at(_state.world_minute)
 
+func npc(npc_id: String) -> Dictionary:
+    return _state.society.npcs.get(npc_id, {}).duplicate(true)
+
+func npc_routines() -> Dictionary:
+    return _state.society.routines.duplicate(true)
+
+func player_knows(fact_id: String) -> bool:
+    return _state.society.knowledge.get("player", {}).has(fact_id)
+
+func social_view() -> Dictionary:
+    return _state.society.snapshot()
+
 func has_fact(fact_id: String) -> bool:
     return _state.facts.get(fact_id, false) == true
 
@@ -120,8 +132,8 @@ static func _matches(actual: Variant, expected: Variant) -> bool:
     return actual == expected
 
 func restore_snapshot(data: Dictionary) -> bool:
-    # Explicit rejection of P0 v1: no implicit fabricated clock/queue migration.
-    if data.size() != 11 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
+    # Explicit rejection of v1/v2: no implicit NPC/social-state migration.
+    if data.size() != 12 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
         return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
