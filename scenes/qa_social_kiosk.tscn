@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/integration/qa_traversal_scene.gd" id="1"]
+
+[node name="QASocialKiosk" type="Node2D"]
+script = ExtResource("1")
+world_save_path = "user://nk-play-c5-web-qa.json"
+world_catalog_path = "res://content/world/qa_nile_kiosk_social.v1.json"
+demand_policy_path = "res://content/service/qa_social_demand.v1.json"
