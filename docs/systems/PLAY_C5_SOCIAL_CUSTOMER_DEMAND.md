@@ -1,5 +1,7 @@
 # PLAY C5 — Socially Conditioned NPC Demand
 
+**Status: VERIFIED / MERGED** — [PR #52](https://github.com/MohamedXIV/nile-kiosk/pull/52), squash `2559f20668cf9ebaab78300b6f28ada580365b9e`. [Exact-head Godot P0–P7/C0–C5/D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38470973474), [real Chromium PLAY_C5_CHROMIUM_PASS plus C4/C3/C1/P7/D001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38470973284), GitGuardian PASS.
+
 [Issue #51](https://github.com/MohamedXIV/nile-kiosk/issues/51). Following PLAY C4, customer demand now supports a **bounded, optional, authored social signal** derived from the actual P2 state of the **customer** at the scheduled world minute. This is a domain rule, not a new scene-owned demand simulator or inferred affection stat.
 
 ## Immutable and backward-compatible authoring
