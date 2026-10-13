@@ -20,6 +20,7 @@
 | Narrative implementation | Ink/inkgd selected after D001 comparison, Dialogue Manager fallback | **Chosen baseline for next slice**; browser reload verified for Ink |
 | Language | Arabic/RTL not in first D001 test fixtures | **Deferred**, not cancelled or claimed complete |
 | Art review | Real Web screenshots and final user approval required beyond green tests | **Mandatory gate**, open on V001 PR #20 |
+| Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; gameplay kernel still to be implemented, D001/V001 remain spikes |
 
 ## Verified against live GitHub when written
 
@@ -28,12 +29,11 @@
 - [V001 issue #19](https://github.com/MohamedXIV/nile-kiosk/issues/19): separate artist/visual review required.
 - [D001 decision](spikes/D001-DECISION.md) and [browser refresh persistence](spikes/D001-browser-refresh.md): prior proof of genuine Ink Web save/refresh within covered smoke scope, not claim of cross-device permanence.
 
-## Next actionable order
+## Next actionable order — systems priority (2026-10-13)
 
-1. Keep PR #20's working proof intact while **reviewing source art at actual Web gameplay size**. Do not merge on numeric checks alone.
-2. Align/apply projection v0.1 only in a coherent gated Blender + Godot migration if its exact 2:1 advantage justifies the change; no mixed generations.
-3. Deliver **V001-A roof-room 2D modular art pack** with valid pivots, named layers, cutaway, light response, collision and one movable saved prop.
-4. Review actual screenshots for scale, readability, lived-in Cairo character and style before expanding to the two-door landing and 60m² flat.
-5. Return to the **kiosk** and a complete ordinary day once home spatial/art language is demonstrated.
+1. Follow [System-First Architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md): World Kernel → World Time/Scheduler → NPC Life/Social → Kitchen Production → Orders → Economy/Housing/Home → Ink Integration → whole-world persistence/runtime.
+2. Every module must expose real domain contracts and acceptance checks; no demo-first hardcoded NPC/recipe/day or silent promotion of spike code.
+3. Art PR #20 can remain open for visual review without blocking headless domain development. Keep agreed 24m² roof room, 60m² south flat, 3D→2D asset direction and pending 2:1 migration documented for later.
+4. Once complete systems exist, integrate them into gameplay without rewriting their truth or adding a second controller per domain.
 
 **Not decided:** exact rent progression and retention policy, duplex, specific final painted technique, full normal-map pipeline, alternate engine commitment, full opening date of residence and neighbor's character. Do not present these as canon.

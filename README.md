@@ -29,6 +29,8 @@ The game is **not** a restaurant empire, a misery simulator, or a quest-driven v
 ## Documentation and project memory
 
 - **[Decision register — start here](docs/DECISION_REGISTER.md)**: agreed decisions vs provisional details vs implementation proof.
+- **[System-First Architecture](docs/architecture/SYSTEM_FIRST_ARCHITECTURE.md)**: production gameplay architecture; never grow a one-day demo into the whole game.
+- **[Systems Delivery Board](docs/systems/SYSTEM_DELIVERY_BOARD.md)** and **[World Time Contract](docs/systems/WORLD_TIME_AND_SCHEDULER.md)**: system ownership, dependencies and acceptance gates.
 - **[Visual World Bible](docs/design/VISUAL_WORLD_BIBLE.md)**: what playable isometric means, art look and Cairo/home direction.
 - **[Home building topology and cutaways](docs/architecture/HOME_BUILDING_SPATIAL_SPEC.md)**: 24m² roof room, two opposed doors, 60m² southern unit, roof/shared landing.
 - **[3D-authored → 2D-delivered production workflow](docs/art/3D_AUTHORED_2D_PRODUCTION.md)**: modular sprites, pivots/crops, light masks, art acceptance.
