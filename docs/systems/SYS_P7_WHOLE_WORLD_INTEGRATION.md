@@ -1,5 +1,7 @@
 # SYS P7 — Whole-world Persistence & Integrated Godot/Web Runtime
 
+**Status: VERIFIED / MERGED** — [PR #40](https://github.com/MohamedXIV/nile-kiosk/pull/40), squash `ec2ed98cd121c33f36c4c468d90e4c25512ca7e8`. [Godot P0–P7 plus D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38421041297), [REAL P7 production WorldKernel Chromium two page reloads + D001 browser regressions PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38421041286), GitGuardian checks success. Browser emitted `SYS_P7_CHROMIUM_PASS`; baseline saved at revision 46/minute 12, end saved revision 56/minute 18; both persisted same SHA-256 state digest across hard reloads.
+
 [Issue #31](https://github.com/MohamedXIV/nile-kiosk/issues/31), parent [#23](https://github.com/MohamedXIV/nile-kiosk/issues/23). WorldKernel v7 remains the sole authoritative mutable world state for P0–P6 (world time, NPC schedules and hearing, cooking and stock, orders/service, prices/ledger and rentals, furnishings, canonical narrative sessions and real Ink cursors). **No new money/clock/ownership state resides in the scene.**
 
 ## Runtime integration
