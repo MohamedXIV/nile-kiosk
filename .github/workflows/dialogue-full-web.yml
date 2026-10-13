@@ -9,6 +9,7 @@ on:
       - "scenes/**"
       - "export_presets.cfg"
       - "tools/web-dialogue-smoke.mjs"
+      - "tools/web-ink-refresh-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -88,6 +89,7 @@ jobs:
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           npm install --no-save --no-package-lock playwright-core@1.56.1
           node tools/web-dialogue-smoke.mjs http://127.0.0.1:8765
+          node tools/web-ink-refresh-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
