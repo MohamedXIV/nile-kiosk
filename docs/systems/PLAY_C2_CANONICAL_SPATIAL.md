@@ -1,5 +1,7 @@
 # PLAY C2 — Canonical Room Pose, Portal Authority & Verified v7 Upgrade
 
+**Status: VERIFIED / MERGED** — [PR #46](https://github.com/MohamedXIV/nile-kiosk/pull/46), squash `a21a3906da1a9d042ee2409314b3f2e8ba2ca80d`. [Native P0–P7/C0/C1/C2/D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38450282916), [real Chromium PLAY_C1_CHROMIUM_PASS with exact XY and SYS P7/D001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38450282923), GitGuardian success.
+
 [Issue #45](https://github.com/MohamedXIV/nile-kiosk/issues/45). C1's first playable Godot/Web scene remembered the **room** but respawned the player's in-room XY on every reload. C2 makes both room and integer XY coordinates real, first-class, replay-verified **WorldKernel** state, with no save sidecar and no competing scene game state.
 
 ## Authority and persistence
