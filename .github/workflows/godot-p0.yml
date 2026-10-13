@@ -78,6 +78,12 @@ jobs:
           godot --headless --path . --script res://tests/test_sys_p0.gd 2>&1 | tee /tmp/sys-p0.log
           grep -q 'SYS P0: PASS' /tmp/sys-p0.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P0: FAIL)' /tmp/sys-p0.log; then exit 1; fi
+      - name: Run production SYS P1 World Time and Scheduler tests
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_sys_p1.gd 2>&1 | tee /tmp/sys-p1.log
+          grep -q 'SYS P1: PASS' /tmp/sys-p1.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P1: FAIL)' /tmp/sys-p1.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests

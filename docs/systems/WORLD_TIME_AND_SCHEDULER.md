@@ -1,6 +1,6 @@
 # World Time & Scheduler — production contract
 
-**Status:** proposed design/acceptance gate. No production implementation merged yet; D001's \`tick_number\` is a spike fixture and **must not become the world's calendar**.
+**Status:** production P1 implementation under verification (issue #25). D001's \`tick_number\` is a spike fixture and **must not become the world's calendar**.
 
 **Goal:** exactly one deterministic game clock whose time advances explicitly, drives NPC schedules and cooking/order deadlines, and can be saved/reloaded halfway through any activity.
 
