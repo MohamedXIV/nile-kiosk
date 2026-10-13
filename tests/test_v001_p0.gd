@@ -1,80 +1,81 @@
 extends SceneTree
-## Deterministic blockout gates, distinct from visual art acceptance.
-
 const Model = preload("res://scripts/v001/building_model.gd")
 var failures: Array[String] = []
-
 func _initialize() -> void:
-    _test_projection_and_floors()
-    _test_visibility_and_navigation()
-    _test_collision_and_furniture()
-    _test_disk_persistence()
+    _projection()
+    _topology()
+    _interactions()
+    _save()
     if failures.is_empty():
-        print("V001 P0: PASS (4 logical test groups)")
+        print("V001 P0: PASS (4 logical test groups, V2 small-flat topology)")
         quit(0)
     else:
-        for error in failures:
-            push_error(error)
+        for failure in failures: push_error(failure)
         print("V001 P0: FAIL (%d assertions)" % failures.size())
         quit(1)
-
-func _check(ok: bool, message: String) -> void:
-    if not ok:
-        failures.append(message)
-
-func _test_projection_and_floors() -> void:
-    var at: Vector2 = Vector2(60, 82)
-    var lower: Vector2 = Model.project(at, 3)
-    var upper: Vector2 = Model.project(at, 4)
-    _check(is_equal_approx(lower.x, upper.x), "Floor change should not shift X in fixed oblique projection")
-    _check(is_equal_approx(lower.y - upper.y, Model.FLOOR_PIXELS), "Floor visual offset is not consistent")
-    var east: Vector2 = Model.project(at + Vector2(12, 0), 4)
-    var south: Vector2 = Model.project(at + Vector2(0, 12), 4)
-    _check(east.x > upper.x and south.x < upper.x, "Projection is not oblique/dimetric")
-
-func _test_visibility_and_navigation() -> void:
-    var world = Model.new()
-    _check(world.visible_layers().roof and world.visible_layers().upper_facade, "Exterior must display roof and facade")
-    _check(not world.go_to_apartment(), "Cannot teleport directly to apartment from street")
-    _check(world.enter_building() and world.floor_id == 0, "Street entry did not reach ground lobby")
-    _check(not world.visible_layers().roof, "Lobby should not show full exterior roof")
-    _check(world.go_to_apartment() and world.floor_id == Model.PLAYER_FLOOR, "Stairs failed to reach chosen logical floor")
-    _check(world.visible_layers().apartment and not world.visible_layers().front_occluders,
-        "Cutaway must reveal apartment and hide obstructing facade")
-    _check(world.leave_apartment() and world.floor_id == 0, "Leaving apartment did not restore lobby")
-    _check(world.exit_building() and world.floor_id == -1 and world.visible_layers().roof,
-        "Street exit did not restore full exterior")
-
-func _test_collision_and_furniture() -> void:
-    var world = Model.new()
-    world.enter_building()
-    world.go_to_apartment()
-    var old: Vector2 = world.furniture["chair"]
-    _check(not world.move_furniture("chair", Vector2(3, 3)), "Furniture moved outside walls")
-    _check(not world.move_furniture("chair", world.furniture["table"]), "Furniture overlapped table")
-    _check(not world.move_player(Vector2(-300, -300)), "Player walked outside apartment")
-    _check(world.move_furniture("chair", Vector2(52, 100)), "Valid chair placement refused")
-    _check(world.furniture["chair"] != old, "Chair move failed to change canonical placement")
-    _check(world.furniture["table"] == Vector2(129, 84), "Moving chair unexpectedly moved table")
-    _check(not world.is_walkable(world.furniture["chair"]), "Furniture has no collision")
-
-func _test_disk_persistence() -> void:
-    var world = Model.new()
-    world.enter_building()
-    world.go_to_apartment()
-    world.move_furniture("chair", Vector2(52, 100))
-    world.toggle_night()
-    var saved_at: String = "user://v001-p0-test.json"
-    _check(world.save_to_file(saved_at), "Couldn't write V001 JSON")
-    var restored = Model.new()
-    _check(restored.load_from_file(saved_at), "Couldn't restore V001 JSON")
-    _check(restored.mode == "apartment" and restored.floor_id == Model.PLAYER_FLOOR,
-        "Floor/view were lost across save")
-    _check(restored.furniture["chair"] == Vector2(52, 100), "Moved chair placement did not persist")
-    _check(restored.furniture["table"] == Vector2(129, 84), "Unmoved table placement changed after restore")
-    _check(restored.night and not restored.visible_layers().roof, "Night/cutaway state not restored")
-    var before: Dictionary = restored.snapshot()
-    _check(not restored.restore({"version": 1, "building_id": "different"}), "Invalid building save was accepted")
-    _check(restored.snapshot() == before, "Invalid save partially modified building")
-    if FileAccess.file_exists(saved_at):
-        DirAccess.remove_absolute(ProjectSettings.globalize_path(saved_at))
+func check(ok: bool, message: String) -> void:
+    if not ok: failures.append(message)
+func _projection() -> void:
+    var p := Vector2(75,96)
+    var lower := Model.project(p,6)
+    var upper := Model.project(p,7)
+    check(is_equal_approx(lower.x,upper.x), "X coordinate changed across floors")
+    check(is_equal_approx(lower.y-upper.y,Model.FLOOR_PIXELS),"floor height projection mismatch")
+    check(Model.project(p+Vector2(12,0),6).x>lower.x and Model.project(p+Vector2(0,12),6).x<lower.x,"bad oblique axes")
+    check(is_equal_approx(Model.apartment_square_metres(),60.0),"southern apartment must be 60m2")
+    check(is_equal_approx(Model.roof_room_square_metres(),24.0),"roof room must be 4x6m")
+    check(Model.APARTMENT_BOUNDS.encloses(Model.ROOF_ROOM_BOUNDS),"roof room not above apartment")
+func _topology() -> void:
+    var w=Model.new()
+    check(w.mode=="roof_room" and w.floor_id==7 and w.unit_id()=="roof_room_south","must begin in roof room")
+    check(not w.go_to_apartment(),"unearned direct apartment entry")
+    check(w.leave_roof_room(),"cannot exit roof room")
+    check(w.visible_layers().roof and w.visible_layers().roof_room,"roof missing its room")
+    check(w.descend_from_roof(),"roof stairs don't reach landing")
+    check(w.unit_id()=="shared_landing" and w.visible_layers().neighbor,"neighbor door/landing absent")
+    check(not w.go_to_apartment(),"apartment rental gate not respected")
+    w.rent_apartment_for_spike()
+    check(w.go_to_apartment(),"rented south flat can't open")
+    check(w.visible_layers().front_wall_cut and not w.visible_layers().roof,"cutaway failed")
+    check(w.leave_apartment() and w.ascend_to_roof() and w.enter_roof_room(),"no return home")
+    check(w.leave_roof_room() and w.descend_from_roof() and w.descend_to_lobby() and w.exit_building(),"not a connected building")
+    check(w.enter_building() and w.go_to_landing(),"street stair route disconnected")
+func _interactions() -> void:
+    var w=Model.new()
+    check(not w.move_player(Vector2(-100,0)),"roof room has no walls")
+    check(not w.move_furniture("chair",Vector2(90,100)),"moving apartment furniture before rental")
+    w.leave_roof_room()
+    w.descend_from_roof()
+    w.rent_apartment_for_spike()
+    w.go_to_apartment()
+    check(not w.is_walkable(Vector2(5,5)),"entire floor is wrongly walkable")
+    check(not w.move_player(Vector2(0,100)),"walked through south wall")
+    check(not w.move_furniture("chair",Vector2(3,3)),"furniture beyond flat")
+    check(not w.move_furniture("chair",w.furniture["table"]),"furniture overlaps")
+    check(w.move_furniture("chair",Vector2(90,115)),"valid smaller-flat furniture move rejected")
+    check(w.furniture["table"]==Vector2(145,103),"moving chair moved table")
+    check(not w.is_walkable(w.furniture["chair"]),"chair has no collision")
+    w.toggle_night()
+    check(w.toggle_lamp() and not w.lamp_on,"light toggle not available")
+func _save() -> void:
+    var w=Model.new()
+    w.leave_roof_room()
+    w.descend_from_roof()
+    w.rent_apartment_for_spike()
+    w.go_to_apartment()
+    w.move_furniture("chair",Vector2(90,115))
+    w.toggle_night()
+    w.toggle_lamp()
+    var path: String="user://v001-p0-test.json"
+    check(w.save_to_file(path),"V2 save failed")
+    var restored=Model.new()
+    check(restored.load_from_file(path),"V2 save reload failed")
+    check(restored.mode=="apartment" and restored.floor_id==6,"wrong restored floor")
+    check(restored.apartment_rented and restored.unit_id()=="unit_south","lost unit rental")
+    check(restored.furniture["chair"]==Vector2(90,115),"lost furniture position")
+    check(restored.night and not restored.lamp_on,"lost light state")
+    var before: Dictionary=restored.snapshot()
+    check(not restored.restore({"version":1,"building_id":Model.BUILDING_ID}),"accepted old save without migration")
+    check(not restored.restore({"version":2,"building_id":"wrong"}),"accepted wrong building")
+    check(restored.snapshot()==before,"invalid save partially changed world")
+    if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
