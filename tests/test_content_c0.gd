@@ -54,7 +54,8 @@ func _invalid_imports(source: Dictionary) -> void:
     check(not bad.has("candidate"), "invalid bundle leaked partially populated candidate")
     invalid = source.duplicate(true)
     invalid["commands"].append({"id": "x", "kind": "npc.register", "actor_id": "system:director", "payload": {"npc_id": "x", "location_id": "x"}, "extra": "no"})
-    check(Bootstrap.prepare(invalid, 42)["code"] == "INVALID_ENTRY", "extra unreviewed directive accepted")
+    var extra_result: Dictionary = Bootstrap.prepare(invalid, 42)
+    check(extra_result["code"] == "INVALID_ENTRY", "extra unreviewed directive accepted: "+JSON.stringify(extra_result))
     invalid = source.duplicate(true)
     invalid["commands"] = []
     check(Bootstrap.prepare(invalid, 42)["code"] == "INVALID_COMMAND_LIST", "empty bootstrap accepted")
@@ -71,7 +72,7 @@ func _run() -> void:
     if source.is_empty(): return
     _invalid_imports(source)
     var staged: Dictionary = Bootstrap.from_file(SAMPLE, 42)
-    check(staged.get("ok",false), "valid content staged")
+    check(staged.get("ok",false), "valid content staged: "+JSON.stringify(staged))
     if not staged.get("ok",false): return
     var first: RefCounted = staged["candidate"]
     var repeated: Dictionary = Bootstrap.prepare(source, 42)
