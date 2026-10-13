@@ -48,6 +48,29 @@ static func _canonical(value: Variant) -> Variant:
         return int(value)
     return value
 
+static func matching_json(actual: Variant, expected: Variant) -> bool:
+    # Godot JSON parses some integral numeric tokens as floats. The reducer
+    # normalizes them without relaxing structure, type or fractional checks.
+    if typeof(expected) == TYPE_INT:
+        return integral(actual, -MAX_INT_JSON) and int(actual) == expected
+    if typeof(actual) != typeof(expected):
+        return false
+    if typeof(expected) == TYPE_DICTIONARY:
+        if actual.size() != expected.size():
+            return false
+        for key in expected:
+            if not actual.has(key) or not matching_json(actual[key], expected[key]):
+                return false
+        return true
+    if typeof(expected) == TYPE_ARRAY:
+        if actual.size() != expected.size():
+            return false
+        for i in range(expected.size()):
+            if not matching_json(actual[i], expected[i]):
+                return false
+        return true
+    return actual == expected
+
 static func command_signature(kind: String, actor: String, payload: Dictionary) -> String:
     if kind == "knowledge.grant":
         return signature(actor, payload["fact_id"])
@@ -232,7 +255,7 @@ func _apply_event(raw: Dictionary) -> bool:
         "event_id": "evt:%012d" % int(next_seq), "kind": _event_kind(kind),
         "command_id": command_id, "actor_id": actor_id, "payload": event_payload
     }
-    if raw != expected:
+    if not matching_json(raw, expected):
         return false
     sequence = int(next_seq)
     match kind:
