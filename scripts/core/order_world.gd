@@ -120,7 +120,10 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
                 seen[seat] = true
             return {"ok": true, "effect": {"venue_id": p["venue_id"]}}
         "service.demand.configure":
-            if actor != "system:director" or not exact(p, ["plan_id", "npc_id", "venue_id", "recipe_id", "route", "first_minute", "interval_minutes", "wait_minutes", "chance_bp"]):
+            var base_fields: Array = ["plan_id", "npc_id", "venue_id", "recipe_id", "route", "first_minute", "interval_minutes", "wait_minutes", "chance_bp"]
+            var fields: Array = base_fields.duplicate()
+            if p.has("social_rule"): fields.append("social_rule")
+            if actor != "system:director" or not exact(p, fields):
                 return fail("INVALID_AUTHOR_OR_PAYLOAD")
             for field in ["plan_id","npc_id","venue_id","recipe_id"]:
                 if not ident(p.get(field)): return fail("INVALID_PAYLOAD")
@@ -134,6 +137,16 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
                 return fail("OVERLAPPING_DEMAND")
             if not society.npcs.has(p["npc_id"]) or not venues.has(p["venue_id"]) or not cooking.recipes.has(p["recipe_id"]):
                 return fail("UNKNOWN_DEMAND_REFERENCE")
+            if p.has("social_rule"):
+                var rule: Variant = p["social_rule"]
+                if typeof(rule) != TYPE_DICTIONARY or not exact(rule, ["fact_id", "fact_bonus_bp", "trusted_peer_id", "trust_bonus_bp"]):
+                    return fail("INVALID_SOCIAL_RULE")
+                if not ident(rule.get("fact_id")) or not ident(rule.get("trusted_peer_id")):
+                    return fail("INVALID_SOCIAL_RULE")
+                if not integer(rule.get("fact_bonus_bp")) or not integer(rule.get("trust_bonus_bp")) or int(rule["fact_bonus_bp"]) > 10000 or int(rule["trust_bonus_bp"]) > 10000:
+                    return fail("INVALID_SOCIAL_RULE")
+                if not society.social_facts.has(rule["fact_id"]) or not society.npcs.has(rule["trusted_peer_id"]) or rule["trusted_peer_id"] == p["npc_id"]:
+                    return fail("UNKNOWN_SOCIAL_REFERENCE")
             var venue: Dictionary = venues[p["venue_id"]]
             if venue["counter_slots"] == 0 and p["route"] == "counter":
                 return fail("NO_ROUTE_CAPACITY")
@@ -331,8 +344,8 @@ func departing(npc_id: String, at: int, cause_id: String, scheduler_jobs: Dictio
             "at_minute": at, "cause_id": cause_id})
     return affected
 
-static func _wants_service(seed: int, data: Dictionary, occurrence: int) -> bool:
-    var chance: int = int(data["chance_bp"])
+static func _wants_service(seed: int, data: Dictionary, occurrence: int, effective_chance: int = -1) -> bool:
+    var chance: int = int(data["chance_bp"]) if effective_chance < 0 else effective_chance
     if chance == 0: return false
     if chance == 10000: return true
     # Stable hash of authored plan and occurrence, independent of tick chunks.
@@ -346,7 +359,16 @@ func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictiona
     var result: Dictionary = {"order_id":order_id,"npc_id":data["npc_id"],
         "at_minute":fire["world_minute"],"cause_id":fire["job_id"]+":"+str(occurrence),
         "outcome":"skipped"}
-    if not _wants_service(seed,data,occurrence):
+    var social_chance: int = -1
+    if data.has("social_rule"):
+        var rule: Dictionary = data["social_rule"]
+        var heard: bool = living.knowledge.get(data["npc_id"], {}).has(rule["fact_id"])
+        var trusted: bool = living.familiarity.get(data["npc_id"], {}).get(rule["trusted_peer_id"], "") == "trusted"
+        social_chance = mini(10000, int(data["chance_bp"]) + (int(rule["fact_bonus_bp"]) if heard else 0) + (int(rule["trust_bonus_bp"]) if trusted else 0))
+        # Evidence of the actual NPC context at the scheduled instant, not a
+        # player-owned relationship meter. Old C4 events remain byte-identical.
+        result["social_evidence"] = {"fact_known":heard, "peer_trusted":trusted, "chance_bp":social_chance}
+    if not _wants_service(seed,data,occurrence,social_chance):
         result["reason"] = "not_interested"
         return result
     var venue: Dictionary = venues[data["venue_id"]]
