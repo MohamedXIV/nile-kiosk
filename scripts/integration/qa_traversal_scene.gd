@@ -7,6 +7,7 @@ const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const DemandConfig = preload("res://scripts/integration/customer_demand_config.gd")
 const SERVICE_INTENTS: String = "res://content/service/qa_customer_intents.v1.json"
 const CATALOG: String = "res://content/world/qa_nile_kiosk.v1.json"
+@export var world_catalog_path: String = CATALOG
 const ROUTES: String = "res://content/navigation/qa_routes.v1.json"
 const SAVE: String = "user://nk-play-c1-web-qa.json"
 @export var world_save_path: String = SAVE
@@ -29,7 +30,7 @@ func _boot() -> void:
         push_error("PLAY_C1_WORLD_SAVE_FAILED "+str(existing))
         return
     if existing["code"] == "NEW_WORLD":
-        var boot: Dictionary = model.bootstrap_from_content(CATALOG)
+        var boot: Dictionary = model.bootstrap_from_content(world_catalog_path)
         if not boot.get("ok",false):
             push_error("PLAY_C1_CONTENT_FAILED "+str(boot))
             return
