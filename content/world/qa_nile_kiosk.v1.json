@@ -70,6 +70,15 @@
       }
     },
     {
+      "id": "ingredient:cup",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "paper_cup",
+        "unit": "piece"
+      }
+    },
+    {
       "id": "stock:leaves",
       "kind": "stock.add",
       "actor_id": "system:director",
@@ -85,6 +94,15 @@
       "payload": {
         "ingredient_id": "bread",
         "quantity": 6
+      }
+    },
+    {
+      "id": "stock:cup",
+      "kind": "stock.add",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "paper_cup",
+        "quantity": 12
       }
     },
     {
@@ -121,7 +139,9 @@
           },
           {
             "station_type": "serve",
-            "inputs": {},
+            "inputs": {
+              "paper_cup": 1
+            },
             "work_minutes": 1
           }
         ],
