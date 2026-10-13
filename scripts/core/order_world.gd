@@ -63,6 +63,26 @@ func duplicate_domain() -> RefCounted:
 static func active(o: Dictionary) -> bool:
     return o["status"] in ["offered", "accepted"]
 
+func queue(venue_id: String, route: String) -> Array[Dictionary]:
+    ## Current queue is a derived, stable presentation projection. Service
+    ## isn't forced FIFO: the player may choose whose order to accept.
+    var entries: Array[Dictionary] = []
+    for order_id in orders:
+        var o: Dictionary = orders[order_id]
+        if o["venue_id"] == venue_id and o["route"] == route and active(o):
+            entries.append({
+                "order_id": order_id, "npc_id": o["npc_id"], "status": o["status"],
+                "seat_id": o["seat_id"], "offer_sequence": o["offer_sequence"]
+            })
+    entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+        if a["offer_sequence"] != b["offer_sequence"]:
+            return a["offer_sequence"] < b["offer_sequence"]
+        return a["order_id"] < b["order_id"]
+    )
+    for i in range(entries.size()):
+        entries[i]["queue_position"] = i + 1
+    return entries
+
 func _count(venue_id: String, route: String) -> int:
     var count: int = 0
     for o in orders.values():
@@ -225,7 +245,7 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
                 "recipe_id": p["recipe_id"], "route": p["route"], "status": "offered",
                 "deadline_minute": int(p["deadline_minute"]), "deadline_job_id": job_id,
                 "created_minute": minute, "created_event_id": event_id,
-                "queue_position_at_offer": effect["queue_position"],
+                "queue_position_at_offer": effect["queue_position"], "offer_sequence": seq,
                 "accepted_minute": -1, "seat_id": "", "item_id": "",
                 "closed_minute": -1, "closure_event_id": "",
                 "payment_claim_id": "", "payment_status": "none"
