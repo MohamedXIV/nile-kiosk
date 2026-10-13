@@ -73,6 +73,12 @@ func world_state() -> Dictionary:
             auto_ids.append(oid)
     auto_ids.sort()
     var latest_auto: Dictionary = state["service"]["orders"].get(auto_ids[-1],{}) if not auto_ids.is_empty() else {}
+    var social_evidence: Dictionary = {}
+    for event in state["events"]:
+        if event["kind"] != "time.advanced": continue
+        for outcome in event["payload"]["effect"]["order_outcomes"]:
+            if outcome.get("order_id","") == latest_auto.get("order_id","") and outcome.has("social_evidence"):
+                social_evidence = outcome["social_evidence"].duplicate(true)
     var active_order: Dictionary = state["service"]["orders"].get("qa:amina:tea:first",{})
     var active_job: Dictionary = state["cooking"]["preparations"].get("play:c3:prep:qa:amina:tea:first",{})
     var active_claim: Dictionary = state["service"]["payment_claims"].get("payment:order:qa:amina:tea:first",{})
@@ -81,6 +87,7 @@ func world_state() -> Dictionary:
         "auto_order_id":latest_auto.get("order_id",""),
         "auto_status":latest_auto.get("status","none"),
         "auto_customer":latest_auto.get("npc_id",""),
+        "auto_social":social_evidence,
         "order_status":active_order.get("status","none"),
         "payment_status":active_claim.get("status","none"),
         "job_stage":active_job.get("stage","none"),
