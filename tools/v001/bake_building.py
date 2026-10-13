@@ -208,59 +208,100 @@ cylinder("early satellite antenna stem","roof",(10.9,6.5,zroof+.84),.06,1.68,iro
 dish=cylinder("small satellite dish","roof",(10.9,6.5,zroof+1.8),.66,.12,metal,36)
 dish.rotation_euler=(math.radians(42), math.radians(23), 0)
 
-# Exposed top-floor interior: its actual slab is floor 6, NOT roof level 7.
+# Upper landing: two opposing entrance doors. Northern unit is deliberately opaque.
 homez=(FLOORS-1)*FLOOR_H
-box("apartment floor slab","apartment",(WIDTH/2,DEPTH/2,homez+.08),(WIDTH,DEPTH,.16),floor_tile)
-box("north/left back wall","apartment",(0,DEPTH/2,homez+1.47),(.22,DEPTH,2.94),mint)
-box("west/back wall","apartment",(WIDTH/2,0,homez+1.47),(WIDTH,.22,2.94),mint)
-for gx in range(1,10):
-    x=WIDTH*gx/10
-    box("subtle apartment tile joint X","apartment",(x,DEPTH/2,homez+.167),(.025,DEPTH,.012),floor_dark)
-for gy in range(1,8):
-    y=DEPTH*gy/8
-    box("subtle apartment tile joint Y","apartment",(WIDTH/2,y,homez+.167),(WIDTH,.025,.012),floor_dark)
-box("narrow rug","apartment",(7.8,6.1,homez+.19),(3.2,2.0,.04),rug)
-box("worn bed frame","apartment",(3.4,2.6,homez+.48),(2.35,1.32,.59),wood)
-box("bed sheet","apartment",(3.4,2.6,homez+.78),(2.2,1.17,.07),linen)
-box("old small CRT TV cabinet","apartment",(12.3,2.1,homez+.63),(1.2,.65,1.05),wood)
-box("CRT glass screen","apartment",(12.3,1.72,homez+1.34),(.79,.14,.52),window)
-box("cheap kitchenette","apartment",(1.0,8.95,homez+.77),(1.25,2.35,1.44),stone)
-box("kitchen shelf","apartment",(1.0,8.95,homez+1.59),(1.36,2.48,.12),wood)
-# A roof cutaway is NOT an open terrace: low front walls and room partitions
-# keep the spatial reading of an enclosed rented home.
-box("east cutaway knee wall","apartment",(WIDTH-.10,DEPTH/2,homez+.47),
-    (.20,DEPTH,.74),plaster)
-box("south cutaway knee wall","apartment",(WIDTH/2,DEPTH-.10,homez+.47),
-    (WIDTH,.20,.74),plaster)
-box("small kitchenette partition","apartment",(3.1,8.12,homez+.91),
-    (5.0,.21,1.65),mint)
-box("interior half-wall along old hallway","apartment",(11.85,1.9,homez+1.08),
-    (.21,3.6,2.03),mint)
-box("back wall wooden framed window","apartment",(5.5,.17,homez+1.70),
-    (1.42,.12,1.50),teal)
-box("back window warm translucent curtain","apartment",(5.5,.27,homez+1.64),
-    (1.12,.065,1.20),linen)
-box("faded 2001 wall calendar","apartment",(9.9,.16,homez+1.83),
-    (.73,.08,.95),cream)
-cylinder("standing fan stem","apartment",(6.2,2.8,homez+.79),.046,1.58,iron,12)
-foliage("standing fan cage approximation","apartment",(6.2,2.8,homez+1.57),.39,metal)
-# Thin railing denotes balcony/opening to the south, no blocking front wall.
-rail("small iron balcony rail","apartment",(WIDTH-1.7,DEPTH-.3,homez+.28),
-    (WIDTH-1.7,DEPTH-.3,homez+1.24),.07,iron)
+px=1.0/12.0
+def at(logical_x,logical_y):
+    return (logical_x*px,logical_y*px)
+def room_box(name,collection,x,y,z,width,depth,height,mat):
+    return box(name,collection,(x*px,y*px,homez+z),
+               (width*px,depth*px,height),mat)
 
-# Furniture layer objects use default logical centers matching the P0 GameState.
-chairx,chairy = 45/12.0,68/12.0
-box("chair sitting slab","chair",(chairx,chairy,homez+.62),(.79,.79,.20),wood)
-box("chair curved back approximation","chair",(chairx,chairy-.36,homez+1.12),(.75,.11,.91),teal)
-for ax in (-.28,.28):
-    for ay in (-.28,.28):
-        box("chair leg","chair",(chairx+ax,chairy+ay,homez+.29),(.08,.08,.57),wood)
-tablex,tabley =129/12.0,84/12.0
-box("little cafe table top","table",(tablex,tabley,homez+.92),(1.35,1.05,.14),wood)
-for ax in (-.52,.52):
-    for ay in (-.37,.37):
-        box("table leg","table",(tablex+ax,tabley+ay,homez+.43),(.085,.085,.80),wood)
-cylinder("tea cup on table","table",(tablex-.19,tabley-.15,homez+1.065),.11,.13,cream,16)
+# North unit: silhouette ONLY, no fake accessible interior.
+room_box("northern neighbor floor (not playable)","neighbor",108,24,.09,120,48,.18,stone)
+room_box("northern neighbor closed south wall","neighbor",108,48,1.50,120,2,2.9,plaster)
+room_box("opposite northern apartment door","neighbor",120,49,1.12,19,2.0,2.19,wood)
+room_box("neighbor brass number plate","neighbor",136,49,1.87,6,1,0.13,mortar)
+
+# Shared upper landing is visible independently of any apartment cutaway.
+room_box("landing terrazzo slab","landing",108,54,.09,120,12,.18,floor_tile)
+room_box("stairs landing to roof","landing",30,54,.12,36,45,.22,stone)
+for step in range(5):
+    room_box("shared stair step %d"%step,"landing",25,38+step*7,.23+step*.30,24,7,.20,stone)
+rail("stair handrail","landing",(1.08,3.05,homez+.7),(3.6,5.85,homez+2.0),.058,iron)
+room_box("south apartment exterior door frame","landing",120,59,1.20,25,1.6,2.40,mortar)
+room_box("south apartment old wooden door","landing",120,60,1.14,18,1.7,2.22,wood)
+room_box("south door enamel number","landing",137,60,1.86,6,1.0,.15,teal)
+room_box("landing faded notice board","landing",73,51,1.73,17,1.1,.79,wood)
+
+# Only the SOUTH flat is playable: logical x=48..168, y=60..132 => 60m2.
+room_box("south apartment tile slab 60m2","apartment",108,96,.10,120,72,.18,floor_tile)
+for gx in range(1,10):
+    room_box("south apartment tile X","apartment",48+gx*12,96,.199,.35,72,.018,floor_dark)
+for gy in range(1,6):
+    room_box("south apartment tile Y","apartment",108,60+gy*12,.199,120,.35,.018,floor_dark)
+room_box("west structural wall","apartment",48,96,1.48,2,72,2.86,mint)
+room_box("north permanent wall","apartment",108,60,1.48,120,2,2.86,mint)
+# Tiny private bathroom occupying upper east corner. Functional wall/fixtures.
+room_box("small bathroom west partition","apartment",137,76,1.48,2,32,2.86,mint)
+room_box("small bathroom south divider","apartment",151,91,1.48,32,2,2.86,mint)
+room_box("bathroom doorway timber trim","apartment",137,83,1.34,3,7,2.45,wood)
+room_box("bathroom toilet ceramic","apartment",154,71,.39,13,16,.51,cream)
+room_box("bathroom basin","apartment",164,84,.91,7,10,.20,cream)
+# A humble private kitchenette is the actual lifestyle upgrade.
+room_box("kitchen counter cabinet","apartment",64,76,.63,27,12,1.10,wood)
+room_box("kitchen counter tile","apartment",64,76,1.20,28,13,.12,stone)
+room_box("small sink steel","apartment",59,76,1.28,10,7,.06,metal)
+room_box("kitchen upper shelf","apartment",67,62,1.92,22,5,.11,wood)
+room_box("bedroom dividing half-wall","apartment",91,110,.76,2,42,1.48,mint)
+room_box("aged small window frame","apartment",80,60,2.12,19,3,.95,teal)
+room_box("window glass north","apartment",80,62,2.13,13,1.5,.71,window)
+room_box("compact tiled threshold","apartment",118,66,.22,24,9,.055,mortar)
+
+# Keep a low wall silhouette rather than erasing the southern apartment boundary.
+room_box("south low cutaway wall","front_wall_cut",108,131,.42,120,2,.78,plaster)
+room_box("east low cutaway wall","front_wall_cut",167,96,.42,2,72,.78,plaster)
+room_box("front cutaway wall cap","front_wall_cut",108,131,.84,120,2.6,.09,stone)
+
+# Independent movable furniture — no full-floor furnished villa.
+chairx,chairy=83/12.0,101/12.0
+box("old chair seat","chair",(chairx,chairy,homez+.61),(.74,.75,.18),wood)
+box("chair back","chair",(chairx,chairy-.34,homez+1.11),(.70,.13,.92),teal)
+for ax in (-.27,.27):
+    for ay in (-.27,.27):
+        box("chair leg","chair",(chairx+ax,chairy+ay,homez+.27),(.075,.075,.51),wood)
+tablex,tabley=145/12.0,103/12.0
+box("small reused table","table",(tablex,tabley,homez+.85),(1.05,.92,.13),wood)
+for ax in (-.39,.39):
+    for ay in (-.33,.33):
+        box("table leg","table",(tablex+ax,tabley+ay,homez+.40),(.08,.08,.70),wood)
+
+# One ROOM on the common roof, 4 x 6 metres, directly over the southern flat.
+# Roof height is the TOP of residential floor six, never a seventh dwelling floor.
+rx0,rx1=5.0,9.0
+ry0,ry1=5.0,11.0
+def roof_box(name,collection,x,y,z,width,depth,height,mat):
+    return box(name,collection,(x,y,zroof+z),(width,depth,height),mat)
+
+roof_box("roof room tiled floor","roof_room",7.0,8.0,.16,4,6,.24,floor_tile)
+roof_box("roof room north wall","roof_room",7.0,5.0,1.46,4,.18,2.75,plaster)
+roof_box("roof room west wall","roof_room",5.0,8.0,1.46,.18,6,2.75,plaster)
+roof_box("roof room east wall","roof_room",9.0,8.0,1.46,.18,6,2.75,plaster)
+roof_box("roof room south wall","roof_room",7.0,11.0,1.46,4,.18,2.75,plaster)
+roof_box("roof room flat ceiling","roof_room",7.0,8.0,2.93,4.4,6.3,.20,stone)
+roof_box("roof room exterior door","roof_room",9.07,8.6,1.19,.15,1.1,2.20,wood)
+roof_box("roof room little shutter","roof_room",7.5,11.15,1.83,1.2,.12,.81,teal)
+
+roof_box("roof room cut floor","roof_room_cut",7.0,8.0,.20,4,6,.18,floor_tile)
+roof_box("roof room cut north wall","roof_room_cut",7.0,5.0,1.46,4,.18,2.75,plaster)
+roof_box("roof room cut west wall","roof_room_cut",5.0,8.0,1.46,.18,6,2.75,plaster)
+roof_box("roof room low south sill","roof_room_cut",7.0,10.98,.42,4,.19,.78,stone)
+roof_box("roof room low east sill","roof_room_cut",8.98,8.0,.42,.19,6,.78,stone)
+roof_box("roof room simple bed frame","roof_room_cut",6.28,6.75,.38,1.60,.92,.51,wood)
+roof_box("roof room mattress","roof_room_cut",6.28,6.75,.69,1.52,.85,.15,linen)
+roof_box("roof room narrow desk","roof_room_cut",8.25,7.00,.72,.90,.70,.17,wood)
+roof_box("roof room standing fan stem","roof_room_cut",8.07,9.48,.76,.12,.12,1.38,iron)
+foliage("roof room humble fan head","roof_room_cut",(8.07,9.48,zroof+1.48),.36,metal)
 
 # Lobby cutaway slab and stairs in the same physical ground plane.
 box("entrance lobby tiled floor","lobby",(WIDTH/2,DEPTH/2,.08),(WIDTH,DEPTH,.16),floor_tile)
@@ -359,14 +400,17 @@ manifest={
     "projection":actual,
     "reference_godot_projection":{k:list(v) for k,v in expected.items()},
     "sprite_anchor":"Full 960x540 RGBA canvas, position (0,0), no trimming",
-    "furniture_default_local":{"chair":[45,68],"table":[129,84]},
+    "furniture_default_local":{"chair":[83,101],"table":[145,103]},
+    "south_apartment_m2":60,"roof_room_m2":24,
+    "roof_room_bounds_logical":[60,60,48,72],
+    "south_apartment_bounds_logical":[48,60,120,72],
     "furniture_translation":"Translate sprite image by Building.project(current,6)-Building.project(default,6)",
     "assets":{}
 }
 for time_of_day in ("day","night"):
     night=time_of_day=="night"
     # More unbiased samples at night; system Blender does not ship OIDN.
-    scene.cycles.samples=64 if night else 28
+    scene.cycles.samples=35 if night else 18
     sun_data.energy=.16 if night else 1.7
     sun_data.color=(.65,.73,1) if night else (1,.91,.78)
     background.inputs["Color"].default_value=(.07,.10,.18,1) if night else (.60,.66,.74,1)
@@ -375,7 +419,8 @@ for time_of_day in ("day","night"):
         bsdf=m.node_tree.nodes.get("Principled BSDF")
         if "Emission Strength" in bsdf.inputs:
             bsdf.inputs["Emission Strength"].default_value = (.25 if night else .33) if m==window else (1.18 if night else .38)
-    for label in ("facade_lower","facade_upper","roof","apartment","lobby","chair","table"):
+    for label in ("facade_lower","facade_upper","roof","apartment","lobby","chair","table",
+                  "neighbor","landing","front_wall_cut","roof_room","roof_room_cut"):
         for layer_name,collection in COLLECTIONS.items():
             visible=layer_name==label
             for obj in collection.objects:
