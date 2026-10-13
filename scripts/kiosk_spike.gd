@@ -167,6 +167,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_K:
                 model.grant_match_knowledge()
                 last_notice = "You know the match details."
+                if use_ink and OS.has_feature("web"):
+                    print("D001_WEB_KNOWN ", JSON.stringify(_browser_snapshot()))
+            KEY_T:
+                # Browser-only acceptance fixture: instant table arrival (world hearing rules unchanged).
+                if use_ink and OS.has_feature("web"):
+                    model.player_position = Orchestrator.TABLE_A
+                    print("D001_WEB_AT_TABLE ", JSON.stringify(_browser_snapshot()))
             KEY_1:
                 if model.interject():
                     last_notice = "Joined the football conversation."

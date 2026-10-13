@@ -46,10 +46,8 @@ try{
   await page.goto(origin+"/ink/index.html",{waitUntil:"load",timeout:30000});
   await until(()=>traces.fresh.length,"new browser session");
   await page.locator("canvas").first().click({position:{x:480,y:260}});
+  await page.keyboard.press("t"); // deterministic browser fixture, real hearing/knowledge guards
   await page.keyboard.press("k");
-  await page.keyboard.down("a");
-  await page.waitForTimeout(650);
-  await page.keyboard.up("a");
   const choice=await until(()=>traces.choice.at(-1),"real gated Ink choice");
   check(choice.match && choice.football==="choice","Original story was not in a gated interjection");
   await page.keyboard.press("p");
