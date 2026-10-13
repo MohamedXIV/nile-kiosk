@@ -35,6 +35,14 @@ func _verify() -> void:
                 return
     var instance = ArtView.instantiate()
     root.add_child(instance)
+    if instance._camera == null or instance._lamp == null:
+        push_error("V001 P1 missing fixed-angle camera or runtime lamp")
+        quit(1)
+        return
+    if instance._camera.zoom.x < 3.0:
+        push_error("V001 P1 indoor room still framed as full-building icon")
+        quit(1)
+        return
     if not instance._has_baked_art():
         push_error("V001 P1 did not use baked textures")
         quit(1)
@@ -48,6 +56,17 @@ func _verify() -> void:
     instance.model.rent_apartment_for_spike()
     instance.model.go_to_apartment()
     instance.model.toggle_night()
+    instance._sync_dynamic_lights()
+    if not instance._lamp.visible or not instance._wall_occluder.visible:
+        push_error("V001 P1 dynamic interior lamp and back-wall shadow inactive at night")
+        quit(1)
+        return
+    instance.model.toggle_lamp()
+    instance._sync_dynamic_lights()
+    if instance._lamp.visible:
+        push_error("V001 P1 interior lamp failed to turn off")
+        quit(1)
+        return
     if not instance._has_baked_art():
         push_error("V001 P1 missing night variant")
         quit(1)

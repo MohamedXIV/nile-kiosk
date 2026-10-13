@@ -49,14 +49,14 @@ func visible_layers() -> Dictionary:
         "roof": mode in ["street", "roof", "roof_room"],
         "roof_room": mode in ["street", "roof"],
         "roof_room_cut": mode == "roof_room",
-        "upper_facade": mode == "street",
+        "upper_facade": mode in ["street", "roof", "roof_room"],
         "lower_facade": true,
         "lobby": mode == "lobby",
         "landing": mode in ["landing", "apartment"],
         "neighbor": mode in ["landing", "apartment"],
         "apartment": mode == "apartment",
         "front_wall_cut": mode == "apartment",
-        "front_occluders": mode != "apartment"
+        "front_occluders": mode not in ["apartment", "roof_room"]
     }
 
 func _go(target: String, level: int, position: Vector2) -> bool:

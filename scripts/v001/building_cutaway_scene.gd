@@ -161,8 +161,8 @@ func _sync_view() -> void:
             focus = Building.project(Vector2(90, 66), Building.ROOF_FLOOR)
             scale_factor = 1.9
         "landing":
-            focus = Building.project(Vector2(105, 54), Building.PLAYER_FLOOR)
-            scale_factor = 2.5
+            focus = Building.project(Vector2(120, 54), Building.PLAYER_FLOOR)
+            scale_factor = 3.0
         "apartment":
             focus = Building.project(Building.APARTMENT_BOUNDS.get_center(), Building.PLAYER_FLOOR)
             scale_factor = 2.8
@@ -190,6 +190,7 @@ func _process(delta: float) -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
     if not (event is InputEventKey) or not event.pressed or event.echo:
         return
+    var previous_mode: String = model.mode
     match event.keycode:
         KEY_E:
             match model.mode:
@@ -229,6 +230,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_F7:
             notice = "Restored" if model.load_from_file("user://v001-cutaway.json") else "No valid save"
     _sync_dynamic_lights()
+    if model.mode != previous_mode:
+        match model.mode:
+            "roof_room": notice = "Your 24m2 rooftop room"
+            "roof": notice = "Shared rooftop — roof stair nearby"
+            "landing": notice = "Two opposite apartment doors"
+            "apartment": notice = "South flat — 60m2 (rental preview)"
+            "lobby": notice = "Old building entrance"
+            "street": notice = "Calm Cairo street"
     _sync_view()
     print("V001_MODE: %s | night: %s" % [model.mode, str(model.night)])
     queue_redraw()
