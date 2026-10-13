@@ -1,0 +1,119 @@
+{
+  "contract_id": "nk-isometric-v0.1",
+  "status": "proposed-authoring-target-not-yet-live",
+  "engine": "Godot 4 + Blender orthographic sprite bake",
+  "world_axes": {
+    "x": "+east/right",
+    "y": "+south/toward camera",
+    "z": "+up"
+  },
+  "unit": "metre",
+  "layout_snap_m": 0.25,
+  "tile_metres": 1,
+  "tile_diamond_px": [
+    24,
+    12
+  ],
+  "view_origin_px": [
+    490,
+    390
+  ],
+  "native_canvas_px": [
+    960,
+    540
+  ],
+  "master_canvas_px": [
+    1920,
+    1080
+  ],
+  "camera": {
+    "projection": "orthographic",
+    "azimuth_deg": 45,
+    "elevation_deg": 30,
+    "rotation_at_runtime": false
+  },
+  "project_coefficients_px_per_m": {
+    "x_to_screen": [
+      12,
+      6
+    ],
+    "y_to_screen": [
+      -12,
+      6
+    ],
+    "z_to_screen": [
+      0,
+      -14.696938456699069
+    ]
+  },
+  "floor": {
+    "height_m": 3.4,
+    "slab_thickness_m": 0.15,
+    "nominal_wall_height_m": 2.8,
+    "nominal_door_height_m": 2.1,
+    "front_cut_sill_height_m": 0.75,
+    "roof_parapet_height_m": 1
+  },
+  "levels": {
+    "ground_lobby_elevation_index": 0,
+    "top_south_flat_elevation_index": 5,
+    "shared_roof_elevation_index": 6
+  },
+  "footprint_m": {
+    "building": [
+      15,
+      11
+    ],
+    "south_apartment": {
+      "origin": [
+        4,
+        5
+      ],
+      "size": [
+        10,
+        6
+      ]
+    },
+    "roof_room": {
+      "origin": [
+        5,
+        5
+      ],
+      "size": [
+        4,
+        6
+      ]
+    },
+    "neighbor_opaque": {
+      "origin": [
+        4,
+        0
+      ],
+      "size": [
+        10,
+        4
+      ]
+    },
+    "shared_landing": {
+      "origin": [
+        4,
+        4
+      ],
+      "size": [
+        10,
+        1
+      ]
+    }
+  },
+  "assets": {
+    "static_registration": "full_canvas_origin_0_0",
+    "prop_registration": "cropped_rgba_with_contact_anchor_and_crop_origin",
+    "lighting": "separate diffuse_and_optional_normal_emissive_masks",
+    "cutaway": "distinct_roof_wall_upper_wall_low_shadow_occluder_variants"
+  },
+  "verification": {
+    "ground_ratio_abs_tolerance": 1e-9,
+    "blender_godot_max_error_px_native": 0.5,
+    "illustration_master_scale_factor": 2
+  }
+}
