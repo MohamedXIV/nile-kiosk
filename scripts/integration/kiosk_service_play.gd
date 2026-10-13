@@ -2,6 +2,7 @@ extends RefCounted
 ## PLAY C3: presentation adapter over P3/P4/P5, no second order/job/payment state.
 ## Each player key press performs at most ONE canonical world command.
 const WorldState = preload("res://scripts/core/world_state.gd")
+const Graph = preload("res://scripts/integration/room_traversal.gd")
 const MAX_WAIT: int = 10080
 
 static func fail(code: String) -> Dictionary:
@@ -33,11 +34,25 @@ static func load_packaged(path: String) -> Dictionary:
     if not FileAccess.file_exists(path): return fail("INTENTS_NOT_FOUND")
     return validate_manifest(JSON.parse_string(FileAccess.get_file_as_string(path)))
 
-static func offer(session: RefCounted, intent: Dictionary, nearby_npc_id: String) -> Dictionary:
-    # Scripted, QA-only customer decision; no pretending to implement NPC AI.
-    if nearby_npc_id != intent["npc_id"]: return fail("CUSTOMER_NOT_NEARBY")
-    if session.world.orders_view()["orders"].has(intent["order_id"]): return fail("ORDER_EXISTS")
-    var now: int = int(session.world.view()["world_minute"])
+static func offer(session: RefCounted, intent: Dictionary) -> Dictionary:
+    # Scripted QA-only NPC intention; verify real canonical player XY and NPC room.
+    var state: Dictionary = session.world.view()
+    var venue: Dictionary = state["service"]["venues"].get(intent["venue_id"], {})
+    if venue.is_empty(): return fail("UNKNOWN_VENUE")
+    var pose: Dictionary = state["spatial"]["player"]
+    var room: String = str(venue["location_id"])
+    if pose["room_id"] != room: return fail("PLAYER_ABSENT")
+    var npc: Dictionary = state["society"]["npcs"].get(intent["npc_id"],{})
+    if npc.is_empty() or npc["location_id"] != room: return fail("CUSTOMER_ABSENT")
+    var close: bool = false
+    for anchor in state["spatial"]["graph"].get("anchors",[]):
+        if anchor["npc_id"] != intent["npc_id"] or anchor["room_id"] != room: continue
+        var dx: int = int(pose["x"]) - int(anchor["point"][0])
+        var dy: int = int(pose["y"]) - int(anchor["point"][1])
+        close = dx*dx+dy*dy <= int(Graph.RADIUS*Graph.RADIUS)
+    if not close: return fail("CUSTOMER_NOT_NEARBY")
+    if state["service"]["orders"].has(intent["order_id"]): return fail("ORDER_EXISTS")
+    var now: int = int(state["world_minute"])
     if now > WorldState.MAX_INT_JSON - int(intent["wait_minutes"]):
         return fail("DEADLINE_OVERFLOW")
     var data: Dictionary = {
