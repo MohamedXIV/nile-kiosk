@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "intents": [
+    {
+      "order_id": "qa:amina:tea:first",
+      "npc_id": "amina",
+      "venue_id": "kiosk",
+      "recipe_id": "tea",
+      "route": "counter",
+      "wait_minutes": 45
+    }
+  ]
+}

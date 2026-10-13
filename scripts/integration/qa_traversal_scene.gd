@@ -3,11 +3,14 @@ extends Node2D
 ## No V001 art, no scene-owned location/knowledge/ledger/save authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
+const SERVICE_INTENTS: String = "res://content/service/qa_customer_intents.v1.json"
 const CATALOG: String = "res://content/world/qa_nile_kiosk.v1.json"
 const ROUTES: String = "res://content/navigation/qa_routes.v1.json"
 const SAVE: String = "user://nk-play-c1-web-qa.json"
 var model: RefCounted
 var graph: RefCounted
+var service_intents: Dictionary = {}
 var actor_position: Vector2 = Vector2.ZERO
 var initialized: bool = false
 var notice: String = "Booting authored world..."
@@ -36,9 +39,14 @@ func _boot() -> void:
         push_error("PLAY_C2_SAVED_GRAPH_FAILED "+str(graph_check))
         return
     graph = graph_check["graph"]
+    var intent_source: Dictionary = ServicePlay.load_packaged(SERVICE_INTENTS)
+    if not intent_source.get("ok",false):
+        push_error("PLAY_C3_INTENTS_FAILED "+str(intent_source))
+        return
+    service_intents = intent_source["intents"]
     _sync_position()
     initialized = true
-    notice = "WASD move, E doorway, F listen, R rent, P save, T pass time"
+    notice = "WASD move, E door, F talk, O customer offer, G next service, T time, P save"
     report("PLAY_C1_RESTORED" if existing["code"]=="RESTORED" else "PLAY_C1_READY")
 
 func _sync_position() -> void:
@@ -50,7 +58,15 @@ func current_room() -> String:
 
 func world_state() -> Dictionary:
     var state: Dictionary = model.world.view()
-    return {"location":current_room(),"x":int(actor_position.x),"y":int(actor_position.y),
+    var active_order: Dictionary = state["service"]["orders"].get("qa:amina:tea:first",{})
+    var active_job: Dictionary = state["cooking"]["preparations"].get("play:c3:prep:qa:amina:tea:first",{})
+    var active_claim: Dictionary = state["service"]["payment_claims"].get("payment:order:qa:amina:tea:first",{})
+    return {
+        "order_status":active_order.get("status","none"),
+        "payment_status":active_claim.get("status","none"),
+        "job_stage":active_job.get("stage","none"),
+        "job_step":active_job.get("step_index",-1),
+        "item_status":state["cooking"]["items"].get("item:play:c3:prep:qa:amina:tea:first",{}).get("status","none"),"location":current_room(),"x":int(actor_position.x),"y":int(actor_position.y),
         "minute":state["world_minute"],"revision":state["sequence"],
         "digest":JSON.stringify(state).sha256_text(),
         "known":model.world.player_knows("weather:nile"),
@@ -127,6 +143,37 @@ func _rent() -> void:
     notice = "No unrented apartment doorway nearby."
     queue_redraw()
 
+func _offer_customer() -> void:
+    var selected: Dictionary = {}
+    var keys: Array = service_intents.keys()
+    keys.sort()
+    for id in keys:
+        if model.world.orders_view()["orders"].has(id): continue
+        selected = service_intents[id]
+        break
+    if selected.is_empty():
+        notice = "No new authored customer intention."
+        queue_redraw()
+        return
+    var offer: Dictionary = ServicePlay.offer(model,selected)
+    if not offer.get("ok",false):
+        notice = "Customer: "+str(offer.get("code","UNKNOWN"))
+        report("PLAY_C3_DENIED")
+        return
+    notice = "Customer offered "+str(selected["recipe_id"])+" ("+str(selected["order_id"])+")"
+    report("PLAY_C3_OFFERED")
+
+func _next_service() -> void:
+    var performed: Dictionary = ServicePlay.perform_next(model,"kiosk")
+    if not performed.get("ok",false):
+        notice = "Service: "+str(performed.get("code","UNKNOWN"))
+        if performed.get("code","") == "STEP_NOT_READY":
+            notice += " (wait "+str(performed["wait_minutes"])+" world minutes)"
+        report("PLAY_C3_BLOCKED")
+        return
+    notice = "Service: "+str(performed["kind"])
+    report("PLAY_C3_ACTION")
+
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
@@ -138,6 +185,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_D, KEY_RIGHT: direction = Vector2(Graph.STEP,0)
         KEY_E: _try_travel()
         KEY_F: _listen()
+        KEY_O: _offer_customer()
+        KEY_G: _next_service()
         KEY_R: _rent()
         KEY_P:
             var saved: Dictionary = model.save()
@@ -200,8 +249,10 @@ func _draw() -> void:
         notice,
         "Room: %s  /  Time: %s  /  Revision: %s" % [room,s["minute"],s["revision"]],
         "Cash: %s minor units  /  Flat access: %s" % [s["money"],s["flat_access"]],
-        "Heard Nile fact: %s  /  Reda: %s" % [s["known"],s["npc_reda"]],
+        "Order: %s  /  Cook: %s step %s" % [s["order_status"],s["job_stage"],s["job_step"]],
+        "Item: %s  /  Payment: %s" % [s["item_status"],s["payment_status"]],
+        "Nile fact: %s  /  Reda: %s" % [s["known"],s["npc_reda"]],
         "QA CONTENT — prices, route drawings and NPC labels are NOT final game art."
     ]
     for i in range(lines.size()):
-        draw_string(ThemeDB.fallback_font,Vector2(510,115+i*51),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
+        draw_string(ThemeDB.fallback_font,Vector2(510,104+i*43),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
