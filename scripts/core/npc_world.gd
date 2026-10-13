@@ -231,7 +231,7 @@ func _end_visit(npc_id: String) -> void:
     npcs[npc_id]["location_id"] = npcs[npc_id]["base_location_id"]
     npcs[npc_id]["routine_id"] = ""
 
-func apply_command(kind: String, payload: Dictionary, effect: Dictionary, minute: int, event_id: String, sequence: int, actor: String, jobs: Dictionary) -> void:
+func apply_command(kind: String, payload: Dictionary, effect: Dictionary, minute: int, event_id: String, sequence: int, actor: String, command_id: String, jobs: Dictionary) -> void:
     match kind:
         "npc.register":
             npcs[payload["npc_id"]] = {
@@ -260,7 +260,7 @@ func apply_command(kind: String, payload: Dictionary, effect: Dictionary, minute
                     "topic": "npc.visit.start" if is_start else "npc.visit.end",
                     "data": {"routine_id": rid, "npc_id": payload["npc_id"], "location_id": payload["location_id"]},
                     "every_minutes": int(payload["period_minutes"]), "created_sequence": sequence,
-                    "source_actor_id": actor, "source_command_id": event_id,
+                    "source_actor_id": actor, "source_command_id": command_id,
                     "status": "pending", "execution_count": 0, "last_fire_id": ""
                 }
         "npc.routine.cancel":
