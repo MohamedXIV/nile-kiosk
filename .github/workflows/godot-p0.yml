@@ -132,6 +132,12 @@ jobs:
           godot --headless --path . --script res://tests/test_content_c0.gd 2>&1 | tee /tmp/content-c0.log
           grep -q 'CONTENT C0: PASS' /tmp/content-c0.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|CONTENT C0: FAIL)' /tmp/content-c0.log; then exit 1; fi
+      - name: Run PLAY C1 authored portal traversal and world-interaction acceptance
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_play_c1.gd 2>&1 | tee /tmp/play-c1.log
+          grep -q 'PLAY C1: PASS' /tmp/play-c1.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C1: FAIL)' /tmp/play-c1.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
