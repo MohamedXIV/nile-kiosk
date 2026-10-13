@@ -47,3 +47,5 @@ static func plan(jobs: Dictionary, limit: int, advance_sequence: int) -> Diction
         else:
             next["due_minute"] += interval
         working[next["job_id"]] = next
+
+    return {"ok": false, "code": "UNREACHABLE"}
