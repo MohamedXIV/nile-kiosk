@@ -150,6 +150,12 @@ jobs:
           godot --headless --path . --script res://tests/test_play_c3.gd 2>&1 | tee /tmp/play-c3.log
           grep -q 'PLAY C3: PASS' /tmp/play-c3.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C3: FAIL)' /tmp/play-c3.log; then exit 1; fi
+      - name: Run PLAY C4 autonomous NPC service demand, deterministic clock and replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_play_c4.gd 2>&1 | tee /tmp/play-c4.log
+          grep -q 'PLAY C4: PASS' /tmp/play-c4.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C4: FAIL)' /tmp/play-c4.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
