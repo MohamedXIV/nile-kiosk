@@ -77,11 +77,19 @@ func restore_snapshot(data: Dictionary) -> bool:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
     for raw in data["events"]:
-        if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
+        if typeof(raw) != TYPE_DICTIONARY:
+            print("SYS_P0_RESTORE_DIAG: non-dict event")
+            return false
+        if not candidate._apply_event(raw):
+            print("SYS_P0_RESTORE_DIAG: rejected event ", JSON.stringify(raw))
             return false
     if candidate.sequence != int(data["sequence"]):
         return false
-    if candidate.facts != data["facts"] or candidate.receipts != data["receipts"]:
+    if candidate.facts != data["facts"]:
+        print("SYS_P0_RESTORE_DIAG: fact projection mismatch ", JSON.stringify(candidate.facts), " | ", JSON.stringify(data["facts"]))
+        return false
+    if candidate.receipts != data["receipts"]:
+        print("SYS_P0_RESTORE_DIAG: receipt projection mismatch ", JSON.stringify(candidate.receipts), " | ", JSON.stringify(data["receipts"]))
         return false
     _state = candidate # Atomic swap after full replay/validation.
     return true
