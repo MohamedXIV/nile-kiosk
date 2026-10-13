@@ -2,6 +2,8 @@
 
 Issue: [#25](https://github.com/MohamedXIV/nile-kiosk/issues/25). Contract: [WORLD_TIME_AND_SCHEDULER.md](WORLD_TIME_AND_SCHEDULER.md).
 
+**Status: VERIFIED AND MERGED** — [PR #34](https://github.com/MohamedXIV/nile-kiosk/pull/34), merge `dd595102be652f1c01b214be9400b120a7dec8d2`. Godot 4.6.3 [P0/P1 and native regressions PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38390984961); [Chromium Ink/Dialogue Manager Web PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38390984743).
+
 ## Ownership and invariants
 
 - `WorldKernel.dispatch` is the command boundary; `WorldKernel.advance_time(steps, command_id, actor_id)` is the single public time-advancement API. Neither an Ink session nor a Godot Timer owns time.
