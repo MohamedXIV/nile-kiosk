@@ -1,6 +1,6 @@
 # Roadmap — System-First Development (2026-10-13)
 
-**Policy: system-first, not vertical-slice-first.** The game is early pre-production. Build production-owned, independently testable domain systems with full lifecycle/persistence contracts before connecting them as a playable game. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
+**Policy: system-first, not vertical-slice-first.** Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. Build production-owned, independently testable domain systems with full lifecycle/persistence contracts before connecting them as a playable game. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
 
 | Order | Workstream | Delivery gate |
 | --- | --- | --- |
