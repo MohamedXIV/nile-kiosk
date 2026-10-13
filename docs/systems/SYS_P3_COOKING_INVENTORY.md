@@ -1,5 +1,7 @@
 # SYS P3 — Production Cooking, Inventory and Stations
 
+**Status: VERIFIED / MERGED** — [PR #36](https://github.com/MohamedXIV/nile-kiosk/pull/36), squash merge `72f6f826f21fc276a5752dd81c727b2d10de0ffc`. Verified [Godot 4.6.3 P0–P3/D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38404606973), [Chromium Ink/DM + refresh PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38404606957), security check green.
+
 Tracks [#27](https://github.com/MohamedXIV/nile-kiosk/issues/27); production code `scripts/core/cooking_world.gd` (owned domain) integrated through `scripts/core/world_state.gd` / `world_kernel.gd`, not D001 `tea_steps`.
 
 ## Authority and scope
