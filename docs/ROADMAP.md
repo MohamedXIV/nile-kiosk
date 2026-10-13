@@ -1,6 +1,6 @@
 # Roadmap — System-First Development (2026-10-13)
 
-**Policy: system-first, not vertical-slice-first.** Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. Build production-owned, independently testable domain systems with full lifecycle/persistence contracts before connecting them as a playable game. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
+**Policy: system-first, not vertical-slice-first.** Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. **SYS P0–P7 are now verified and merged** with real native/Chromium whole-world integration. Next: production content authoring and actual playable spatial presentation (still pending art review), not a second authoritative world implementation. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
 
 | Order | Workstream | Delivery gate |
 | --- | --- | --- |
@@ -11,14 +11,14 @@
 | 2b | V001-B landing and V001-C south-flat pack | Two clearly opposed doors + opaque north neighbor; 60m² flat kitchen/bath and unit cutaway, without icon-like room framing |
 | 2c | Proposed 2:1 projection migration (only if adopted) | Rebuild Blender/Godot/manifest/sprites simultaneously from projection v0.1; no mixed generations; reprojection and real Chromium proof |
 | 3 | **World Kernel (P0) — DONE, [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33)** | Tested canonical schema, deterministic commands/events, replay, versioned JSON saves, rejection paths |
-| 4 | **World Clock & Scheduler (P1)** | Durable ordering, boundary time advances, recurring events, save/replay and midnight behavior |
-| 5 | **NPC Life/Presence + Social Foundations (P2)** | Independent offscreen action, identities/routines, observed vs unknown facts; state persistence |
-| 6 | **Kiosk Production (P3)** | Data-defined recipes/stations/ingredients and full start/cancel/finish lifecycle, no hardcoded global tea counter |
-| 7 | **Orders & Service (P4)** | Customer/order lifecycle, waiting, fulfillment/abandonment and independent systems' event wiring |
-| 8 | **Economy, Housing & Home (P5)** | Auditable cash/payment, obligations/access/prop state; prices and duplex remain design choices |
-| 9 | **Ink Social/Narrative Bridge (P6)** | Concurrent independent dialogue, familiarity/knowledge/proximity gates and canonical effect provenance |
-| 10 | **Whole-world Persistence & Runtime Integration (P7)** | Save under active systems, deterministic resume, Web Chromium and debug tools; art remains separate |
-| 11 | **Content/polish/release** | Expand recipes and NPC content on stable systems, then UI/art/localization/performance/balance |
+| 4 | **World Clock & Scheduler (P1) — DONE** | Durable ordering, boundary time advances, recurring events, save/replay and midnight behavior |
+| 5 | **NPC Life/Presence + Social Foundations (P2) — DONE** | Independent offscreen action, identities/routines, observed vs unknown facts; state persistence |
+| 6 | **Kiosk Production (P3) — DONE** | Data-defined recipes/stations/ingredients and full start/cancel/finish lifecycle, no hardcoded global tea counter |
+| 7 | **Orders & Service (P4) — DONE** | Customer/order lifecycle, waiting, fulfillment/abandonment and independent systems' event wiring |
+| 8 | **Economy, Housing & Home (P5) — DONE** | Auditable cash/payment, obligations/access/prop state; prices and duplex remain design choices |
+| 9 | **Ink Social/Narrative Bridge (P6) — DONE** | Concurrent independent dialogue, familiarity/knowledge/proximity gates and canonical effect provenance |
+| 10 | **Whole-world Persistence & Runtime Integration (P7) — DONE** | Save under active systems, deterministic resume, Web Chromium and debug tools; art remains separate |
+| 11 | **Content/polish/release — IN PROGRESS: C0 authored bundles DONE** | [C0 #41 / PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42) implements validated transactional authored-world imports; next author real content and connect playable presentation without breaking V001 art review, followed by UI/art/localization/performance/balance |
 
 ## Working rules
 
