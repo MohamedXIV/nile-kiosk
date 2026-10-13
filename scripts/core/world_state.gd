@@ -343,7 +343,7 @@ func _apply_event(raw: Dictionary) -> bool:
         economy.apply_command(kind, request, planned["effect"], expected["event_id"], world_minute, service)
     if HousingWorld.owns(kind):
         if planned["effect"].has("transfer"):
-            economy.apply_transfer(planned["effect"]["transfer"], expected["event_id"], world_minute)
+            economy.apply_transfer(planned["effect"]["transfer"], expected["event_id"], world_minute, kind)
         housing.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     if OrderWorld.owns(kind):
         service.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs, cooking)
