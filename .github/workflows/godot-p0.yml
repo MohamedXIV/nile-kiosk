@@ -120,6 +120,12 @@ jobs:
           godot --headless --path . --script res://tests/test_sys_p6_ink.gd 2>&1 | tee /tmp/sys-p6-ink.log
           grep -q 'SYS P6 Ink PASS' /tmp/sys-p6-ink.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P6 Ink FAIL)' /tmp/sys-p6-ink.log; then exit 1; fi
+      - name: Run SYS P7 production whole-world integration, real Ink and disk reload acceptance
+        run: |
+          set -o pipefail
+          timeout 90s godot --headless --path . --script res://tests/test_sys_p7.gd 2>&1 | tee /tmp/sys-p7.log
+          grep -q 'SYS P7: PASS' /tmp/sys-p7.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P7: FAIL)' /tmp/sys-p7.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
