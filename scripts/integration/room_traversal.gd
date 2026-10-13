@@ -35,7 +35,7 @@ static func from_data(raw: Variant) -> Dictionary:
         return fail("UNSUPPORTED_GRAPH")
     if typeof(raw["rooms"]) != TYPE_ARRAY or raw["rooms"].is_empty() or raw["rooms"].size() > 32 or typeof(raw["portals"]) != TYPE_ARRAY or raw["portals"].size() > 128 or typeof(raw["anchors"]) != TYPE_ARRAY or raw["anchors"].size() > 64:
         return fail("INVALID_LISTS")
-    var temp: RefCounted = get_script().new()
+    var temp: RefCounted = load("res://scripts/integration/room_traversal.gd").new()
     temp.graph_id = raw["graph_id"]
     for room in raw["rooms"]:
         if typeof(room) != TYPE_DICTIONARY or not exact(room, ["id", "width", "height", "spawn"]) or not ident(room.get("id")):
