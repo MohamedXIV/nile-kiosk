@@ -121,8 +121,6 @@ func plan(kind: String, payload: Dictionary, actor: String, jobs: Dictionary, mi
                 return {"ok": false, "code": "INVALID_LOCATION"}
             if payload["npc_id"] == "player" or npcs.has(payload["npc_id"]):
                 return {"ok": false, "code": "NPC_EXISTS"}
-            if not knowledge.has(payload["npc_id"]):
-                pass
             return {"ok": true, "effect": {"npc_id": payload["npc_id"]}}
         "npc.move":
             if not exact(payload, ["npc_id", "location_id"]) or not valid_id(payload.get("npc_id")) or typeof(payload.get("location_id")) != TYPE_STRING:
