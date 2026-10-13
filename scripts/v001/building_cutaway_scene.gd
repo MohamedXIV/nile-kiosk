@@ -19,6 +19,7 @@ func _ready() -> void:
     if _has_baked_art():
         print("V001_BAKED_READY")
     _setup_dynamic_lighting()
+    _setup_view()
 
 func _has_baked_art() -> bool:
     var suffix: String = "_night" if model.night else "_day"
@@ -41,10 +42,12 @@ func _draw_baked_building() -> void:
             _baked_layer("roof")
             _baked_layer("roof_room")
         "roof":
+            _baked_layer("facade_upper")
             _baked_layer("roof")
             _baked_layer("roof_room")
             _actor(Building.project(model.player_local, Building.ROOF_FLOOR))
         "roof_room":
+            _baked_layer("facade_upper")
             _baked_layer("roof")
             _baked_layer("roof_room_cut")
             _actor(Building.project(model.player_local, Building.ROOF_FLOOR))
@@ -122,6 +125,58 @@ func _sync_dynamic_lights() -> void:
         Vector2(83, 100) if model.mode == "roof_room" else Vector2(119, 91),
         Building.ROOF_FLOOR if model.mode == "roof_room" else Building.PLAYER_FLOOR)
     _wall_occluder.visible = model.mode == "apartment" and model.night
+# Same LOCKED oblique projection; only zoom/pan changes between hand-authored views.
+# No free camera rotation and no per-object offsets.
+var _camera: Camera2D
+var _hud: Label
+
+func _setup_view() -> void:
+    _camera = Camera2D.new()
+    _camera.name = "FixedAngleInteriorCamera"
+    _camera.enabled = true
+    add_child(_camera)
+    var overlay: CanvasLayer = CanvasLayer.new()
+    overlay.layer = 10
+    add_child(overlay)
+    _hud = Label.new()
+    _hud.name = "V001DebugHud"
+    _hud.position = Vector2(18, 12)
+    _hud.add_theme_font_size_override("font_size", 14)
+    _hud.add_theme_color_override("font_color", Color("#fff4d7"))
+    _hud.add_theme_color_override("font_outline_color", Color("#24313a"))
+    _hud.add_theme_constant_override("outline_size", 4)
+    overlay.add_child(_hud)
+    _sync_view()
+
+func _sync_view() -> void:
+    if _camera == null:
+        return
+    var focus: Vector2 = Vector2(480, 270)
+    var scale_factor: float = 1.0
+    match model.mode:
+        "roof_room":
+            focus = Building.project(Building.ROOF_ROOM_BOUNDS.get_center(), Building.ROOF_FLOOR)
+            scale_factor = 3.5
+        "roof":
+            focus = Building.project(Vector2(90, 66), Building.ROOF_FLOOR)
+            scale_factor = 1.9
+        "landing":
+            focus = Building.project(Vector2(105, 54), Building.PLAYER_FLOOR)
+            scale_factor = 2.5
+        "apartment":
+            focus = Building.project(Building.APARTMENT_BOUNDS.get_center(), Building.PLAYER_FLOOR)
+            scale_factor = 2.8
+        "lobby":
+            focus = Building.project(Vector2(90, 66), 1)
+            scale_factor = 1.4
+    _camera.position = focus
+    _camera.zoom = Vector2.ONE * scale_factor
+    var layers: Dictionary = model.visible_layers()
+    _hud.text = ("NILE KIOSK — V001 V2 | %s, floor %d\n" % [model.mode, model.floor_id]
+        + "E forward / Backspace back / R QA unlock / WASD move / G chair\n"
+        + "N day-night / L lamp / F6 save / F7 load\n"
+        + "%s | roof: %s | neighbor door: %s" % [notice, str(layers.roof), str(layers.neighbor)])
+
 func _process(delta: float) -> void:
     var direction: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
     direction += Vector2(float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
@@ -174,6 +229,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_F7:
             notice = "Restored" if model.load_from_file("user://v001-cutaway.json") else "No valid save"
     _sync_dynamic_lights()
+    _sync_view()
     print("V001_MODE: %s | night: %s" % [model.mode, str(model.night)])
     queue_redraw()
 
@@ -210,13 +266,6 @@ func _draw() -> void:
         else:
             _actor(Building.project(model.player_local, Building.PLAYER_FLOOR))
 
-    var layers: Dictionary = model.visible_layers()
-    _txt(Vector2(18, 26), "NILE KIOSK — V001 BUILDING CUTAWAY", 20)
-    _txt(Vector2(18, 52), "View: %s | Logical floor: %d | roof: %s | upper facade: %s" %
-        [model.mode, model.floor_id, str(layers.roof), str(layers.upper_facade)], 14)
-    _txt(Vector2(18, 80), "E forward   Backspace back   R unlock south unit (QA)   WASD walk   G move", 13)
-    _txt(Vector2(18, 103), "N day-night   L lamp   F6 save   F7 load   |  %s" % notice, 13)
-    _txt(Vector2(18, 523), "Blender baked layers (art review pending)" if _has_baked_art() else "P0 fallback — bake Blender assets to preview P1", 12)
 
 func _draw_rect_floor(area: Rect2, level: int, color: Color) -> void:
     var points := PackedVector2Array([
