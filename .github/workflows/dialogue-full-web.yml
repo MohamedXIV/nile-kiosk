@@ -10,6 +10,7 @@ on:
       - "export_presets.cfg"
       - "tools/web-dialogue-smoke.mjs"
       - "tools/web-ink-refresh-smoke.mjs"
+      - "tools/web-production-world-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -86,6 +87,13 @@ jobs:
           sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_browser_persistence_spike.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/ink-persist/index.html
           cp /tmp/nile-project.godot project.godot
+      - name: Export production WorldKernel integration
+        run: |
+          cp project.godot /tmp/nile-project.godot
+          mkdir -p build/dialogue-web/production-world
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/p7_world_integration.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/dialogue-web/production-world/index.html
+          cp /tmp/nile-project.godot project.godot
       - name: Chromium acceptance — both engines
         run: |
           python3 -m http.server 8765 --directory build/dialogue-web >/tmp/d001-dialogue-web-server.log 2>&1 &
@@ -94,6 +102,7 @@ jobs:
           npm install --no-save --no-package-lock playwright-core@1.56.1
           node tools/web-dialogue-smoke.mjs http://127.0.0.1:8765
           node tools/web-ink-refresh-smoke.mjs http://127.0.0.1:8765
+          node tools/web-production-world-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
