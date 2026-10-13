@@ -1,6 +1,6 @@
 # D001 P3 — save/load roundtrip
 
-**Status:** merged via [PR #13](https://github.com/MohamedXIV/nile-kiosk/pull/13); Godot native disk save/load verified for both engines (Web page-reload persistence is not verified).
+**Status:** merged via [PR #13](https://github.com/MohamedXIV/nile-kiosk/pull/13); Godot native disk save/load verified for both engines (Web page-reload persistence was subsequently verified for Ink via PR #21).
 
 Purpose: prove that either narrative candidate resumes two independent NPC sessions while a player choice is pending and the other conversation progresses.
 
@@ -30,4 +30,4 @@ English-only fixtures; RTL deferred. This **does not yet** prove browser page re
 - [Native save/load CI run #38310579858](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38310579858): **D001 P3 Save/Load PASS** for Dialogue Manager and Ink, as well as P0, P1 and P2 regressions and headless scene startup checks.
 - [Chromium full kiosk CI run #38310579864](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38310579864): both Dialogue Manager and Ink exports pass two-session-and-tea smoke tests after save codec changes.
 - Fixes made during work: normalize integer tick/step fields when reading `JSON.parse_string`; align rumor-session initial timing so a player can hear it during an independent interjection window.
-- Residual: Godot headless runner reports resources-in-use warnings at process exit, not correlated with failing app behavior. No user-level Web persistence across browser refresh has been proven.
+- Residual: Godot headless runner reports resources-in-use warnings at process exit, not correlated with failing app behavior. Ink browser refresh persistence was subsequently proven using the real exported Chromium test on [CI #38346547761](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38346547761). Dialogue Manager browser persistence remains untested.
