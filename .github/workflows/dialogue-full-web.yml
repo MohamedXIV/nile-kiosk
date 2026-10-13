@@ -12,6 +12,7 @@ on:
       - "tools/web-ink-refresh-smoke.mjs"
       - "tools/web-production-world-smoke.mjs"
       - "tools/web-play-c1-smoke.mjs"
+      - "tools/web-play-c3-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -112,6 +113,7 @@ jobs:
           node tools/web-ink-refresh-smoke.mjs http://127.0.0.1:8765
           node tools/web-production-world-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c1-smoke.mjs http://127.0.0.1:8765
+          node tools/web-play-c3-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
