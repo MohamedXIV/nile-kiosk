@@ -32,7 +32,7 @@ try{
  const base=process.argv[2] || "http://127.0.0.1:8765";
  await page.goto(base+"/production-world/index.html",{waitUntil:"load",timeout:30000});
  const start=await until("READY");
- check(start.version===7 && start.minute===12 && start.events>20,"Invalid integrated world");
+ check(start.version===8 && start.minute===12 && start.events>20,"Invalid integrated world");
  check(start.session_a==="choice" && start.session_b==="finished" && start.cook==="active" && start.order==="accepted","Not mid-activity");
  check(start.dues===1 && start.rumor_known===false && start.mona_heard && start.visitor_location==="kiosk","World integration missing");
  await press("p");

@@ -73,8 +73,8 @@ try {
   await page.reload({waitUntil:"load",timeout:30000});
   const restored = await until("RESTORED",0);
   check(restored.digest===saved.digest && restored.known===true &&
-    restored.location==="kiosk" && restored.x===45,
-    "Whole world location/knowledge did not survive hard reload");
+    restored.location==="kiosk" && restored.x===99,
+    "Exact canonical in-room XY/knowledge did not survive hard reload");
   await key("t");
   const advanced = await until("TIME");
   check(advanced.minute===5 && advanced.npc_reda==="kiosk",

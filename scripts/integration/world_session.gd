@@ -4,6 +4,7 @@ extends RefCounted
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const InkAdapter = preload("res://scripts/core/ink_world_bridge.gd")
 const ContentBootstrap = preload("res://scripts/integration/world_content_bootstrap.gd")
+const Graph = preload("res://scripts/integration/room_traversal.gd")
 
 var world: RefCounted
 var ink: RefCounted
@@ -34,7 +35,7 @@ func projection() -> Dictionary:
         "minute": view["world_minute"], "npc": view["society"].duplicate(true),
         "cooking": view["cooking"].duplicate(true), "orders": view["service"].duplicate(true),
         "economy": view["economy"].duplicate(true), "housing": view["housing"].duplicate(true),
-        "narrative": view["narrative"].duplicate(true), "jobs": view["jobs"].duplicate(true)}
+        "narrative": view["narrative"].duplicate(true), "spatial": view["spatial"].duplicate(true), "jobs": view["jobs"].duplicate(true)}
 
 func bootstrap_from_content(path: String) -> Dictionary:
     # Deliberately only a fresh world, with no disk slot and no live InkPlayers.
@@ -53,6 +54,19 @@ func bootstrap_from_content(path: String) -> Dictionary:
         "bundle_id": staged["bundle_id"], "revision": staged["revision"],
         "commands": staged["commands"]}
 
+func configure_navigation(path: String) -> Dictionary:
+    # Authored graph is copied into a single immutable kernel event, not
+    # loaded again on every move or taken as a second location authority.
+    var current: Dictionary = world.spatial_view()
+    if not current["graph"].is_empty():
+        return {"ok": true, "code": "ALREADY_INITIALIZED"}
+    var result: Dictionary = Graph.load_packaged(path)
+    if not result.get("ok", false): return result
+    var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+    if typeof(raw) != TYPE_DICTIONARY: return {"ok": false, "code": "INVALID_GRAPH"}
+    return command("spatial:initialize:"+str(raw["graph_id"]), "system:director",
+        "spatial.initialize", {"graph": raw})
+
 func load_existing() -> Dictionary:
     if not FileAccess.file_exists(save_path):
         return {"ok": true, "code": "NEW_WORLD"}
@@ -67,7 +81,8 @@ func load_existing() -> Dictionary:
     restored = true
     last_save_revision = int(world.view()["sequence"])
     last_error = ""
-    return {"ok": true, "code": "RESTORED", "revision": last_save_revision}
+    return {"ok": true, "code": "MIGRATED" if replacement.last_restore_was_migration else "RESTORED",
+        "revision": last_save_revision}
 
 func save() -> Dictionary:
     var snapshot: Dictionary = world.view()

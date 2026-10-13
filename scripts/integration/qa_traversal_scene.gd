@@ -18,11 +18,6 @@ func _ready() -> void:
     call_deferred("_boot")
 
 func _boot() -> void:
-    var g: Dictionary = Graph.load_packaged(ROUTES)
-    if not g.get("ok",false):
-        push_error("PLAY_C1_GRAPH_FAILED "+str(g))
-        return
-    graph = g["graph"]
     var existing: Dictionary = model.load_existing()
     if not existing.get("ok",false):
         push_error("PLAY_C1_WORLD_SAVE_FAILED "+str(existing))
@@ -32,15 +27,23 @@ func _boot() -> void:
         if not boot.get("ok",false):
             push_error("PLAY_C1_CONTENT_FAILED "+str(boot))
             return
-    var current: String = str(model.world.social_view()["player_location"])
-    var start: Dictionary = graph.spawn_for(current)
-    if not start.get("ok",false):
-        push_error("PLAY_C1_UNKNOWN_SAVED_ROOM "+current)
+    var nav: Dictionary = model.configure_navigation(ROUTES)
+    if not nav.get("ok",false):
+        push_error("PLAY_C2_NAV_FAILED "+str(nav))
         return
-    actor_position = start["position"]
+    var graph_check: Dictionary = Graph.from_data(model.world.spatial_view()["graph"])
+    if not graph_check.get("ok",false):
+        push_error("PLAY_C2_SAVED_GRAPH_FAILED "+str(graph_check))
+        return
+    graph = graph_check["graph"]
+    _sync_position()
     initialized = true
     notice = "WASD move, E doorway, F listen, R rent, P save, T pass time"
     report("PLAY_C1_RESTORED" if existing["code"]=="RESTORED" else "PLAY_C1_READY")
+
+func _sync_position() -> void:
+    var pose: Dictionary = model.world.spatial_view()["player"]
+    actor_position = Vector2(int(pose["x"]), int(pose["y"]))
 
 func current_room() -> String:
     return str(model.world.social_view()["player_location"])
@@ -76,13 +79,13 @@ func _try_travel() -> void:
         return a["distance"] < b["distance"] if a["distance"] != b["distance"] else a["id"] < b["id"])
     var nearest: String = near[0]["id"]
     var current_revision: int = int(model.world.view()["sequence"])
-    var result: Dictionary = graph.travel(model,nearest,actor_position,
-        "play:c1:route:"+str(current_revision+1)+":"+nearest)
+    var result: Dictionary = model.command("play:c2:route:"+str(current_revision+1)+":"+nearest,
+        "player", "spatial.player.travel", {"portal_id": nearest})
     if not result.get("ok",false):
         notice = "Doorway: "+str(result.get("code"))
         report("PLAY_C1_DENIED")
         return
-    actor_position = result["position"]
+    _sync_position()
     notice = "Entered "+current_room()
     report("PLAY_C1_TRAVEL")
 
@@ -152,9 +155,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
             else:
                 notice = "Time: "+str(jump.get("code"))
     if direction != Vector2.ZERO:
-        var moved: Dictionary = graph.move(current_room(),actor_position,direction)
+        var seq: int = int(model.world.view()["sequence"])+1
+        var moved: Dictionary = model.command("play:c2:move:"+str(seq),
+            "player", "spatial.player.move", {"dx":int(direction.x), "dy":int(direction.y)})
         if moved.get("ok",false):
-            actor_position = moved["position"]
+            _sync_position()
         else:
             notice = "Boundary: "+str(moved.get("code"))
         queue_redraw()
