@@ -5,13 +5,14 @@ var errors: Array[String] = []
 
 func _initialize() -> void:
     _definitions_and_units()
+    _accounting_limits()
     _parallel_reservations()
     _interrupt_and_resume()
     _cancel_and_deadlines()
     _items_and_expiry()
     _replay_and_persistence()
     if errors.is_empty():
-        print("SYS P3: PASS (6 groups: data, reservations, interruption, expiry, items, replay)")
+        print("SYS P3: PASS (7 groups: data, accounting bounds, reservations, interruption, expiry, items, replay)")
         quit(0)
         return
     for e in errors:
@@ -77,6 +78,26 @@ func _definitions_and_units() -> void:
     var cloned: Dictionary = world(k)
     cloned["stock"]["flour"] = 500
     check(world(k)["stock"]["flour"] == 8, "mutable projection")
+
+func _accounting_limits() -> void:
+    var k = Kernel.new()
+    var max_amount: int = 2147483647
+    check(send(k,"d","ingredient.define",{"ingredient_id":"test","unit":"piece"})["ok"], "limit: ingredient")
+    check(send(k,"a","stock.add",{"ingredient_id":"test","quantity":max_amount})["ok"], "limit: max initial stock")
+    check(send(k,"r","recipe.define",{"recipe_id":"one","steps":[step("bench",{"test":1},1)],"shelf_minutes":0})["ok"], "limit: recipe")
+    check(send(k,"s","station.register",{"station_id":"bench","station_type":"bench"})["ok"], "limit: station")
+    check(prep(k,"reserve","one",10)["ok"], "limit: reserve")
+    check(send(k,"over","stock.add",{"ingredient_id":"test","quantity":1})["code"] == "AMOUNT_OVERFLOW", "limit: stock overflow on refund")
+    check(send(k,"c","cook.cancel",{"job_id":"reserve"})["ok"], "limit: release escrow")
+    check(world(k)["stock"]["test"] == max_amount, "limit: wrong refunded max")
+    check(send(k,"discard","stock.discard",{"ingredient_id":"test","quantity":max_amount-1})["ok"], "limit: large waste")
+    check(prep(k,"waste","one",20)["ok"], "limit: reserve near waste ceiling")
+    check(begin(k,"waste","bench")["ok"], "limit: consume before waste")
+    check(send(k,"cancelw","cook.cancel",{"job_id":"waste"})["ok"], "limit: waste at bound")
+    check(world(k)["waste"]["test"] == max_amount, "limit: waste overflow or missing entry")
+    check(send(k,"a2","stock.add",{"ingredient_id":"test","quantity":1})["ok"], "limit: replenishment after waste")
+    check(send(k,"overflow_waste","stock.discard",{"ingredient_id":"test","quantity":1})["code"] == "AMOUNT_OVERFLOW", "limit: discard overflow")
+    check(world(k)["stock"]["test"] == 1, "limit: rejected discard mutated stock")
 
 func _parallel_reservations() -> void:
     var k = Kernel.new()
