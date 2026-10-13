@@ -1,10 +1,11 @@
 extends RefCounted
-## SYS P0/P1/P2/P3 canonical event reducer. No scene or dialogue runtime owns time.
+## SYS P0–P4 canonical event reducer. No scene or dialogue runtime owns time.
 const Clock = preload("res://scripts/core/world_clock.gd")
 const Scheduler = preload("res://scripts/core/world_scheduler.gd")
 const NpcWorld = preload("res://scripts/core/npc_world.gd")
 const CookingWorld = preload("res://scripts/core/cooking_world.gd")
-const VERSION: int = 4
+const OrderWorld = preload("res://scripts/core/order_world.gd")
+const VERSION: int = 5
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -16,6 +17,7 @@ var jobs: Dictionary = {}
 var acknowledgements: Dictionary = {}
 var society: RefCounted = NpcWorld.new()
 var cooking: RefCounted = CookingWorld.new()
+var service: RefCounted = OrderWorld.new()
 var facts: Dictionary = {}
 var receipts: Dictionary = {}
 var events: Array[Dictionary] = []
@@ -117,6 +119,8 @@ static func _exact_keys(value: Dictionary, expected: Array) -> bool:
     return true
 
 static func _event_kind(command_kind: String) -> String:
+    if OrderWorld.owns(command_kind):
+        return OrderWorld.event_kind(command_kind)
     if CookingWorld.command(command_kind):
         return CookingWorld.event_kind(command_kind)
     if NpcWorld.is_domain_command(command_kind):
@@ -134,6 +138,9 @@ static func _event_kind(command_kind: String) -> String:
     return ""
 
 static func _command_kind(event_kind: String) -> String:
+    var order_command: String = OrderWorld.command_kind(event_kind)
+    if not order_command.is_empty():
+        return order_command
     var cook_command: String = CookingWorld.command_kind(event_kind)
     if not cook_command.is_empty():
         return cook_command
@@ -162,10 +169,31 @@ func _find_fire(fire_id: String) -> bool:
     return false
 
 func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
+    if OrderWorld.owns(kind):
+        return service.plan(kind, payload, actor_id, society, cooking, jobs, world_minute)
     if CookingWorld.command(kind):
         return cooking.plan(kind, payload, actor_id, jobs, world_minute)
     if NpcWorld.is_domain_command(kind):
-        return society.plan(kind, payload, actor_id, jobs, world_minute)
+        var result: Dictionary = society.plan(kind, payload, actor_id, jobs, world_minute)
+        if not result.get("ok", false):
+            return result
+        var departing_id: String = ""
+        if kind == "npc.move" and society.npcs[payload["npc_id"]]["location_id"] != payload["location_id"]:
+            departing_id = payload["npc_id"]
+        if kind == "npc.visit.interrupt":
+            departing_id = payload["npc_id"]
+        if kind == "npc.routine.cancel":
+            var rid: String = payload["routine_id"]
+            var owner: String = society.routines[rid]["npc_id"]
+            if society.npcs[owner]["routine_id"] == rid:
+                departing_id = owner
+        var changes: Array = []
+        if not departing_id.is_empty():
+            var predicted: RefCounted = service.duplicate_domain()
+            changes = predicted.departing(departing_id, world_minute, "command:departure", jobs.duplicate(true))
+        result["effect"]["departing_npc_id"] = departing_id
+        result["effect"]["abandoned_orders"] = changes
+        return result
     if _event_kind(kind).is_empty():
         return {"ok": false, "code": "UNKNOWN_COMMAND"}
     match kind:
@@ -201,7 +229,8 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
             return {"ok": true, "effect": {
                 "to_minute": target["target"], "fires": fires["fires"],
                 "npc_outcomes": society.project_firings(fires["fires"]),
-                "cooking_outcomes": cooking.project_firings(fires["fires"], jobs)
+                "cooking_outcomes": cooking.project_firings(fires["fires"], jobs),
+                "order_outcomes": service.project_firings(fires["fires"], society, jobs)
             }}
         "schedule.create":
             if not _exact_keys(payload, ["job_id", "due_minute", "priority", "topic", "data", "every_minutes"]):
@@ -209,7 +238,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
             if not valid_identity(payload["job_id"]) or not valid_identity(payload["topic"]):
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             # Domain-owned firings can only be created as part of a verified NPC command.
-            if (payload["topic"] as String).begins_with("npc.visit.") or (payload["job_id"] as String).begins_with("npc:") or (payload["topic"] as String).begins_with("cook.") or (payload["job_id"] as String).begins_with("cook:"):
+            if (payload["topic"] as String).begins_with("npc.visit.") or (payload["job_id"] as String).begins_with("npc:") or (payload["topic"] as String).begins_with("cook.") or (payload["job_id"] as String).begins_with("cook:") or (payload["topic"] as String).begins_with("order.") or (payload["job_id"] as String).begins_with("order:"):
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not integral(payload["due_minute"], 1) or int(payload["due_minute"]) <= world_minute:
                 return {"ok": false, "code": "INVALID_DUE_TIME"}
@@ -225,7 +254,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not jobs.has(payload["job_id"]) or jobs[payload["job_id"]]["status"] != "pending":
                 return {"ok": false, "code": "JOB_NOT_PENDING"}
-            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:"):
+            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:"):
                 return {"ok": false, "code": "DOMAIN_OWNED_JOB"}
             return {"ok": true, "effect": {"job_id": payload["job_id"]}}
         "schedule.reschedule":
@@ -287,9 +316,13 @@ func _apply_event(raw: Dictionary) -> bool:
     if not matching_json(raw, expected):
         return false
     sequence = int(next_seq)
+    if OrderWorld.owns(kind):
+        service.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs, cooking)
     if CookingWorld.command(kind):
         cooking.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     if NpcWorld.is_domain_command(kind):
+        if not planned["effect"]["departing_npc_id"].is_empty():
+            service.departing(planned["effect"]["departing_npc_id"], world_minute, "command:departure", jobs)
         society.apply_command(kind, request, planned["effect"], world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     match kind:
         "knowledge.grant":
@@ -325,6 +358,7 @@ func _apply_event(raw: Dictionary) -> bool:
                     job["status"] = "completed"
                 else:
                     job["due_minute"] += job["every_minutes"]
+            service.apply_firings(planned["effect"]["fires"], society, jobs)
             society.apply_firings(planned["effect"]["fires"])
             cooking.apply_firings(planned["effect"]["fires"], jobs)
             world_minute = int(planned["effect"]["to_minute"])
@@ -340,7 +374,7 @@ func snapshot() -> Dictionary:
         "version": VERSION, "seed": seed, "world_minute": world_minute,
         "sequence": sequence, "paused": paused, "minutes_per_step": minutes_per_step,
         "jobs": jobs.duplicate(true), "acknowledgements": acknowledgements.duplicate(true),
-        "society": society.snapshot(), "cooking": cooking.snapshot(),
+        "society": society.snapshot(), "cooking": cooking.snapshot(), "service": service.snapshot(),
         "facts": facts.duplicate(true), "receipts": receipts.duplicate(true),
         "events": events.duplicate(true)
     }
