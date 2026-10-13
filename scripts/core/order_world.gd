@@ -142,7 +142,7 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
             if minute >= int(o["deadline_minute"]):
                 return fail("ORDER_STALE")
             if o["route"] == "table":
-                if not ident(p["seat_id"]) or not p["seat_id"] in venues[o["venue_id"]]["table_ids"]:
+                if not ident(p["seat_id"]) or not (p["seat_id"] in venues[o["venue_id"]]["table_ids"]):
                     return fail("INVALID_SEAT")
                 if _seat_occupied(o["venue_id"], p["seat_id"]):
                     return fail("SEAT_OCCUPIED")
