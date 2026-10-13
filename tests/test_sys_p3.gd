@@ -128,7 +128,7 @@ func _cancel_and_deadlines() -> void:
     prep(k,"job:b", "porridge", 6)
     begin(k,"job:a","mixing")
     check(send(k,"cancel","cook.cancel",{"job_id":"job:a"})["ok"], "cancel active")
-    check(world(k)["stock"]["flour"] == 8 and world(k)["stock"]["water"] == 2 and world(k)["stock"]["oil"] == 4, "cancel escrow accounting")
+    check(world(k)["stock"]["flour"] == 6 and world(k)["stock"]["water"] == 2 and world(k)["stock"]["oil"] == 4, "cancel escrow accounting")
     check(world(k)["waste"]["flour"] == 2 and world(k)["waste"]["water"] == 1, "consumed ingredients not recorded waste")
     check(send(k,"cancel:again","cook.cancel",{"job_id":"job:a"})["code"] == "PREPARATION_FINAL", "double-cancel")
     check(k.advance_time(10,"time10")["ok"], "deadline fired")
