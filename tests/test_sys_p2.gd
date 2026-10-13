@@ -48,7 +48,7 @@ func _identity_and_commands() -> void:
     var first: Dictionary = register(k, "npc:a", "home")
     check(first["ok"], "register")
     check(send(k, "register:npc:a", "npc.register", {"npc_id":"npc:a","location_id":"home"}) == first, "register retry receipt")
-    check(register(k, "npc:a")["code"] == "NPC_EXISTS", "duplicate identity")
+    check(send(k, "duplicate", "npc.register", {"npc_id":"npc:a","location_id":""})["code"] == "NPC_EXISTS", "duplicate identity")
     check(register(k, "player")["code"] == "NPC_EXISTS", "player is not NPC")
     check(send(k, "bad","npc.register",{"npc_id":"npc:b","location_id":3})["code"] == "INVALID_LOCATION", "invalid place")
     check(k.npc("npc:a")["location_id"] == "home", "initial presence")
