@@ -4,7 +4,7 @@ const Session = preload("res://scripts/integration/world_session.gd")
 const Fixture = preload("res://scripts/integration/p7_acceptance_fixture.gd")
 const SAVE = "user://nile-kiosk-p7-production-v7.json"
 var model: RefCounted
-var ready: bool = false
+var initialized: bool = false
 var notice: String = "Loading..."
 
 func _ready() -> void:
@@ -42,7 +42,7 @@ func _boot() -> void:
         if not initiated.get("ok",false):
             push_error("P7_WEB_SESSIONS_FAILED " + str(initiated))
             return
-    ready = true
+    initialized = true
     notice = "P save  /  1 Ink choice  /  E serve  /  R rent  /  T time"
     report("P7_WEB_READY" if loaded["code"] == "NEW_WORLD" else "P7_WEB_RESTORED")
 
@@ -81,7 +81,7 @@ func action(id: String, actor: String, kind: String, p: Dictionary) -> bool:
     return check(model.command(id,actor,kind,p),kind)
 
 func _unhandled_key_input(event: InputEvent) -> void:
-    if not ready or not (event is InputEventKey) or not event.pressed or event.echo:
+    if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
     match event.keycode:
         KEY_P:
@@ -114,7 +114,7 @@ func _draw() -> void:
     draw_rect(Rect2(0,0,960,540),Color("#19282e"))
     draw_rect(Rect2(0,0,960,78),Color("#355358"))
     draw_string(ThemeDB.fallback_font,Vector2(25,38),"NILE KIOSK — WORLD INTEGRATION",HORIZONTAL_ALIGNMENT_LEFT,-1,21,Color.WHITE)
-    if not ready:
+    if not initialized:
         draw_string(ThemeDB.fallback_font,Vector2(30,165),"Restoring world / Ink...",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color.WHITE)
         return
     var s: Dictionary = summary()
