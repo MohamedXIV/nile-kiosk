@@ -19,7 +19,7 @@ Evaluate a Godot 4/GDScript life-sim scenario that has two independent NPC conve
 | Save/read JSON/recreate sessions mid-choice + canonical idempotency + deterministic replay | PASS native P3 | PASS native P3 |
 | Web export of **full kiosk** scene | PASS | PASS |
 | Real Chromium sessions complete, tea prepared from keyboard | PASS | PASS |
-| Persist save across **actual browser refresh** | NOT TESTED | NOT TESTED |
+| Persist save across **actual browser refresh** | NOT TESTED (fallback only) | **PASS** (chosen Ink, PR #21) |
 | Arabic/RTL | DEFERRED | DEFERRED |
 | Many simultaneous stories/prod-scale performance | NOT TESTED | NOT TESTED |
 
@@ -41,7 +41,7 @@ Evaluate a Godot 4/GDScript life-sim scenario that has two independent NPC conve
 
 ## Residual risks and intentionally deferred work
 
-1. Browser save persistence across reload / tab close and resume UI/choice states. Track separately before a usable Web demo; `user://` semantics on browser need real proof.
+1. **Update 2026-10-13:** Ink Web save/restoration across a real Chromium page reload **PASS** via [PR #21](https://github.com/MohamedXIV/nile-kiosk/pull/21), [CI #38346547761](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38346547761). The dedicated Ink scene persisted a pending choice, knowledge, position, world tick and event log; interjection after refresh and completed-story second reload passed. This does **not** cover tab-close/other-browser profiles/storage eviction, and Dialogue Manager browser persistence remains untested.
 2. Godot headless export/test shutdown can report resource/RID leak warnings even when checks pass; investigate as a diagnostic issue without conflating native boot success with clean resource lifecycle.
 3. No stress simulation with many concurrent NPC sessions; no accessibility, localization/RTL or real authored content scale evaluation.
 4. No decision yet on Godot vs alternatives for the full game: **V001 visual/cutaway** still needs implementation, art assets and scene consistency proof.
