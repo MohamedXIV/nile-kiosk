@@ -82,6 +82,10 @@ jobs:
           sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_spike.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/ink/index.html
           cp /tmp/nile-project.godot project.godot
+          mkdir -p build/dialogue-web/ink-persist
+          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_browser_persistence_spike.tscn"#' project.godot
+          godot --headless --path . --export-release Web build/dialogue-web/ink-persist/index.html
+          cp /tmp/nile-project.godot project.godot
       - name: Chromium acceptance — both engines
         run: |
           python3 -m http.server 8765 --directory build/dialogue-web >/tmp/d001-dialogue-web-server.log 2>&1 &

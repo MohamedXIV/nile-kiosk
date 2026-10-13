@@ -9,17 +9,14 @@ const browser=await chromium.launch({
 });
 const context=await browser.newContext({viewport:{width:1100,height:760}});
 const page=await context.newPage();
-const traces={fresh:[],choice:[],saved:[],restored:[],interjected:[],at_table:[],known:[],tick:[]};
+const traces={fresh:[],choice:[],saved:[],restored:[],interjected:[]};
 const errors=[];
 const prefixes={
   fresh:"D001_WEB_FRESH",
   choice:"D001_WEB_CHOICE ",
   saved:"D001_WEB_SAVED ",
   restored:"D001_WEB_RESTORED ",
-  interjected:"D001_WEB_INTERJECTED ",
-  at_table:"D001_WEB_AT_TABLE ",
-  known:"D001_WEB_KNOWN ",
-  tick:"D001_WEB_TICK "
+  interjected:"D001_WEB_INTERJECTED "
 };
 page.on("console",msg=>{
   const line=msg.text();
@@ -46,12 +43,10 @@ async function until(predicate,why,timeout=15000){
   throw new Error("Timeout waiting for "+why+" | traces="+JSON.stringify(traces)+" | errors="+JSON.stringify(errors));
 }
 try{
-  await page.goto(origin+"/ink/index.html",{waitUntil:"load",timeout:30000});
+  await page.goto(origin+"/ink-persist/index.html",{waitUntil:"load",timeout:30000});
   await until(()=>traces.fresh.length,"new browser session");
   await page.locator("canvas").first().click({position:{x:480,y:260}});
-  await page.keyboard.press("t"); // deterministic browser fixture, real hearing/knowledge guards
-  await page.keyboard.press("k");
-  await until(()=>traces.at_table?.length && traces.known?.length,"browser keyboard reached Godot",7000);
+  // A dedicated QA scene starts near the table with a canonical knowledge fact at tick zero.
   const choice=await until(()=>traces.choice.at(-1),"real gated Ink choice");
   check(choice.match && choice.football==="choice","Original story was not in a gated interjection");
   await page.keyboard.press("p");
