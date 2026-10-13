@@ -126,6 +126,12 @@ jobs:
           timeout 90s godot --headless --path . --script res://tests/test_sys_p7.gd 2>&1 | tee /tmp/sys-p7.log
           grep -q 'SYS P7: PASS' /tmp/sys-p7.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P7: FAIL)' /tmp/sys-p7.log; then exit 1; fi
+      - name: Run CONTENT C0 authored catalog import and atomic world bootstrapping tests
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_content_c0.gd 2>&1 | tee /tmp/content-c0.log
+          grep -q 'CONTENT C0: PASS' /tmp/content-c0.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|CONTENT C0: FAIL)' /tmp/content-c0.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
