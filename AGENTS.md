@@ -21,3 +21,12 @@
 - [Iso projection v0.1](docs/architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md) is **proposed 2:1**, while [open PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) still uses validated **~2.067:1**. Do not silently swap cameras, mix sprite generations or claim the proposed contract is implemented.
 - Structural collision survives cutting roofs/walls. Reveal **only the relevant unit**, keep low front sills and correct light occluders, and preserve stairs/shared landing/neighbor door continuity.
 - Do not merge/close art work solely on green headless/Chromium acceptance if the user has not approved the visual result.
+
+## System-First mandate (2026-10-13)
+
+- **Do not build a one-day/one-recipe/one-customer vertical slice as the product foundation.** The user explicitly requested production domain systems from day one after bad experiences with agents extending half-baked prototypes.
+- Start with [System-First Architecture](docs/architecture/SYSTEM_FIRST_ARCHITECTURE.md), [System Delivery Board](docs/systems/SYSTEM_DELIVERY_BOARD.md) and [World Time/Scheduler contract](docs/systems/WORLD_TIME_AND_SCHEDULER.md). Reconcile old roadmap entries accordingly.
+- **Quarantine D001/V001 spikes:** `scripts/conversation_orchestrator.gd`, `scripts/game_state.gd`, `scripts/spike_save_codec.gd`, `scripts/kiosk_spike.gd`, V001 art scripts are tests/prototypes; do not wire their hardcoded tea counter/tick directly as production authority.
+- Exactly one canonical owner for time, NPC state, ingredients/recipes, orders, cash/rents, home access and social facts. Ink is the authored dialogue adapter, NEVER a second GameState.
+- Every system needs explicit API/schema, full lifecycle, rejection/idempotency, deterministic progression, versioned save and real dependency tests before closing its epic; meaningful kernel sub-deliverables can land without claiming the entire system is complete.
+- Keep unrelated PR #20 visual work independent. Prefer lean Godot headless tests and actual Chromium checks where the behavior becomes browser-facing; no expensive duplicate CI jobs.

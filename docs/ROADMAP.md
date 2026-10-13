@@ -1,6 +1,6 @@
-# Roadmap — discovery-first
+# Roadmap — System-First Development (2026-10-13)
 
-This roadmap records **work to prove**, not features already shipped. The game is early pre-production.
+**Policy: system-first, not vertical-slice-first.** Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. Build production-owned, independently testable domain systems with full lifecycle/persistence contracts before connecting them as a playable game. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
 
 | Order | Workstream | Delivery gate |
 | --- | --- | --- |
@@ -10,15 +10,19 @@ This roadmap records **work to prove**, not features already shipped. The game i
 | 2a | **V001-A — roof-room real 2D asset pack** | 3D measured model → independently authored/cleaned 2D floor/walls/cutaway/bed/desk/fan/lamp; pivot/lighting/collision/save and real browser art review |
 | 2b | V001-B landing and V001-C south-flat pack | Two clearly opposed doors + opaque north neighbor; 60m² flat kitchen/bath and unit cutaway, without icon-like room framing |
 | 2c | Proposed 2:1 projection migration (only if adopted) | Rebuild Blender/Godot/manifest/sprites simultaneously from projection v0.1; no mixed generations; reprojection and real Chromium proof |
-| 3 | Technical decision | Lock runtime/visual/narrative combination based on D001/V001 evidence |
-| 4 | Kiosk vertical slice | One cooking recipe, one meaningful day, NPC arrivals/table/counter/Nile behavior, return home |
-| 5 | Game-state and narrative foundations | Knowledge, relationships, housing expenses, conversations without player, repeat encounters |
-| 6 | Content and systems expansion | Recipes, neighborhood stories, ordinary purchases, ambience and home comfort |
-| 7 | Polish, balance and release | Usability, accessibility/localization later, save stability, distribution |
+| 3 | **World Kernel (P0)** | Canonical schema, deterministic command/event contracts, idempotency, versioned persistence and rejection paths |
+| 4 | **World Clock & Scheduler (P1)** | Durable ordering, boundary time advances, recurring events, save/replay and midnight behavior |
+| 5 | **NPC Life/Presence + Social Foundations (P2)** | Independent offscreen action, identities/routines, observed vs unknown facts; state persistence |
+| 6 | **Kiosk Production (P3)** | Data-defined recipes/stations/ingredients and full start/cancel/finish lifecycle, no hardcoded global tea counter |
+| 7 | **Orders & Service (P4)** | Customer/order lifecycle, waiting, fulfillment/abandonment and independent systems' event wiring |
+| 8 | **Economy, Housing & Home (P5)** | Auditable cash/payment, obligations/access/prop state; prices and duplex remain design choices |
+| 9 | **Ink Social/Narrative Bridge (P6)** | Concurrent independent dialogue, familiarity/knowledge/proximity gates and canonical effect provenance |
+| 10 | **Whole-world Persistence & Runtime Integration (P7)** | Save under active systems, deterministic resume, Web Chromium and debug tools; art remains separate |
+| 11 | **Content/polish/release** | Expand recipes and NPC content on stable systems, then UI/art/localization/performance/balance |
 
 ## Working rules
 
-- Keep game vision broader than the spike code. Avoid building an entire platform before validating the experience.
+- **Do not design the implementation around a throwaway one-day vertical slice.** Build complete bounded systems and use scenario fixtures strictly as tests. Avoid building an oversized general-purpose engine with abstractions unsupported by actual domain needs.
 - NPCs must be able to converse without the player; authored dialogue opportunities are not all quests.
 - Use independent short modules, coherent assets and reproducible tests.
 - CI is welcome on this **public** repository. Prefer one useful smoke job after runnable tests exist, cache imports, cancel superseded runs; don't run empty workflows.
@@ -29,4 +33,5 @@ This roadmap records **work to prove**, not features already shipped. The game i
 - D001 acceptance completed for **headless Godot native** and **the two Web kiosk smoke exports**; see `spikes/D001-DECISION.md`.
 - **Ink browser reload persistence for the tested Chrome/Web origin passed** in [D001 Web refresh acceptance](spikes/D001-browser-refresh.md); cross-origin, cross-device, storage eviction, and other browsers are not proven.
 - Production art-resolution dialogue inspection, Arabic/RTL, realistic NPC density/performance, and release build pipeline remain future work.
-- Primary visual workstream: **V001 3D-authored → 2D-delivered MODULAR asset pack**, starting with the 24m² roof room. Engineering proof and visual quality are separate gates; [visual bible](design/VISUAL_WORLD_BIBLE.md), [asset pipeline](art/3D_AUTHORED_2D_PRODUCTION.md), [design register](DECISION_REGISTER.md).
+- **Art work can pause without blocking system development.** V001 PR #20 remains open for independent visual review; don't merge it into gameplay kernel as a dependency. [Visual bible](design/VISUAL_WORLD_BIBLE.md), [asset pipeline](art/3D_AUTHORED_2D_PRODUCTION.md), [design register](DECISION_REGISTER.md).
+- **Completion means full contract and tests for the declared system**, including rejected transitions, mid-operation save/replay, deterministic results and immediate cross-system boundaries. See [system board](systems/SYSTEM_DELIVERY_BOARD.md).
