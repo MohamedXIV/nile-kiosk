@@ -1,0 +1,29 @@
+# SYS P4 — NPC Orders, Service and Atomic Delivery
+
+Implementation issue [#28](https://github.com/MohamedXIV/nile-kiosk/issues/28). Production owner: `scripts/core/order_world.gd`, integrated with `WorldKernel`/WorldState schema **v5**, P2 NPC presence and P3 food items. No D001 / V001 fixture is authoritative.
+
+## Boundary
+
+An order is **not** a cooking preparation and never manufactures an item. A specific NPC who is physically present can offer an intent, the player can accept and fulfill it only when both are at the configured service location, and the final fulfillment consumes **one P3 completed item of the requested recipe** in the same canonical event. The NPC remains autonomous: unaccepted offers may time out; scheduled departure abandons open orders even when the player is away.
+
+Venue configuration is **data**, not gameplay defaults:
+`service.configure {venue_id, location_id, counter_slots, takeaway_slots, table_ids}` creates a service point, bounded integer capacities, and unique named seats. No implicit shop hours, prices, route weighting or occupancy guesses are introduced.
+
+## Contracts and lifecycle
+
+- `order.offer {order_id, venue_id, npc_id, recipe_id, route, deadline_minute}`, dispatched by **actor_id == npc_id**, requires registered NPC co-located with venue, known P3 recipe, no other active order by that NPC, valid future deadline, and route capacity. Routes: `counter`, `takeaway`, `table`. It reserves a queue place (including for not-yet-accepted offers) and registers domain-owned `order.deadline` with P1 scheduler. Queue position is an immutable offer-time trace, not a constantly renumbered ticket. One active order per NPC is a reversible anti-duplicate invariant, not world population design.
+- `order.accept {order_id, seat_id}` by `player` requires an **offered**, not-yet-stale order, player and customer physically at the venue, and for table service an unoccupied registered seat. Non-table routes require empty `seat_id`; active table orders retain their allocated seat until closure. Queue capacity includes offered **and** accepted orders, so no accidental oversubscription.
+- `order.cancel {order_id, reason}` by the player or customer, and `order.abandon {order_id, reason}` by that customer (or system service authority) permanently close any offered/accepted order, freeing route capacity and seat. Duplicate or late commands are rejected, and command ID replays return the original receipt. Neither operation touches cooking stock/items or money.
+- `order.deliver {order_id, item_id}` by **player** requires an accepted, unexpired order, player and customer both present, and a P3 item in **ready** state of the matching recipe. This same `order.delivered` event causes `CookingWorld.apply_command("cook.item.use", ...)` and marks the order fulfilled. A delivered item cannot be reused, an order cannot be delivered again, mismatched recipe or absent customer is rejected **without any mutation**.
+- After delivery, `payment_claim_id = "payment:order:" + order_id` has status **awaiting_ledger**, amount **null**, linked order+item and provenance. **No cash balance, price, credit or 'paid' flag exists in P4.** SYS P5 must settle this claim through an atomic ledger command with its own idempotency contract; P4 does not claim actual payment. This is the precise delivery-to-payment boundary.
+- `time.advance` processes P2 NPC routines and P4 order expirations from the **same P1 ordered fire list**. On scheduled NPC departure, all active orders of that NPC become `abandoned` **at departure minute**, before later deadlines. A stale deadline fire after departure is an intentional no-op, ensuring one large world jump and many small advances converge on the same deadline-job status and P4 state. Automatic closure provenance uses stable `schedule:<job_id>:<occurrence>` rather than advance-sequence-dependent fire IDs.
+- Direct `npc.move`, `npc.visit.interrupt`, or `npc.routine.cancel` of a currently active visit also abandons the NPC's orders in the **same canonical NPC command event**, with that event's ID as cause. Player departure makes acceptance/delivery impossible but does not magically cancel an order; the real deadline or NPC departure resolves it.
+- Raw `schedule.create/cancel/reschedule` cannot create or alter P4-owned `order.*` and `order:` job IDs. P0/P1 receipts and integrity replay prevent duplicate effects. All public projections are copies.
+
+## Persistence and acceptance
+
+Schema v5 contains `service = {venues, orders, payment_claims}` and replays every event through the original producer modules. v1–v4 snapshots are **explicitly rejected** (no fabricated queues, seats, paid orders or migration). Event effects and final state are independently recomputed; corrupted orders, phantom ledger claims, queue configuration and altered NPC departure outcomes cannot be restored. Disk save/load mid-order and mid-cooking uses the same whole-world atomic file path as P0.
+
+`tests/test_sys_p4.gd` in the existing Godot 4.6.3 CI covers offered/accepted/final states, queue+seat contention, customer impersonation, player absence, missing/mismatched/already-consumed food, atomic delivery + pending non-monetary claim, idempotent retries, NPC direct/scheduled departure, deadline, coarse-vs-fine time advancement, cross-domain cooking and NPC continuity, mid-order and mid-step JSON restore, tamper rejection and old-version rejection. The unchanged D001/V001 and Chromium dialogue/browser tests are required regressions.
+
+**Deferred deliberately:** Cash settlement/pricing/P5 account ledger, NPC order decision policy (not always buying something), UI queuing/seat visuals, emotional satisfaction, walk/delivery animations, serving recipes/quality, automatic NPC order generation, world location navigation and browser scene adapter. P4 implements the genuine domain contract, *not* invented gameplay content or a service tycoon.
