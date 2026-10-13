@@ -99,7 +99,7 @@ func _seats_and_routes() -> void:
     check(offer(k,"tab3","n2","table")["ok"], "table slot freed")
     check(accept(k,"tab3","t1")["ok"], "seat reused")
     check(send(k,"wrong_actor","order.cancel",{"order_id":"tab2","reason":"other"},"n0")["code"] == "UNAUTHORIZED", "unrelated customer cancellation")
-    check(accept(k,"tab2","t2")["code"] == "INVALID_ORDER_STAGE", "duplicate accept")
+    check(send(k,"accept:tab2:again","order.accept",{"order_id":"tab2","seat_id":"t2"},"player")["code"] == "INVALID_ORDER_STAGE", "duplicate accept")
     check(send(k,"badseat","order.accept",{"order_id":"tab3","seat_id":"t7"},"player")["code"] == "INVALID_ORDER_STAGE", "accepted not changeable")
     check(send(k,"kick","order.cancel",{"order_id":"tab3","reason":"out_of_stock"},"player")["ok"], "player cancellation")
 
