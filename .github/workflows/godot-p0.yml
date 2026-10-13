@@ -90,6 +90,12 @@ jobs:
           godot --headless --path . --script res://tests/test_sys_p2.gd 2>&1 | tee /tmp/sys-p2.log
           grep -q 'SYS P2: PASS' /tmp/sys-p2.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P2: FAIL)' /tmp/sys-p2.log; then exit 1; fi
+      - name: Run SYS P3 production cooking and inventory acceptance
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_sys_p3.gd 2>&1 | tee /tmp/sys-p3.log
+          grep -q 'SYS P3: PASS' /tmp/sys-p3.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|SYS P3: FAIL)' /tmp/sys-p3.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
