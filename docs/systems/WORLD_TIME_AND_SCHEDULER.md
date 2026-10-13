@@ -1,6 +1,6 @@
 # World Time & Scheduler — production contract
 
-**Status:** production P1 implementation under verification (issue #25). D001's \`tick_number\` is a spike fixture and **must not become the world's calendar**.
+**Status:** production SYS P1 VERIFIED AND MERGED ([PR #34](https://github.com/MohamedXIV/nile-kiosk/pull/34), [Issue #25](https://github.com/MohamedXIV/nile-kiosk/issues/25)); [Godot P1 and native regressions PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38390984961), [Chromium smoke PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38390984743). D001's \`tick_number\` is a spike fixture and **must not become the world's calendar**.
 
 **Goal:** exactly one deterministic game clock whose time advances explicitly, drives NPC schedules and cooking/order deadlines, and can be saved/reloaded halfway through any activity.
 
