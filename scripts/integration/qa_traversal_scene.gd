@@ -4,10 +4,13 @@ extends Node2D
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
+const DemandConfig = preload("res://scripts/integration/customer_demand_config.gd")
 const SERVICE_INTENTS: String = "res://content/service/qa_customer_intents.v1.json"
 const CATALOG: String = "res://content/world/qa_nile_kiosk.v1.json"
 const ROUTES: String = "res://content/navigation/qa_routes.v1.json"
 const SAVE: String = "user://nk-play-c1-web-qa.json"
+@export var world_save_path: String = SAVE
+@export var demand_policy_path: String = ""
 var model: RefCounted
 var graph: RefCounted
 var service_intents: Dictionary = {}
@@ -17,7 +20,7 @@ var notice: String = "Booting authored world..."
 var last_marker: String = ""
 
 func _ready() -> void:
-    model = Session.new(31,SAVE)
+    model = Session.new(31,world_save_path)
     call_deferred("_boot")
 
 func _boot() -> void:
@@ -44,6 +47,11 @@ func _boot() -> void:
         push_error("PLAY_C3_INTENTS_FAILED "+str(intent_source))
         return
     service_intents = intent_source["intents"]
+    if not demand_policy_path.is_empty():
+        var demand: Dictionary = DemandConfig.configure(model,demand_policy_path)
+        if not demand.get("ok",false):
+            push_error("PLAY_C4_POLICY_FAILED "+str(demand))
+            return
     _sync_position()
     initialized = true
     notice = "WASD move, E door, F talk, O customer offer, G next service, T time, P save"
@@ -58,10 +66,20 @@ func current_room() -> String:
 
 func world_state() -> Dictionary:
     var state: Dictionary = model.world.view()
+    var auto_ids: Array = []
+    for oid in state["service"]["orders"]:
+        if str(oid).begins_with("demand:"):
+            auto_ids.append(oid)
+    auto_ids.sort()
+    var latest_auto: Dictionary = state["service"]["orders"].get(auto_ids[-1],{}) if not auto_ids.is_empty() else {}
     var active_order: Dictionary = state["service"]["orders"].get("qa:amina:tea:first",{})
     var active_job: Dictionary = state["cooking"]["preparations"].get("play:c3:prep:qa:amina:tea:first",{})
     var active_claim: Dictionary = state["service"]["payment_claims"].get("payment:order:qa:amina:tea:first",{})
     return {
+        "auto_count":auto_ids.size(),
+        "auto_order_id":latest_auto.get("order_id",""),
+        "auto_status":latest_auto.get("status","none"),
+        "auto_customer":latest_auto.get("npc_id",""),
         "order_status":active_order.get("status","none"),
         "payment_status":active_claim.get("status","none"),
         "job_stage":active_job.get("stage","none"),
@@ -250,9 +268,10 @@ func _draw() -> void:
         "Room: %s  /  Time: %s  /  Revision: %s" % [room,s["minute"],s["revision"]],
         "Cash: %s minor units  /  Flat access: %s" % [s["money"],s["flat_access"]],
         "Order: %s  /  Cook: %s step %s" % [s["order_status"],s["job_stage"],s["job_step"]],
+        "NPC demand: %s  /  Status: %s" % [s["auto_customer"],s["auto_status"]],
         "Item: %s  /  Payment: %s" % [s["item_status"],s["payment_status"]],
         "Nile fact: %s  /  Reda: %s" % [s["known"],s["npc_reda"]],
         "QA CONTENT — prices, route drawings and NPC labels are NOT final game art."
     ]
     for i in range(lines.size()):
-        draw_string(ThemeDB.fallback_font,Vector2(510,104+i*43),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
+        draw_string(ThemeDB.fallback_font,Vector2(510,104+i*37),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
