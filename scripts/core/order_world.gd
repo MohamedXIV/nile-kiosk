@@ -366,13 +366,14 @@ func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictiona
         return result
     var deadline: int = int(fire["world_minute"])+int(data["wait_minutes"])
     var cause: String = "schedule:"+str(fire["job_id"])+":"+str(occurrence)
+    var queue_position: int = _count(data["venue_id"],data["route"])+1
     orders[order_id] = {
         "order_id":order_id, "npc_id":data["npc_id"],"venue_id":data["venue_id"],
         "recipe_id":data["recipe_id"],"route":data["route"],"status":"offered",
         "deadline_minute":deadline,
         "deadline_job_id":"service:demand:expire:"+str(data["plan_id"]),
         "created_minute":int(fire["world_minute"]), "created_event_id":cause,
-        "queue_position_at_offer":_count(data["venue_id"],data["route"])+1,
+        "queue_position_at_offer":queue_position,
         "offer_sequence":int(fire["created_sequence"]),
         "accepted_minute":-1,"seat_id":"","item_id":"",
         "closed_minute":-1,"closure_event_id":"",
