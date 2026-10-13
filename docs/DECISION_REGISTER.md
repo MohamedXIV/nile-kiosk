@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Game premise | Quiet Egyptian riverside kiosk and home; modest stability rather than wealth/grind | **Game vision agreed** |
 | Setting | Cairo/Nile neighborhood, unnamed roughly 2000–2005, lived as present | **Game vision agreed**; details authored later |
-| Home progression | Start in **4×6m = 24m²** rooftop room; later aspire to a **10×6m ≈60m²** small separate south apartment | **Design agreed**; economy is not implemented |
+| Home progression | Start in **4×6m = 24m²** rooftop room; later aspire to a **10×6m ≈60m²** small separate south apartment | **Design agreed**; SYS P5 implemented canonical economy/rental contracts, but actual rent amounts and retention policy remain undecided |
 | Building | ~six-storey pre-1960 residential block, shared top landing and **two facing doors**. North unit only entrance; player's unit south (camera side) | **Design agreed**, exact room detailing still art/prototype work |
 | Housing economics | Roof room and flat could each have rent; examples EGP 200 + EGP 1000 | **Illustrative numbers only**; no locked balance or double-lease decision |
 | Duplex | Optional future internal stair between the south apartment and room directly above | **Only a possibility**; not required feature and would demand plausible structural/owner permissions |
@@ -20,7 +20,7 @@
 | Narrative implementation | Ink/inkgd selected after D001 comparison, Dialogue Manager fallback | **Chosen baseline for next slice**; browser reload verified for Ink |
 | Language | Arabic/RTL not in first D001 test fixtures | **Deferred**, not cancelled or claimed complete |
 | Art review | Real Web screenshots and final user approval required beyond green tests | **Mandatory gate**, open on V001 PR #20 |
-| Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; SYS P0 kernel merged via [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33), P1–P7 incomplete; D001/V001 remain spikes |
+| Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; SYS P0 kernel merged via [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33), SYS P0–P7 verified and merged; CONTENT C0 authored bundles merged via [PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42). D001/V001 remain separate spikes |
 
 ## Verified against live GitHub when written
 
@@ -29,10 +29,10 @@
 - [V001 issue #19](https://github.com/MohamedXIV/nile-kiosk/issues/19): separate artist/visual review required.
 - [D001 decision](spikes/D001-DECISION.md) and [browser refresh persistence](spikes/D001-browser-refresh.md): prior proof of genuine Ink Web save/refresh within covered smoke scope, not claim of cross-device permanence.
 
-## Next actionable order — systems priority (2026-10-13)
+## Next actionable order — authored content and actual playable integration (2026-10-13)
 
-1. Follow [System-First Architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md): World Kernel → World Time/Scheduler → NPC Life/Social → Kitchen Production → Orders → Economy/Housing/Home → Ink Integration → whole-world persistence/runtime.
-2. Every module must expose real domain contracts and acceptance checks; no demo-first hardcoded NPC/recipe/day or silent promotion of spike code.
+1. SYS P0–P7 and Content C0 are done. Use [the production world importer](systems/CONTENT_C0_WORLD_BOOTSTRAP.md) to author real NPC/recipe/location data; the C0 QA catalog is **not balanced gameplay content**.
+2. Connect real gameplay input/navigation/interaction presentation to the already-owned domain commands. Do not promote P7 test-fixture prices/NPCs or the D001 scene to a shipped default.
 3. Art PR #20 can remain open for visual review without blocking headless domain development. Keep agreed 24m² roof room, 60m² south flat, 3D→2D asset direction and pending 2:1 migration documented for later.
 4. Once complete systems exist, integrate them into gameplay without rewriting their truth or adding a second controller per domain.
 
