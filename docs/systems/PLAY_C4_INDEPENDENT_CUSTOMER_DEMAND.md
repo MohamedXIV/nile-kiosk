@@ -1,5 +1,7 @@
 # PLAY C4 — World-owned Independent Customer Demand
 
+**Status: VERIFIED / MERGED** — [PR #50](https://github.com/MohamedXIV/nile-kiosk/pull/50), squash `7d61774c4a578007f21ce14c68d65cbeb469cc6e`. [Native P0–P7/C0–C4 plus D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38468602119), [REAL Chromium PLAY_C4_CHROMIUM_PASS, C3/C1/P7/D001 regressions PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38468602114), GitGuardian PASS. Both authenticated exact-head checks succeeded.
+
 [Issue #49](https://github.com/MohamedXIV/nile-kiosk/issues/49). After PLAY C3, players can perform real cooking/service, but the initial offer is still exposed as a **QA-only scripted O-key interaction**. PLAY C4 introduces a *separate optional* authored customer-demand schedule owned by the existing **P4 OrderWorld + P1 WorldScheduler**. It does not remove the C3 QA affordance or convert it into autonomous NPC AI.
 
 ## Contract
