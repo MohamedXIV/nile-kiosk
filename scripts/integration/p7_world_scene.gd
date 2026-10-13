@@ -52,7 +52,7 @@ func summary() -> Dictionary:
         "events":v["events"].size(),"receipts":v["receipts"].size(),
         "digest":JSON.stringify(v).sha256_text(),
         "balance":v["economy"]["accounts"]["player"],
-        "cook":v["cooking"]["preparations"].get("batch",{}).get("status","missing"),
+        "cook":v["cooking"]["preparations"].get("batch",{}).get("stage","missing"),
         "item":v["cooking"]["items"].get("item:batch",{}).get("status","none"),
         "order":v["service"]["orders"]["order:tea"]["status"],
         "claim":v["service"]["payment_claims"].get("payment:order:order:tea",{}).get("status","none"),
