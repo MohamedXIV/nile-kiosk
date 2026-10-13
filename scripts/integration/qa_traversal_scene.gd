@@ -155,9 +155,7 @@ func _offer_customer() -> void:
         notice = "No new authored customer intention."
         queue_redraw()
         return
-    var witness: Dictionary = graph.nearby_npc(model,actor_position)
-    var nearby: String = str(witness.get("npc_id",""))
-    var offer: Dictionary = ServicePlay.offer(model,selected,nearby)
+    var offer: Dictionary = ServicePlay.offer(model,selected)
     if not offer.get("ok",false):
         notice = "Customer: "+str(offer.get("code","UNKNOWN"))
         report("PLAY_C3_DENIED")
