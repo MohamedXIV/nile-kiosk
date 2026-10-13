@@ -1,0 +1,25 @@
+# PLAY C1 — Authored Room Traversal and Player/World Input
+
+[Issue #43](https://github.com/MohamedXIV/nile-kiosk/issues/43). This is the first physically navigable Godot/Web **production-kernel consumer**, not an approved visual scene and not a replacement for V001 PR #20.
+
+## Owned and explicitly not owned
+
+`scripts/integration/room_traversal.gd` reads trusted version-1 route catalogs from `res://content/navigation/*.json`. The format declares bounded logical room rectangles/spawn points, explicitly directed doorway entries and arrival points, optional housing `unit_id` gates, and NPC presentation anchors. It validates all entries and references *before* returning a graph. A map with an unknown room, duplicate portal, invalid coordinate, unsupported schema or fabricated NPC anchor is rejected as a whole. Nothing is executed from a graph.
+
+`scripts/integration/qa_traversal_scene.gd` (scene `scenes/qa_world_traversal.tscn`) boots the actual [CONTENT C0](CONTENT_C0_WORLD_BOOTSTRAP.md) world through `WorldSession.bootstrap_from_content` only when no saved world exists. It handles WASD/arrow movement within authored bounds; E activates the nearest reachable portal, F listens to a *co-present, actually nearby* NPC with an authored public fact, R purchases the explicitly authored apartment lease only when near its doorway, P saves, T advances the actual world clock. The scene's view draws simple colored rectangles and circles and shows diagnostic text: **placeholder QA visualization only**.
+
+Successful room crossings dispatch **P2 `social.player.place`** through the canonical kernel; all P2 first-heard facts, rental payments/entitlements, NPC routines, time, receipts and saves are owned by P0–P7. Entering a rented unit requires the existing P5 `can_access_unit` and matching target unit/location. Too-far/locked/wrong-room attempts are rejected **without any world event**. Public fact hearing uses the P2 `social.speak` contract only after adapter proximity and NPC's current P2 location pass; the player learns nothing by being outside the room. Canonical event ids come from the current revision rather than the frame index. This is a **presentation controller policy**; the trusted WorldKernel's existing `social.player.place` command still does not authorize remote clients. There is no claim of anti-cheat or cryptographic authorization.
+
+## Persistence and candid limitations
+
+Canonical `player_location` is saved/restored with the entire WorldKernel. **In-room XY is currently ephemeral**; after a hard reload, the adapter places the player at the authored spawn for their saved room, not their exact pre-reload render-space pixel. This avoids constructing a second saved scene-based player position that falsely claims to be world authority. Full XY spatial persistence, sub-room collision with furniture, physical kiosk/game-world models, location-aware NPC pathfinding, actual door animations and camera/image asset alignment require a later domain-owned spatial contract/adapter once V001 art is signed off. The code does **not** assert these are done.
+
+`content/navigation/qa_routes.v1.json` is QA-only (roof ↔ shared landing ↔ street ↔ kiosk; landing ↔ apartment behind P5 rental access). It accompanies `content/world/qa_nile_kiosk.v1.json` with explicit **unbalanced QA prices/characters**. Neither route geometry nor these economic values are final content. The graph uses screen-input convenience dimensions, **not** the unapproved V001 ~2.067:1 projection or proposed 2:1 Blender asset contract; these must not be mixed.
+
+## Verification
+
+`tests/test_play_c1.gd` imports the genuine C0 data, tests schema/foreign-key/double-ID/path input rejection, movement bounds, physical portal range, no event on denied travel, unpaid apartment access, valid rental-and-enter, proximity-only hearing from a registered NPC, unrelated room secrecy, two genuine saves/reloads and immutable world snapshots. It runs in existing Godot 4.6.3 CI along with SYS P0–P7 and D001/V001.
+
+`tools/web-play-c1-smoke.mjs` opens the **actual Godot Web export** of the playable QA scene in Chromium and presses movement and interaction keys. It crosses roof→landing→street→kiosk, listens to the nearby NPC, saves and reloads, advances a real NPC routine, saves and reloads a second time and checks exact whole-world digests/revisions with no ghost events. It runs in the existing Chromium job alongside P7 production and D001 regressions. Export packaging explicitly includes trusted JSON world/navigation catalogs.
+
+**Not yet shipped:** actual art and camera approved by the user; a polished gameplay UI with named NPC conversation prose, real production content balancing, exact XY persistence, cross-device saves or final opening sequence. [V001 PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) remains separate.
