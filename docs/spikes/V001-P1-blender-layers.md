@@ -29,3 +29,19 @@ Next art pass should focus on an asymmetrical corner/facade treatment, detailed 
 ### Known nonblocking technical notes
 
 Godot headless Web export still produces known resource/RID shutdown diagnostics despite successful browser proof; investigation is tracked in #16. CI temporarily renames the editable .blend before Godot imports PNGs, avoiding Godot's separate .blend importer in headless mode.
+
+
+## V001 V2 — smaller south unit and roof-room start (October 13)
+
+**Implementation candidate on PR #20; visual acceptance pending.** This changes the *spatial contract*, not just the look of the existing full-floor room.
+
+- Residential floor 6 is divided into the **south-facing rented unit of exactly 60 m²** (10 × 6 m), shared landing with **two facing entrance doors**, and opaque northern-neighbor area. Neighbor interior is never exported or made traversable.
+- At roof elevation above floor 6 is a **4 × 6 m roof room (24 m²)**, within the footprint of the southern flat. The game prototype starts here, with bed/fan/desk, and shows common roof/stair access. The player is not given the apartment by default.
+- A **QA-only R key** unlocks a preview of the apartment; real rents (illustrative 200 EGP roof room / 1000 EGP apartment), combined leases, and optional duplex stairs are **deliberately not implemented**.
+- Logical transitions: rooftop room → roof → shared upper landing → south apartment (only if preview unlocked). Street and lobby remain reachable; floor IDs and unit IDs persist with versioned V2 save files.
+- Blender now bakes **12 semantic layers × day/night = 24 untrimmed 960×540 PNGs**: `facade_lower`, `facade_upper`, `roof`, `roof_room`, `roof_room_cut`, `landing`, `neighbor`, `apartment`, `front_wall_cut`, `chair`, `table`, `lobby`. All use the fixed camera and manifest; old 14-layer output is invalid for this revision.
+- The apartment has a compact **private bathroom and kitchen** plus minimal unfurnished living/sleeping area. The smaller roof room is visibly enclosed by low sill and back walls when revealed; the neighbor stays an opaque door-and-wall silhouette.
+- Godot's `PointLight2D` warm lamp is **toggled at runtime with L** when inside the roof room or apartment at night. A back-wall `LightOccluder2D` remains valid when the front wall is visually cut; the frontend-wall shadow is never baked into a permanently visible occluder. This is an initial hybrid lighting spike, **not yet full normal-mapped 2D light/shadow acceptance**.
+- Tests cover exact areas, room-contained movement, rental gating, two opposed entrances, roof-room/apartment alignment, furniture save, cutaway layer visibility and lamp state. The Chromium walkthrough is extended to capture roof-room lamp on/off, common roof, landing, and south apartment.
+
+**Do not label P1 PASS based on the earlier 14-layer Web evidence.** New 24-layer Blender/Chromium evidence and visual review are separate acceptance gates. Legacy V1 save JSON is intentionally rejected (no migration authored for this disposable spike).
