@@ -65,6 +65,7 @@ func _offer_and_queue() -> void:
     check(offer(k,"o1","n0")["ok"], "first counter offer")
     var initial: Dictionary = k.order("o1")
     check(initial["status"] == "offered" and initial["queue_position_at_offer"] == 1, "offer/queue state")
+    check(k.service_queue("k","counter").size() == 1 and k.service_queue("k","counter")[0]["order_id"] == "o1", "live queue projection")
     check(offer(k,"o2","n1")["code"] == "QUEUE_FULL", "counter capacity")
     check(offer(k,"o3","n0","takeaway")["code"] == "CUSTOMER_HAS_ORDER", "one active order per customer")
     check(send(k,"forged","order.offer",{"order_id":"false","venue_id":"k","npc_id":"n1",
@@ -75,6 +76,7 @@ func _offer_and_queue() -> void:
     check(send(k,"cancel","order.cancel",{"order_id":"o1","reason":"client_changed_mind"},"n0")["ok"], "NPC cancel")
     check(k.order("o1")["status"] == "cancelled", "cancel transition")
     check(offer(k,"o2","n1")["ok"], "released counter slot")
+    check(k.service_queue("k","counter").size() == 1 and k.service_queue("k","counter")[0]["queue_position"] == 1, "queue reindex after cancel")
     check(send(k,"double","order.cancel",{"order_id":"o1","reason":"again"},"n0")["code"] == "ORDER_FINAL", "double cancel")
     var copy: Dictionary = k.orders_view()
     copy["orders"]["o2"]["status"] = "forged"
@@ -89,6 +91,7 @@ func _seats_and_routes() -> void:
     setup(k)
     check(offer(k,"tab1","n0","table")["ok"], "table offer 1")
     check(offer(k,"tab2","n1","table")["ok"], "table offer 2")
+    check(k.service_queue("k","table").map(func(x: Dictionary) -> String: return x["order_id"]) == ["tab1","tab2"], "queue FIFO projection")
     check(offer(k,"tab3","n2","table")["code"] == "QUEUE_FULL", "table capacity")
     check(accept(k,"tab1","t1")["ok"], "seat t1")
     check(accept(k,"tab2","t1")["code"] == "SEAT_OCCUPIED", "same seat double occupation")
@@ -97,6 +100,7 @@ func _seats_and_routes() -> void:
     check(send(k,"leave","order.abandon",{"order_id":"tab1","reason":"impatient"},"n0")["ok"], "abandon")
     check(k.order("tab1")["status"] == "abandoned", "abandoned state")
     check(offer(k,"tab3","n2","table")["ok"], "table slot freed")
+    check(k.service_queue("k","table")[0]["order_id"] == "tab2" and k.service_queue("k","table")[1]["order_id"] == "tab3", "queue ordered after abandonment")
     check(accept(k,"tab3","t1")["ok"], "seat reused")
     check(send(k,"wrong_actor","order.cancel",{"order_id":"tab2","reason":"other"},"n0")["code"] == "UNAUTHORIZED", "unrelated customer cancellation")
     check(send(k,"accept:tab2:again","order.accept",{"order_id":"tab2","seat_id":"t2"},"player")["code"] == "INVALID_ORDER_STAGE", "duplicate accept")
