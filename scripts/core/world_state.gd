@@ -294,7 +294,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not jobs.has(payload["job_id"]) or jobs[payload["job_id"]]["status"] != "pending":
                 return {"ok": false, "code": "JOB_NOT_PENDING"}
-            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:"):
+            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:") or (payload["job_id"] as String).begins_with("service:demand:"):
                 return {"ok": false, "code": "DOMAIN_OWNED_JOB"}
             return {"ok": true, "effect": {"job_id": payload["job_id"]}}
         "schedule.reschedule":
@@ -306,7 +306,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
             if not jobs.has(payload["job_id"]) or jobs[payload["job_id"]]["status"] != "pending":
                 return {"ok": false, "code": "JOB_NOT_PENDING"}
-            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:"):
+            if (payload["job_id"] as String).begins_with("npc:") or (payload["job_id"] as String).begins_with("cook:") or (payload["job_id"] as String).begins_with("order:") or (payload["job_id"] as String).begins_with("housing:") or (payload["job_id"] as String).begins_with("service:demand:"):
                 return {"ok": false, "code": "DOMAIN_OWNED_JOB"}
             return {"ok": true, "effect": {"job_id": payload["job_id"]}}
         "schedule.ack":
