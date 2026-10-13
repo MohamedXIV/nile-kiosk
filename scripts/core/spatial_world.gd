@@ -72,7 +72,11 @@ func plan(kind: String, payload: Dictionary, actor_id: String, society: RefCount
         var dy: int = payload["dy"]
         if absi(dx) > 18 or absi(dy) > 18 or (dx == 0 and dy == 0) or _square(dx, dy) > STEP_SQ:
             return fail("INVALID_DELTA")
-        var room: Dictionary = graph["rooms_by_id"][player["room_id"]]
+        var room: Dictionary = {}
+        for candidate in graph["rooms"]:
+            if candidate["id"] == player["room_id"]:
+                room = candidate
+                break
         var x: int = int(player["x"]) + dx
         var y: int = int(player["y"]) + dy
         if x < 0 or y < 0 or x > int(room["width"]) or y > int(room["height"]):
@@ -81,7 +85,11 @@ func plan(kind: String, payload: Dictionary, actor_id: String, society: RefCount
     if kind == "spatial.player.travel":
         if not _keys(payload, ["portal_id"]) or typeof(payload.get("portal_id")) != TYPE_STRING:
             return fail("INVALID_PORTAL")
-        var door: Dictionary = graph["portals_by_id"].get(payload["portal_id"], {})
+        var door: Dictionary = {}
+        for candidate in graph["portals"]:
+            if candidate["id"] == payload["portal_id"]:
+                door = candidate
+                break
         if door.is_empty(): return fail("UNKNOWN_PORTAL")
         if door["from"] != player["room_id"]: return fail("WRONG_ROOM")
         var dx: int = int(player["x"]) - int(door["entry"][0])
@@ -95,13 +103,4 @@ func plan(kind: String, payload: Dictionary, actor_id: String, society: RefCount
 func apply_command(kind: String, payload: Dictionary, effect: Dictionary) -> void:
     if kind == "spatial.initialize":
         graph = payload["graph"].duplicate(true)
-        # Cached, deterministic read indices are canonical derived data that replay verifies.
-        var rooms_by_id: Dictionary = {}
-        var portals_by_id: Dictionary = {}
-        for room in graph["rooms"]:
-            rooms_by_id[room["id"]] = room.duplicate(true)
-        for door in graph["portals"]:
-            portals_by_id[door["id"]] = door.duplicate(true)
-        graph["rooms_by_id"] = rooms_by_id
-        graph["portals_by_id"] = portals_by_id
     player = effect.duplicate(true)
