@@ -18,7 +18,7 @@
 | 8 | **Economy, Housing & Home (P5) — DONE** | Auditable cash/payment, obligations/access/prop state; prices and duplex remain design choices |
 | 9 | **Ink Social/Narrative Bridge (P6) — DONE** | Concurrent independent dialogue, familiarity/knowledge/proximity gates and canonical effect provenance |
 | 10 | **Whole-world Persistence & Runtime Integration (P7) — DONE** | Save under active systems, deterministic resume, Web Chromium and debug tools; art remains separate |
-| 11 | **Content/polish/release — IN PROGRESS: C0 + PLAY C1 DONE** | [C0 #41 / PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42) implements validated transactional authored-world imports; [PLAY C1 #43 / PR #44](https://github.com/MohamedXIV/nile-kiosk/pull/44) provides a real Godot/Web **QA-only walkable room + interaction adapter** on the production kernel; still next: approved real NPC/recipe content and visual/spatial art review (including exact-XY persistence design), then final UI/localization/balance |
+| 11 | **Content/polish/release — IN PROGRESS: C0 + PLAY C1/C2 DONE** | [C0 #41 / PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42) implements validated transactional authored-world imports; [PLAY C1 #43 / PR #44](https://github.com/MohamedXIV/nile-kiosk/pull/44) provides QA-only playable Godot/Web interactions; [PLAY C2 #45 / PR #46](https://github.com/MohamedXIV/nile-kiosk/pull/46) adds **canonical room XY/portal authority**, two Web reloads and verified v7→v8 migration. Still next: real authored NPC/recipes, visual/art review and game-facing UI, localization and balance |
 
 ## Working rules
 
