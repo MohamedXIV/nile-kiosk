@@ -2,19 +2,30 @@ extends Node2D
 ## Simple code-drawn top-down scene. Visuals are placeholders, not final art.
 
 const Orchestrator = preload("res://scripts/conversation_orchestrator.gd")
+const SaveCodec = preload("res://scripts/spike_save_codec.gd")
+const INK_WEB_SAVE := "user://nile-kiosk-d001-ink.json"
 const STEP: float = 0.25
 const WALK_SPEED: float = 180.0
 
 @export var use_dialogue_manager: bool = false
 @export var use_ink: bool = false
+@export var browser_persistence_fixture: bool = false
 
 var model = Orchestrator.new()
 var _dm_tick_active: bool = false
 var _full_web_probe_reported: bool = false
+var _browser_restoring: bool = false
 
 func _ready() -> void:
     if use_ink:
         model = load("res://scripts/ink_conversation_orchestrator.gd").new()
+        if browser_persistence_fixture:
+            # Deterministic test-only startup before any world tick, not a production shortcut.
+            model.player_position = Orchestrator.TABLE_A
+            model.grant_match_knowledge()
+        if OS.has_feature("web"):
+            _browser_restoring = true
+            call_deferred("_restore_web_ink_after_loading")
     elif use_dialogue_manager:
         model = load("res://scripts/dm_conversation_orchestrator.gd").new()
 var accumulator: float = 0.0
@@ -23,7 +34,73 @@ var latest_football: String = ""
 var latest_rumor: String = ""
 var last_notice: String = ""
 
+func _browser_snapshot() -> Dictionary:
+    var rumor_events: int = 0
+    for event in model.events:
+        if event.get("kind") == "fact" and event.get("fact") == "hassan_shop_rumor":
+            rumor_events += 1
+    return {
+        "football": model.sessions["football"].phase,
+        "rumor": model.sessions["rumor"].phase,
+        "tick": model.tick_number,
+        "events": model.events.size(),
+        "position": [model.player_position.x, model.player_position.y],
+        "match": model.game_state.has_fact("knows_match"),
+        "rumor_known": model.game_state.has_fact("hassan_shop_rumor"),
+        "rumor_fact_events": rumor_events
+    }
+
+func _restore_web_ink_after_loading() -> void:
+    var remaining: int = 120
+    while remaining > 0 and not (model.sessions["football"].ready and model.sessions["rumor"].ready):
+        if model.sessions["football"].load_failed or model.sessions["rumor"].load_failed:
+            push_error("D001_WEB_INK_LOAD_FAILED")
+            _browser_restoring = false
+            return
+        remaining -= 1
+        await get_tree().process_frame
+    if remaining == 0:
+        push_error("D001_WEB_INK_LOAD_TIMEOUT")
+        _browser_restoring = false
+        return
+    var data: Dictionary = SaveCodec.read_json(INK_WEB_SAVE)
+    if data.is_empty():
+        _browser_restoring = false
+        print("D001_WEB_FRESH")
+        return
+    if not SaveCodec.restore(model, data, "ink"):
+        push_error("D001_WEB_INVALID_SAVE")
+        _browser_restoring = false
+        return
+    latest_football = ""
+    latest_rumor = ""
+    for record in model.events:
+        if record.get("kind") == "line":
+            var dialogue: String = "%s: %s" % [record.get("speaker", ""), record.get("text", "")]
+            if record.get("session") == "football":
+                latest_football = dialogue
+            elif record.get("session") == "rumor":
+                latest_rumor = dialogue
+    event_cursor = model.events.size()
+    accumulator = 0.0
+    last_notice = "Restored Ink conversations."
+    _browser_restoring = false
+    print("D001_WEB_RESTORED ", JSON.stringify(_browser_snapshot()))
+
+func _save_web_ink() -> void:
+    if _browser_restoring or not (model.sessions["football"].ready and model.sessions["rumor"].ready):
+        push_error("D001_WEB_SAVE_NOT_READY")
+        return
+    if not SaveCodec.write_json(INK_WEB_SAVE, SaveCodec.snapshot(model, "ink")):
+        push_error("D001_WEB_SAVE_FAILED")
+        return
+    last_notice = "Saved. Reload browser to resume."
+    print("D001_WEB_SAVED ", JSON.stringify(_browser_snapshot()))
+
+
 func _process(delta: float) -> void:
+    if _browser_restoring:
+        return
     var direction := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
     direction += Vector2(
         int(Input.is_key_pressed(KEY_D)) - int(Input.is_key_pressed(KEY_A)),
@@ -61,6 +138,8 @@ func _process(delta: float) -> void:
             last_notice = "Tea served!"
         elif event.get("kind") == "choice_expired":
             last_notice = "Conversation continues without you."
+        elif event.get("kind") == "choice" and use_ink and OS.has_feature("web"):
+            print("D001_WEB_CHOICE ", JSON.stringify(_browser_snapshot()))
     _report_full_web_probe_when_ready()
     queue_redraw()
 
@@ -93,9 +172,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_K:
                 model.grant_match_knowledge()
                 last_notice = "You know the match details."
+                if use_ink and OS.has_feature("web"):
+                    print("D001_WEB_KNOWN ", JSON.stringify(_browser_snapshot()))
             KEY_1:
                 if model.interject():
                     last_notice = "Joined the football conversation."
+                    if use_ink and OS.has_feature("web"):
+                        print("D001_WEB_INTERJECTED ", JSON.stringify(_browser_snapshot()))
+            KEY_P:
+                if use_ink:
+                    _save_web_ink()
 
 func _draw() -> void:
     draw_rect(Rect2(0, 0, 960, 540), Color("#c9b999"))
@@ -111,7 +197,7 @@ func _draw() -> void:
     draw_circle(model.player_position, 13.0, Color("#365779"))
     _text(model.player_position + Vector2(-18, -19), "YOU", 12, Color("#253d55"))
     _text(Vector2(456, 496), "THE NILE", 18, Color("#e2e9e2"))
-    _text(Vector2(20, 24), "Move: WASD/arrows   K: know match   1: join football   E: make tea", 15)
+    _text(Vector2(20, 24), "Move: WASD/arrows   K: know match   1: join   E: tea   P: Ink save", 15)
     var football = model.sessions["football"]
     var rumor = model.sessions["rumor"]
     _text(Vector2(20, 50), "A: %s | B: %s | tea: %d/3 | tick: %d" % [football.phase, rumor.phase, model.tea_steps, model.tick_number], 13)
