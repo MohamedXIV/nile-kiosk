@@ -9,6 +9,7 @@ const WALK_SPEED: float = 180.0
 
 @export var use_dialogue_manager: bool = false
 @export var use_ink: bool = false
+@export var browser_persistence_fixture: bool = false
 
 var model = Orchestrator.new()
 var _dm_tick_active: bool = false
@@ -18,6 +19,10 @@ var _browser_restoring: bool = false
 func _ready() -> void:
     if use_ink:
         model = load("res://scripts/ink_conversation_orchestrator.gd").new()
+        if browser_persistence_fixture:
+            # Deterministic test-only startup before any world tick, not a production shortcut.
+            model.player_position = Orchestrator.TABLE_A
+            model.grant_match_knowledge()
         if OS.has_feature("web"):
             _browser_restoring = true
             call_deferred("_restore_web_ink_after_loading")
@@ -135,8 +140,6 @@ func _process(delta: float) -> void:
             last_notice = "Conversation continues without you."
         elif event.get("kind") == "choice" and use_ink and OS.has_feature("web"):
             print("D001_WEB_CHOICE ", JSON.stringify(_browser_snapshot()))
-    if use_ink and OS.has_feature("web") and model.tick_number in [4, 8, 12]:
-        print("D001_WEB_TICK ", JSON.stringify(_browser_snapshot()))
     _report_full_web_probe_when_ready()
     queue_redraw()
 
@@ -171,11 +174,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
                 last_notice = "You know the match details."
                 if use_ink and OS.has_feature("web"):
                     print("D001_WEB_KNOWN ", JSON.stringify(_browser_snapshot()))
-            KEY_T:
-                # Browser-only acceptance fixture: instant table arrival (world hearing rules unchanged).
-                if use_ink and OS.has_feature("web"):
-                    model.player_position = Orchestrator.TABLE_A
-                    print("D001_WEB_AT_TABLE ", JSON.stringify(_browser_snapshot()))
             KEY_1:
                 if model.interject():
                     last_notice = "Joined the football conversation."
