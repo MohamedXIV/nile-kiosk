@@ -1,6 +1,6 @@
 # Game vision — Nile Kiosk
 
-**Design status:** working direction, updated 2026-10-12. This document records intended experience rather than implementation claims.
+**Design status:** working direction, updated 2026-10-13. Agreed experience and proposed technical values are recorded separately in [the decision register](DECISION_REGISTER.md). This document records intended experience rather than implementation claims.
 
 ## Premise and emotional core
 
@@ -17,12 +17,14 @@ The fantasy is **modest stability, personal dignity, small pleasures and the abi
 
 ## Residential building and home
 
-- Player rents a tiny apartment in a **graceful, lived-in mid-century Egyptian building** (roughly 1940s–1950s), about five or six stories, on a relatively orderly, tree-lined street.
+- Player **starts in a rented 4×6 m = 24m² rooftop room** above a graceful, lived-in mid-century Egyptian building (roughly 1940s–1950s), around six residential storeys, on a relatively orderly, tree-lined street.
 - Inspired by older Zeitoun, old Heliopolis, old Dokki, Manial and related Cairo residential architectural language, **without** copying elite Garden City residences or idealizing an untouched heritage museum.
 - Proportions, tiled/terrazzo hall, old wooden shutters, stair railings, balconies and high ceilings can be lovely; aging is credible, not dereliction.
-- The player's floor is unresolved (a high floor near the roof is appealing, but not canon).
-- The apartment is small and initially sparsely furnished, **beautiful in its bones**. The player adds chairs, a fan, storage, a radio/TV, rugs, kitchen conveniences, plants, etc.
-- Roof access may support quiet moments, but rooftop and floor access must be tested for scope and design value.
+- **Upper floor:** a small shared stair landing with two **opposed apartment doors**. The northern neighbor's flat is not rendered inside; the **southern ~60m² flat** (10×6m nominal) faces the camera and is the player's possible later home.
+- The 24m² **roof room is directly over part of the southern flat**, and starts comfortable though sparsely furnished; common roof access gives it emotional identity.
+- **The upgrade is privacy, kitchen and bathroom of one's own**, not a mansion. The south flat is also small and initially sparsely furnished, beautiful in its bones. Player may add second-hand furniture and comforts over time.
+- Housing economics is deferred; EGP 200 roof rent + EGP 1,000 flat rent were only discussion examples, potentially combined if both leases retained. Retention, owner approval and optional internal duplex stairs remain **open design questions**, not shipped systems.
+- Shared roof, visible neighbor door, landing, stairs and per-unit reveal contribute to building credibility; precise furnishings and art are still under V001 review.
 
 ## Kiosk activity
 
@@ -42,13 +44,16 @@ The fantasy is **modest stability, personal dignity, small pleasures and the abi
 - Silence, small talk and background chatter are content, not design failures.
 - No voice acting is required. Dialogue appears in world space without pausing play.
 
-## Visual direction — still being tested
+## Visual direction — playable 2D isometric spaces
 
-- Fixed top-down **oblique/dimetric 3/4** viewing angle, not a side view or strictly overhead 90-degree camera.
-- Strong environmental authorship, calm believable lighting and period-specific detail; avoid uniform golden-hour AI-slop compositions and excessive decoration.
-- Main candidate: **3D-authored assets rendered into interactive 2D layers** with separately interactable furniture and occluders.
-- Test a multi-storey apartment cutaway: street/exterior → entry/stairs → chosen apartment floor → movable furniture → exterior restored.
-- Distinguish per-floor logical position from render-layer order and projected screen coordinates; do not infer that floors are merely stacked flat sprites.
+- Fixed top-down **oblique/dimetric 3/4** viewing angle, with **no camera rotation**. Zoom/pan is allowed to focus a room. Final 2:1 camera parameters are still a proposed migration target, not V001's current camera.
+- **The player sees an inhabitable room, not a tiny isometric icon, web illustration, glossy mobile asset, or floating villa.** Use readable room structure, true player/prop scale, selective wear and modest Cairo detail. Pixel art is **not required**.
+- **3D is the authored spatial guide; the delivered assets are genuine independent 2D sprites/layers**, with meaningful polished 2D art, registered pivots, furniture/occluder separation and neutral base textures where dynamic lighting matters. A beautiful render/single generated image is not sufficient.
+- **Project Zomboid is a cutaway/room-readability reference**, not an art-style copy or assertion of identical engine implementation: reveal only the entered room, fade/hide ceilings and occluding upper walls, keep low sill, leave structural collisions intact, preserve neighboring door/shell.
+- Runtime local lights and correct wall occluder variants should add warmth and night mood; static baked lamp shadows must not contradict toggleable lighting.
+- Test: street/exterior → entry/stairs → shared landing/roof → roof room / later small south apartment → movable furniture and light switches → leave/restore shell.
+- Distinguish per-floor world coordinates, unit IDs, asset pivots and pixels. **Spatial correctness enables modularity; visual approval remains independent of green tests.**
+- [Visual Bible](design/VISUAL_WORLD_BIBLE.md), [Spatial Specification](architecture/HOME_BUILDING_SPATIAL_SPEC.md), [Art Production](art/3D_AUTHORED_2D_PRODUCTION.md).
 
 ## Non-goals
 

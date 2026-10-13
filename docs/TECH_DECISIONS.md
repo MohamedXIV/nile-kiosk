@@ -44,3 +44,16 @@
 Both real alternatives passed native independent concurrent conversations, conditional authored interjection, canonical fact effects, deterministic save/resume mid-choice, and separate full-kiosk Chromium Web smokes. There is no measured runtime performance advantage established for either. Ink wins **as a design/workflow tradeoff**: compositional authored narrative (short branches with rapid reconvergence), plain text scripts, and portability if the game later leaves Godot. It costs a compiler build step, requires a Git-pinned Godot-4 branch of inkgd, and has a more involved integration than Dialogue Manager. These are explicit costs, not ignored.
 
 Decision evidence: [D001 comparison report](spikes/D001-DECISION.md). Next visual/engine trial (V001) remains required before we commit to Godot as the final game engine.
+
+## Proposed iso authoring contract (2026-10-13)
+
+See [Isometric Projection Contract v0.1](architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md) and its JSON parameters and stdlib-only math validator. It **proposes** exact 2:1 dimetric projection for future modular 3D-authored → 2D-delivered assets. **PR #20 still uses its existing approximately 2.067:1 camera** and remains the validated-but-art-unapproved V001 spike. Do not mix renders or silently change the live camera; adoption requires a single separately gated Blender/Godot migration plus real Chromium proof. This is an authoring specification, not the final Godot engine commitment.
+
+## Cross-disciplinary art and building decisions (2026-10-13)
+
+- **[Decision register](DECISION_REGISTER.md)** is the authoritative index distinguishing agreed game experience, optional proposals, validated code and unapproved art.
+- **[Visual World Bible](design/VISUAL_WORLD_BIBLE.md)** defines the illustrated, playable isometric room goal (not icons or concept-art screenshots); [spatial specification](architecture/HOME_BUILDING_SPATIAL_SPEC.md) records the **24m² rooftop start, 60m² south flat, two facing doors, opaque neighbor and shared landing**.
+- **[3D-authored/2D-delivered workflow](art/3D_AUTHORED_2D_PRODUCTION.md)** defines semantic passes, pivots, crop metadata, lighting and acceptance. Blender is source of measured geometry and projection, **not an obligation to preserve raw 3D shading as final 2D style**.
+- Project Zomboid is a **design lesson** for local cutaways, low wall silhouettes and room continuity, not a mandate to adopt Zomboid's renderer/tilesets or clone its world scale.
+- The 2:1 projection document remains a **proposed target only** until exact-projection Blender/Godot/Chromium evidence proves the migration. Current V001 open PR #20 remains ~2.067:1, with separate visual art review still required.
+- Rent sample (EGP 200 + EGP 1,000) and duplex are **discussion-only**. No property system or construction permission is implied.
