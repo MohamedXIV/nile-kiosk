@@ -36,6 +36,7 @@ static func load_packaged(path: String) -> Dictionary:
 static func offer(session: RefCounted, intent: Dictionary, nearby_npc_id: String) -> Dictionary:
     # Scripted, QA-only customer decision; no pretending to implement NPC AI.
     if nearby_npc_id != intent["npc_id"]: return fail("CUSTOMER_NOT_NEARBY")
+    if session.world.orders_view()["orders"].has(intent["order_id"]): return fail("ORDER_EXISTS")
     var now: int = int(session.world.view()["world_minute"])
     if now > WorldState.MAX_INT_JSON - int(intent["wait_minutes"]):
         return fail("DEADLINE_OVERFLOW")
@@ -83,8 +84,18 @@ static func next_action(session: RefCounted, venue_id: String) -> Dictionary:
         return {"ok":true,"kind":"order.accept","actor":"player",
             "payload":{"order_id":offered["order_id"],"seat_id":""}}
     # Settle only real prior deliveries, never mint money for an offered order.
-    var delivered: Dictionary = _oldest_order(orders,"delivered",venue_id)
-    if not delivered.is_empty() and delivered["payment_status"] != "settled":
+    var unsettled: Dictionary = {}
+    var unpaid: Array = []
+    for order in orders.values():
+        if order["venue_id"] == venue_id and order["status"] == "delivered" and order["payment_status"] != "settled":
+            unpaid.append(order)
+    unpaid.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
+        if int(a["offer_sequence"]) != int(b["offer_sequence"]):
+            return int(a["offer_sequence"]) < int(b["offer_sequence"])
+        return str(a["order_id"]) < str(b["order_id"]))
+    if not unpaid.is_empty(): unsettled = unpaid[0]
+    var delivered: Dictionary = unsettled
+    if not delivered.is_empty():
         var claim: String = delivered["payment_claim_id"]
         if not v["economy"]["quotes"].has(claim):
             return {"ok":true,"kind":"economy.order.quote","actor":"system:pricing",
