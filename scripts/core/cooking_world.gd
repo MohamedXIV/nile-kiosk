@@ -126,6 +126,24 @@ func _job(payload: Dictionary, stage: String = "") -> Dictionary:
         return rejected("INVALID_STAGE")
     return {"ok": true, "job": j}
 
+func _locked_amount(ingredient_id: String) -> int:
+    # Future cancellation refunds only unused reservation. Count every live escrow.
+    var total: int = 0
+    for j in preparations.values():
+        if j["stage"] not in ["completed", "cancelled", "expired"]:
+            total += int(j["reserved"].get(ingredient_id, 0))
+    return total
+
+func _waste_exposure(ingredient_id: String) -> int:
+    # Worst-case: all live preparations get abandoned; already-used inputs
+    # and unused escrow both count toward a bounded cumulative waste ledger.
+    var total: int = 0
+    for j in preparations.values():
+        if j["stage"] not in ["completed", "cancelled", "expired"]:
+            total += int(j["reserved"].get(ingredient_id, 0))
+            total += int(j["consumed"].get(ingredient_id, 0))
+    return total
+
 func plan(kind: String, p: Dictionary, actor: String, scheduler_jobs: Dictionary, minute: int) -> Dictionary:
     if not command(kind):
         return rejected("UNKNOWN_COMMAND")
@@ -142,11 +160,11 @@ func plan(kind: String, p: Dictionary, actor: String, scheduler_jobs: Dictionary
             if not ingredients.has(p["ingredient_id"]):
                 return rejected("UNKNOWN_INGREDIENT")
             var available: int = int(stock.get(p["ingredient_id"], 0))
-            if kind == "stock.add" and int(p["quantity"]) > MAX_AMOUNT - available:
+            if kind == "stock.add" and int(p["quantity"]) > MAX_AMOUNT - available - _locked_amount(p["ingredient_id"]):
                 return rejected("AMOUNT_OVERFLOW")
             if kind == "stock.discard" and int(p["quantity"]) > available:
                 return rejected("INSUFFICIENT_STOCK")
-            if kind == "stock.discard" and int(p["quantity"]) > MAX_AMOUNT - int(waste.get(p["ingredient_id"], 0)):
+            if kind == "stock.discard" and int(p["quantity"]) > MAX_AMOUNT - int(waste.get(p["ingredient_id"], 0)) - _waste_exposure(p["ingredient_id"]):
                 return rejected("AMOUNT_OVERFLOW")
             return {"ok": true, "effect": {"quantity": int(p["quantity"])}}
         "recipe.define":
@@ -190,6 +208,10 @@ func plan(kind: String, p: Dictionary, actor: String, scheduler_jobs: Dictionary
             for ingredient_id in totals:
                 if int(stock.get(ingredient_id, 0)) < int(totals[ingredient_id]):
                     return rejected("INSUFFICIENT_STOCK")
+                # Refunding escrow / expiring jobs must never overflow either
+                # the free-stock or the cumulative-waste JSON integer range.
+                if int(totals[ingredient_id]) > MAX_AMOUNT - int(waste.get(ingredient_id, 0)) - _waste_exposure(ingredient_id):
+                    return rejected("AMOUNT_OVERFLOW")
             return {"ok": true, "effect": {"reserved": totals.duplicate(true), "expire_job_id": expire_job_id}}
         "cook.step.begin":
             if not exact(p, ["job_id", "station_id"]) or not valid_id(p.get("job_id")) or not valid_id(p.get("station_id")):
