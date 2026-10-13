@@ -4,6 +4,7 @@ const WorldState = preload("res://scripts/core/world_state.gd")
 const Clock = preload("res://scripts/core/world_clock.gd")
 
 var _state: RefCounted
+var last_restore_was_migration: bool = false
 
 func _init(world_seed: int = 1) -> void:
     _state = WorldState.new(world_seed)
@@ -58,6 +59,9 @@ func cooking_view() -> Dictionary:
 
 func prepared_item(item_id: String) -> Dictionary:
     return _state.cooking.items.get(item_id, {}).duplicate(true)
+
+func spatial_view() -> Dictionary:
+    return _state.spatial.snapshot()
 
 func social_view() -> Dictionary:
     return _state.society.snapshot()
@@ -168,18 +172,30 @@ static func _matches(actual: Variant, expected: Variant) -> bool:
     return actual == expected
 
 func restore_snapshot(data: Dictionary) -> bool:
-    # Explicit rejection of v1–v6: no silent narrative cursor/state migration.
-    if data.size() != 17 or not WorldState.integral(data.get("version"), 1) or int(data["version"]) != WorldState.VERSION:
+    # v7 -> v8 is an explicit full-replay upgrade, not an unchecked field patch.
+    last_restore_was_migration = false
+    if not WorldState.integral(data.get("version"), 1):
         return false
+    var version: int = int(data["version"])
+    if version == 8 and data.size() != 18: return false
+    if version == 7 and data.size() != 17: return false
+    if version not in [7, 8]: return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
     for raw in data["events"]:
         if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
-    if not _matches(data, candidate.snapshot()):
+    var expected: Dictionary = candidate.snapshot()
+    if version == 7:
+        # v7 has no spatial events. Every other domain and receipt is replayed.
+        if candidate.spatial.initialized(): return false
+        expected.erase("spatial")
+        expected["version"] = 7
+    if not _matches(data, expected):
         return false
     _state = candidate
+    last_restore_was_migration = version == 7
     return true
 
 func save_to_file(path: String) -> bool:
