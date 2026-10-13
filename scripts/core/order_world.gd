@@ -201,11 +201,11 @@ static func _make_job(id: String, due: int, data: Dictionary, seq: int, actor: S
         "status": "pending", "execution_count": 0, "last_fire_id": ""
     }
 
-func _end_order(o: Dictionary, status: String, at: int, cause_id: String, scheduler_jobs: Dictionary) -> void:
+func _end_order(o: Dictionary, status: String, at: int, cause_id: String, scheduler_jobs: Dictionary, cancel_deadline: bool = true) -> void:
     o["status"] = status
     o["closed_minute"] = at
     o["closure_event_id"] = cause_id
-    if scheduler_jobs[o["deadline_job_id"]]["status"] == "pending":
+    if cancel_deadline and scheduler_jobs[o["deadline_job_id"]]["status"] == "pending":
         scheduler_jobs[o["deadline_job_id"]]["status"] = "cancelled"
 
 func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int, event_id: String,
@@ -253,7 +253,7 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
                 "amount": null, "created_event_id": event_id
             }
 
-func departing(npc_id: String, at: int, cause_id: String, scheduler_jobs: Dictionary) -> Array:
+func departing(npc_id: String, at: int, cause_id: String, scheduler_jobs: Dictionary, cancel_deadline: bool = true) -> Array:
     var affected: Array = []
     var ids: Array = orders.keys()
     ids.sort()
@@ -261,7 +261,7 @@ func departing(npc_id: String, at: int, cause_id: String, scheduler_jobs: Dictio
         var o: Dictionary = orders[id]
         if o["npc_id"] != npc_id or not active(o):
             continue
-        _end_order(o, "abandoned", at, cause_id, scheduler_jobs)
+        _end_order(o, "abandoned", at, cause_id, scheduler_jobs, cancel_deadline)
         affected.append({"order_id": id, "npc_id": npc_id, "outcome": "customer_left",
             "at_minute": at, "cause_id": cause_id})
     return affected
@@ -272,14 +272,19 @@ func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictio
     for fire in fires:
         var npc_result: Dictionary = living.apply_firing(fire)
         if npc_result.get("outcome", "") == "departed":
-            outcomes.append_array(departing(npc_result["npc_id"], int(fire["world_minute"]), fire["fire_id"], scheduler_jobs))
+            # Keep the scheduled deadline alive after an automatic NPC exit.
+            # A single coarse advance already plans that deadline firing, and
+            # smaller advances must reach the same completed scheduler state.
+            var cause: String = "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])
+            outcomes.append_array(departing(npc_result["npc_id"], int(fire["world_minute"]), cause, scheduler_jobs, false))
         if fire["topic"] == "order.deadline":
             var order_id: String = fire["data"]["order_id"]
             var o: Dictionary = orders[order_id]
             if active(o):
-                _end_order(o, "abandoned", int(fire["world_minute"]), fire["fire_id"], scheduler_jobs)
+                _end_order(o, "abandoned", int(fire["world_minute"]),
+                    "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"]), scheduler_jobs)
                 outcomes.append({"order_id": order_id, "npc_id": o["npc_id"],
-                    "outcome": "deadline", "at_minute": fire["world_minute"], "cause_id": fire["fire_id"]})
+                    "outcome": "deadline", "at_minute": fire["world_minute"], "cause_id": "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])})
     return outcomes
 
 func project_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary) -> Array:
