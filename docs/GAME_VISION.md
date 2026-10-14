@@ -2,6 +2,8 @@
 
 **Design status:** working direction, updated 2026-10-13. Agreed experience and proposed technical values are recorded separately in [the decision register](DECISION_REGISTER.md). This document records intended experience rather than implementation claims.
 
+**Delivery warning:** This is an experience vision, not evidence that all features are implemented. Read [Design-to-Implementation Traceability](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) and the six associated specifications for missing behavior and work issue links. SYS P0–P7 verify their declared domain scope, **not** the entire player experience.
+
 ## Premise and emotional core
 
 A player runs a small tea-and-food kiosk by the Nile, earns enough to cover daily living, knows people by seeing them repeatedly, and gradually makes a small rented apartment feel like home.
