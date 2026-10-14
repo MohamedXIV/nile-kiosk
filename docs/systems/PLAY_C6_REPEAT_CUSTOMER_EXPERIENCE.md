@@ -1,5 +1,7 @@
 # PLAY C6 — Repeat Customer Experience Without a Reputation Bar
 
+**Status: VERIFIED / MERGED** — [PR #54](https://github.com/MohamedXIV/nile-kiosk/pull/54), squash `f68f92986143a3ed6a63029f75d1c908565e59e7`. [Exact-head Godot P0–P7/C0–C6/D001/V001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38518204470), [real Chromium C6 + C5/C4/C3/C1/P7/D001 PASS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38518204515), GitGuardian PASS. Native tests prove paid service improves future intent, abandonment suppresses repeat intent, cancelled/other-venue remain neutral, and replay/long-vs-split world time are valid. Browser proves a missed customer does not place another order and survives two hard reloads.
+
 [Issue #53](https://github.com/MohamedXIV/nile-kiosk/issues/53). A completed or missed service now influences **that specific NPC's future decision to visit the same venue**, if and only if a reviewed demand policy opts in. It does not create an arbitrary satisfaction, popularity or player reputation meter.
 
 ## Canonical boundary
