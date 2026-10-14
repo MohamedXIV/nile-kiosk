@@ -22,6 +22,12 @@
 | Art review | Real Web screenshots and final user approval required beyond green tests | **Mandatory gate**, open on V001 PR #20 |
 | Implementation strategy | **System-first, NOT vertical-slice-first**: full bounded production systems with persistence, deterministic behavior and interface contracts | **Agreed 2026-10-13**; SYS P0 kernel merged via [PR #33](https://github.com/MohamedXIV/nile-kiosk/pull/33), SYS P0–P7 verified and merged; CONTENT C0 authored bundles merged via [PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42). D001/V001 remain separate spikes |
 
+## Feature-level design vs delivery
+
+This register records large design commitments, **not** whether the player can actually experience them. Refer to [Design/Implementation Traceability](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) for **separately** labeled AGREED/PROPOSED/OPEN decisions and NONE/FOUNDATION_ONLY/PARTIAL/VERIFIED_SCOPE implementation evidence, plus the six recovered design specs. [Epic #55](https://github.com/MohamedXIV/nile-kiosk/issues/55) and [issues #56–#61](https://github.com/MohamedXIV/nile-kiosk/issues/56) track pending feature acceptance. In particular, **P3 recipes are not tactile cooking/quality; P5 item interaction is not home comfort/needs; P6 conversations are not final spatial social presentation; C6 demand memory is not authored NPC preference memory**.
+
+The quiet-day fantasy, contextual Mood with hidden baseline, learning recipes through conversations/experiments, optional non-rewarding encounters, social referrals, freedom to close early and ambient Nile/Cairo feel are retained as **design direction only until separately proven in production**. Examples (exact finances, tricycle, fishing rules, progression enum, specific item catalog and sound technique) are not automatically committed.
+
 ## Verified against live GitHub when written
 
 - [PR #20 — V001 actual Blender/Godot cutaway spike](https://github.com/MohamedXIV/nile-kiosk/pull/20): open; 24 semantic renders, room/roof/landing/south unit structure and basic dynamic lamp have passed engineering/browser testing in earlier runs; **style and visual acceptance pending**.
