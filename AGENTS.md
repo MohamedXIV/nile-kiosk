@@ -12,6 +12,16 @@
 - Report actually run tests separately from proposed acceptance gates. Failed or unrun checks are not PASS.
 - Prefer official engine features before inventing custom substitutes. Pin add-on versions/commits for reproducible spikes.
 
+## Mandatory: do not confuse designed, built and verified
+
+**Before selecting, implementing or closing gameplay work:**
+1. Read [design-to-implementation traceability](docs/design/DESIGN_IMPLEMENTATION_TRACEABILITY.md), then the relevant recovered design spec and [epic #55](https://github.com/MohamedXIV/nile-kiosk/issues/55) / child E1–E6. This is the **feature-level gap ledger**, not a replacement for [existing architecture](docs/architecture/SYSTEM_FIRST_ARCHITECTURE.md).
+2. Check actual live source, tests, merged PRs and open work. `SYS P0–P7 DONE` / `PLAY C1–C6 DONE` **does not** imply `Mood DONE`, `tactile cooking DONE`, `social economy DONE` or `home comfort DONE`. Their own narrower lifecycles may be verified while the experience is absent.
+3. Track separately **design** (`AGREED | PROPOSED | OPEN`), **implementation** (`NONE | FOUNDATION_ONLY | PARTIAL | VERIFIED_SCOPE`) and **evidence** (production files, specific tests/PR SHA, true native/Web or user visual proof). Never upgrade implementation status because a new doc or issue exists; never convert an illustrative number into an approved rule.
+4. Implement using existing world-time, NPC, cooking, order, economy, housing, Ink and save authorities. Test both rejected/correct transitions and actual player-facing behavior. Browser/visual/audio evidence when relevant is **not** replaceable with only headless tests.
+5. On each merged feature PR, update its matrix row with **exactly the proven scoped behavior and links** and reconcile its issue. Do not close whole E1–E6 epics on a single demo path. A release feature is not shipped while only D001/V001 or QA scene proves it.
+6. The standalone Three.js HTML prototype is an **experience/feel comparison**, not an authoritative runtime or art decision. V001 #19/#20 remain separately gated by visual user approval. Do not auto-merge V001 to complete E6.
+
 ## Canonical design memory — read before visual work
 
 - Start with [decision register](docs/DECISION_REGISTER.md): agreed user direction, implemented proof, proposed values and unapproved art must **not** be conflated.
