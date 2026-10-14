@@ -26,6 +26,19 @@ The game is **not** a restaurant empire, a misery simulator, or a quest-driven v
 - **Narrative choice for next slice:** **Ink + inkgd** after D001 comparison; Dialogue Manager remains tested fallback; Ink Web hard-refresh state passed its scoped Chromium smoke.
 - **Authored dialogue first:** optional AI flavor must never own canonical facts, choices, consequences or progression.
 
+## What is actually implemented vs still missing?
+
+**Start with [Design → Implementation Traceability](docs/design/DESIGN_IMPLEMENTATION_TRACEABILITY.md).** It marks *individual* player-experience behaviors as `NONE`, `FOUNDATION_ONLY`, `PARTIAL` or narrowly `VERIFIED_SCOPE`, separately from agreed/proposed design. **Verified SYS P0–P7 and PLAY C1–C6 are foundations, not proof that the player's day, Mood, recipe discovery, spatial social play, home comfort, markets or atmospheric UI are finished.** The remaining work is tracked in [Design Recovery epic #55](https://github.com/MohamedXIV/nile-kiosk/issues/55) and implementation issues [E1–E6](https://github.com/MohamedXIV/nile-kiosk/issues/56). Do not promote the experimental HTML experience or QA Godot circles/keys into shipping authority.
+
+### Recovered player-experience specifications
+
+- [Daily life and pacing](docs/design/DAILY_LIFE_AND_PACING.md)
+- [Hunger, Rest, Mood and hidden wellbeing](docs/design/NEEDS_AND_WELLBEING.md)
+- [Tactile cooking and social recipe learning](docs/design/COOKING_AND_RECIPE_LEARNING.md)
+- [Spatial social space, conversations and knowledge](docs/design/SOCIAL_SPACE_AND_NARRATIVE.md)
+- [Everyday economy and meaningful home upgrades](docs/design/EVERYDAY_ECONOMY_AND_HOME.md)
+- [Atmosphere, UI and authentic game entry](docs/design/ATMOSPHERE_AND_PRESENTATION.md)
+
 ## Documentation and project memory
 
 - **[Decision register — start here](docs/DECISION_REGISTER.md)**: agreed decisions vs provisional details vs implementation proof.
