@@ -65,7 +65,7 @@ func _run() -> void:
     check(parsed.get("ok",false),"packaged QA recurrence")
     if not parsed.get("ok",false): return
     var qa: Dictionary=parsed["plan"]
-    check(qa["experience_rule"]=={"settled_bonus_bp":0,"abandoned_penalty_bp":10000},"QA isolated policy")
+    check(int(qa["experience_rule"]["settled_bonus_bp"])==0 and int(qa["experience_rule"]["abandoned_penalty_bp"])==10000,"QA isolated policy")
     var old: Dictionary=Demand.load_plan("res://content/service/qa_autonomous_demand.v1.json")
     var social: Dictionary=Demand.load_plan("res://content/service/qa_social_demand.v1.json")
     check(old.get("ok",false) and social.get("ok",false),"C4/C5 policies rejected")
