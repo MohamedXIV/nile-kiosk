@@ -162,6 +162,12 @@ jobs:
           timeout 90s godot --headless --path . --script res://tests/test_play_c5.gd 2>&1 | tee /tmp/play-c5.log
           grep -q 'PLAY C5: PASS' /tmp/play-c5.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C5: FAIL)' /tmp/play-c5.log; then exit 1; fi
+      - name: Run PLAY C6 repeat-service feedback, ledger evidence and adversarial replay
+        run: |
+          set -o pipefail
+          timeout 90s godot --headless --path . --script res://tests/test_play_c6.gd 2>&1 | tee /tmp/play-c6.log
+          grep -q 'PLAY C6: PASS' /tmp/play-c6.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C6: FAIL)' /tmp/play-c6.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
