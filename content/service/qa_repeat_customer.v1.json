@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "plan": {
+    "plan_id": "qa:reda:revisit",
+    "npc_id": "reda",
+    "venue_id": "kiosk",
+    "recipe_id": "tea",
+    "route": "counter",
+    "first_minute": 5,
+    "interval_minutes": 12,
+    "wait_minutes": 5,
+    "chance_bp": 10000,
+    "experience_rule": {
+      "settled_bonus_bp": 0,
+      "abandoned_penalty_bp": 10000
+    }
+  }
+}

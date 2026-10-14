@@ -1,6 +1,7 @@
 extends RefCounted
 ## SYS P4: canonical service and orders. No prices, dialogue/UI ownership, or NPC scripting.
 const MAXIMUM: int = 2147483647
+const CustomerExperience = preload("res://scripts/core/customer_experience.gd")
 
 var venues: Dictionary = {}
 var orders: Dictionary = {}
@@ -123,6 +124,7 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
             var base_fields: Array = ["plan_id", "npc_id", "venue_id", "recipe_id", "route", "first_minute", "interval_minutes", "wait_minutes", "chance_bp"]
             var fields: Array = base_fields.duplicate()
             if p.has("social_rule"): fields.append("social_rule")
+            if p.has("experience_rule"): fields.append("experience_rule")
             if actor != "system:director" or not exact(p, fields):
                 return fail("INVALID_AUTHOR_OR_PAYLOAD")
             for field in ["plan_id","npc_id","venue_id","recipe_id"]:
@@ -147,6 +149,8 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted,
                     return fail("INVALID_SOCIAL_RULE")
                 if not society.social_facts.has(rule["fact_id"]) or not society.npcs.has(rule["trusted_peer_id"]) or rule["trusted_peer_id"] == p["npc_id"]:
                     return fail("UNKNOWN_SOCIAL_REFERENCE")
+            if p.has("experience_rule") and not CustomerExperience.validate(p["experience_rule"]):
+                return fail("INVALID_EXPERIENCE_RULE")
             var venue: Dictionary = venues[p["venue_id"]]
             if venue["counter_slots"] == 0 and p["route"] == "counter":
                 return fail("NO_ROUTE_CAPACITY")
@@ -359,16 +363,19 @@ func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictiona
     var result: Dictionary = {"order_id":order_id,"npc_id":data["npc_id"],
         "at_minute":fire["world_minute"],"cause_id":fire["job_id"]+":"+str(occurrence),
         "outcome":"skipped"}
-    var social_chance: int = -1
+    var chance: int = int(data["chance_bp"])
     if data.has("social_rule"):
         var rule: Dictionary = data["social_rule"]
         var heard: bool = living.knowledge.get(data["npc_id"], {}).has(rule["fact_id"])
         var trusted: bool = living.familiarity.get(data["npc_id"], {}).get(rule["trusted_peer_id"], "") == "trusted"
-        social_chance = mini(10000, int(data["chance_bp"]) + (int(rule["fact_bonus_bp"]) if heard else 0) + (int(rule["trust_bonus_bp"]) if trusted else 0))
-        # Evidence of the actual NPC context at the scheduled instant, not a
-        # player-owned relationship meter. Old C4 events remain byte-identical.
-        result["social_evidence"] = {"fact_known":heard, "peer_trusted":trusted, "chance_bp":social_chance}
-    if not _wants_service(seed,data,occurrence,social_chance):
+        chance = mini(10000, chance + (int(rule["fact_bonus_bp"]) if heard else 0) + (int(rule["trust_bonus_bp"]) if trusted else 0))
+        # Existing C5 evidence remains byte-identical, even for hybrid plans.
+        result["social_evidence"] = {"fact_known":heard, "peer_trusted":trusted, "chance_bp":chance}
+    if data.has("experience_rule"):
+        var experience: Dictionary = CustomerExperience.evidence(orders, data, int(fire["world_minute"]), chance)
+        result["experience_evidence"] = experience
+        chance = int(experience["chance_bp"])
+    if not _wants_service(seed,data,occurrence,chance):
         result["reason"] = "not_interested"
         return result
     var venue: Dictionary = venues[data["venue_id"]]
