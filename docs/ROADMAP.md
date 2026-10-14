@@ -20,6 +20,21 @@
 | 10 | **Whole-world Persistence & Runtime Integration (P7) — DONE** | Save under active systems, deterministic resume, Web Chromium and debug tools; art remains separate |
 | 11 | **Content/polish/release — IN PROGRESS: C0 + PLAY C1/C2/C3/C4/C5/C6 DONE** | [C0 #41 / PR #42](https://github.com/MohamedXIV/nile-kiosk/pull/42) implements validated transactional authored-world imports; [PLAY C1 #43 / PR #44](https://github.com/MohamedXIV/nile-kiosk/pull/44) provides QA-only playable Godot/Web interactions; [PLAY C2 #45 / PR #46](https://github.com/MohamedXIV/nile-kiosk/pull/46) adds **canonical room XY/portal authority**, two Web reloads and verified v7→v8 migration. [PLAY C3 #47 / PR #48](https://github.com/MohamedXIV/nile-kiosk/pull/48) now connects real customer orders, multi-step cooking and priced P5 ledger settlement to **keyboard interactions with two actual browser reloads**. [PLAY C4 #49 / PR #50](https://github.com/MohamedXIV/nile-kiosk/pull/50) creates independent, authored NPC customer intent directly from P1/P2/P4 world time without a player button; native and actual Web verified offscreen offer/expiry, save/replay and chunking. [PLAY C5 #51 / PR #52](https://github.com/MohamedXIV/nile-kiosk/pull/52) adds bounded authored **NPC-only knowledge and trusted-peer** bonuses at the real demand firing; native counterfactual social hearing and real Web replay verified. [PLAY C6 #53 / PR #54](https://github.com/MohamedXIV/nile-kiosk/pull/54) derives **per-NPC, per-venue repeat-visit experience** from actually paid P3/P4/P5 service or missed waits, with no reputation bar/new save field; native and real Chromium replay PASS. Still next: actual authored NPC stories/recipes, production opening-day experience, visual/art review, game-facing UI, localization and balance |
 
+## Player-experience recovery workstream (not finished; tracked separately)
+
+After SYS P0–P7 and PLAY C1–C6, the next missing work is **player-facing simulation and authored experience**, not another competing engine. **Every item below is OPEN implementation work**, even though its canonical foundation exists. [Traceability matrix](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) supplies feature-level status/evidence and separates AGREED from PROPOSED.
+
+| Work | Scope, existing baseline and missing acceptance |
+| --- | --- |
+| [E1 #56](https://github.com/MohamedXIV/nile-kiosk/issues/56) | Player-directed kiosk/home daily loop, close early, downtime/optional leisure; reuse P1/P2/P4 |
+| [E2 #57](https://github.com/MohamedXIV/nile-kiosk/issues/57) | Hunger/Rest/Mood with hidden wellbeing baseline, context, soft consequences; **not** P5 object-use counters |
+| [E3 #58](https://github.com/MohamedXIV/nile-kiosk/issues/58) | Tactile cooking/quality and socially learned recipe variants; P3/C3 lifecycle only is verified |
+| [E4 #59](https://github.com/MohamedXIV/nile-kiosk/issues/59) | Visit modes, in-world dialogue, natural interjections, real knowledge-driven opportunities; P2/P6/C5/C6 scopes remain intact |
+| [E5 #60](https://github.com/MohamedXIV/nile-kiosk/issues/60) | Supplier/travel/market trade-offs and home items with lived comfort effects; P5 ledger/housing is foundation |
+| [E6 #61](https://github.com/MohamedXIV/nile-kiosk/issues/61) | Real default gameplay entry, soundscape/spatial feedback and integration; V001 [#19](https://github.com/MohamedXIV/nile-kiosk/issues/19)/[PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) still unapproved separately |
+
+**Execution:** choose ready bounded features across workstreams; use real authored content and production commands, preserve replay/save/QA truth, and avoid shipping the one-file prototype, D001 startup scene, or QA debug arena as the game. Do not claim an E-feature complete from a finished design doc or a narrowly green subsystem test. [Parent #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
+
 ## Working rules
 
 - **Do not design the implementation around a throwaway one-day vertical slice.** Build complete bounded systems and use scenario fixtures strictly as tests. Avoid building an oversized general-purpose engine with abstractions unsupported by actual domain needs.
