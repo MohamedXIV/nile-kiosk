@@ -74,11 +74,15 @@ func world_state() -> Dictionary:
     auto_ids.sort()
     var latest_auto: Dictionary = state["service"]["orders"].get(auto_ids[-1],{}) if not auto_ids.is_empty() else {}
     var social_evidence: Dictionary = {}
+    var demand_attempts: Array = []
     for event in state["events"]:
         if event["kind"] != "time.advanced": continue
         for outcome in event["payload"]["effect"]["order_outcomes"]:
             if outcome.get("order_id","") == latest_auto.get("order_id","") and outcome.has("social_evidence"):
                 social_evidence = outcome["social_evidence"].duplicate(true)
+            if outcome.has("experience_evidence"):
+                demand_attempts.append(outcome.duplicate(true))
+    var last_attempt: Dictionary = demand_attempts[-1] if not demand_attempts.is_empty() else {}
     var active_order: Dictionary = state["service"]["orders"].get("qa:amina:tea:first",{})
     var active_job: Dictionary = state["cooking"]["preparations"].get("play:c3:prep:qa:amina:tea:first",{})
     var active_claim: Dictionary = state["service"]["payment_claims"].get("payment:order:qa:amina:tea:first",{})
@@ -88,6 +92,10 @@ func world_state() -> Dictionary:
         "auto_status":latest_auto.get("status","none"),
         "auto_customer":latest_auto.get("npc_id",""),
         "auto_social":social_evidence,
+        "auto_experience_count":demand_attempts.size(),
+        "auto_experience":last_attempt.get("experience_evidence",{}),
+        "auto_experience_reason":last_attempt.get("reason",""),
+        "auto_experience_outcome":last_attempt.get("outcome",""),
         "order_status":active_order.get("status","none"),
         "payment_status":active_claim.get("status","none"),
         "job_stage":active_job.get("stage","none"),
@@ -277,9 +285,10 @@ func _draw() -> void:
         "Cash: %s minor units  /  Flat access: %s" % [s["money"],s["flat_access"]],
         "Order: %s  /  Cook: %s step %s" % [s["order_status"],s["job_stage"],s["job_step"]],
         "NPC demand: %s  /  Status: %s" % [s["auto_customer"],s["auto_status"]],
+        "Past service: %s  /  Choice: %s" % [s["auto_experience"].get("last_outcome","none"),s["auto_experience_outcome"]],
         "Item: %s  /  Payment: %s" % [s["item_status"],s["payment_status"]],
         "Nile fact: %s  /  Reda: %s" % [s["known"],s["npc_reda"]],
         "QA CONTENT — prices, route drawings and NPC labels are NOT final game art."
     ]
     for i in range(lines.size()):
-        draw_string(ThemeDB.fallback_font,Vector2(510,104+i*37),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
+        draw_string(ThemeDB.fallback_font,Vector2(510,104+i*33),str(lines[i]),HORIZONTAL_ALIGNMENT_LEFT,410,15,Color("#ece5d4"))
