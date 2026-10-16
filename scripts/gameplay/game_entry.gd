@@ -8,6 +8,7 @@ const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
+const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -30,9 +31,13 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     if not parsed.get("ok", false): return parsed
     graph = parsed["graph"]
     if session.world.view()["life"]["policy"].is_empty():
+        if not FileAccess.file_exists(DAILY_POLICY):
+            return {"ok":false,"code":"DAILY_POLICY_NOT_FOUND"}
+        var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(DAILY_POLICY))
+        if typeof(raw) != TYPE_DICTIONARY or raw.size() != 2 or raw.get("schema") != 1 or typeof(raw.get("policy")) != TYPE_DICTIONARY:
+            return {"ok":false,"code":"INVALID_DAILY_POLICY"}
         var configured_life: Dictionary = session.command("game:life:configure", "system:director",
-            "life.configure", {"venue_id":"kiosk","kiosk_room_id":"kiosk",
-            "home_room_id":"roof","wake_minute":480,"minimum_sleep_minutes":240})
+            "life.configure", raw["policy"])
         if not configured_life.get("ok",false): return configured_life
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
