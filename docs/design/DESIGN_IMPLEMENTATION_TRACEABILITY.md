@@ -1,6 +1,6 @@
 # Nile Kiosk — design-to-implementation traceability
 
-**Baseline reviewed: `main` at `f6eb3557754d3475a71d8b7f36ac99bfe0943b68`, 2026-10-14.** This is a **gap register**, not a declaration that design work has shipped. [Parent issue #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
+**Initial baseline reviewed: `main` at `f6eb3557754d3475a71d8b7f36ac99bfe0943b68`, 2026-10-14; E6 P0 scoped evidence added 2026-10-16 (PR #63, not complete E6).** This is a **gap register**, not a declaration that design work has shipped. [Parent issue #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
 
 ## Reading and updating statuses
 
@@ -31,7 +31,7 @@ The `verified scope` for SYS P0–P7, CONTENT C0 and PLAY C1–C6 remains real a
 | HOME-01 | Rentable 24m² roof room, optional 60m² flat, object purchase/place/use | AGREED topology; economic numbers OPEN | VERIFIED_SCOPE | [P5](../systems/SYS_P5_ECONOMY_HOUSING_HOME.md), PR #38. Art approval separately pending | Existing, preserve |
 | HOME-02 | Fan/bed/radio/TV/etc. improve daily living **when used**, not arbitrary +ROI | AGREED direction; individual effects PROPOSED | FOUNDATION_ONLY | P5 records usage only, explicitly defers effects | [#60](https://github.com/MohamedXIV/nile-kiosk/issues/60) |
 | ATM-01 | Dynamic Nile/Cairo soundscape, contextual visual/audio feedback | AGREED direction; technical implementation OPEN | NONE | HTML prototype audio is not repository production | [#61](https://github.com/MohamedXIV/nile-kiosk/issues/61) |
-| ATM-02 | Coherent default production game entry and in-world UI | AGREED | FOUNDATION_ONLY | `project.godot` defaults to D001 kiosk spike; `qa_traversal_scene.gd` renders debug circles and QA text | [#61](https://github.com/MohamedXIV/nile-kiosk/issues/61) |
+| ATM-02 | Coherent default production game entry and in-world UI | AGREED | PARTIAL | [PR #63](https://github.com/MohamedXIV/nile-kiosk/pull/63) replaces the default D001 scene with a distinct starter WorldSession/Kernel-backed playable entry (provisional canvas, movement, travel, autonomous order, service, wait, save/reload), native [E6 gate](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38893170883) and real [Chromium hard reload](https://github.com/MohamedXIV/nile-kiosk/actions/runs/38893171402). Missing: final spatial Ink presentation, audio, art, RTL, E1 full day and approved UX. | [#61](https://github.com/MohamedXIV/nile-kiosk/issues/61) |
 | VIS-01 | Fixed-angle playable 3D-authored/2D-delivered Cairo cutaways | AGREED direction; style unapproved | PARTIAL | [V001 PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) technical spike, [#19](https://github.com/MohamedXIV/nile-kiosk/issues/19) art gate OPEN; not merged visual acceptance | #19/#20 (do not duplicate) |
 | AI-01 | Complete offline authored game; optional BYOK AI **flavour only**, default Off, no world authority | AGREED boundary; provider/UX OPEN | FOUNDATION_ONLY | Authored Ink P6 exists. No production runtime AI flavor provider; not a release dependency | Later explicit issue if chosen |
 

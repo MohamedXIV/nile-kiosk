@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "bundle_id": "nile-opening-content-v1",
+  "commands": [
+    {
+      "id": "npc:salma",
+      "kind": "npc.register",
+      "actor_id": "system:director",
+      "payload": {
+        "npc_id": "salma",
+        "location_id": "kiosk"
+      }
+    },
+    {
+      "id": "npc:mahmoud",
+      "kind": "npc.register",
+      "actor_id": "system:director",
+      "payload": {
+        "npc_id": "mahmoud",
+        "location_id": "street"
+      }
+    },
+    {
+      "id": "routine:mahmoud",
+      "kind": "npc.routine.create",
+      "actor_id": "system:director",
+      "payload": {
+        "routine_id": "workday",
+        "npc_id": "mahmoud",
+        "location_id": "kiosk",
+        "start_minute": 1025,
+        "end_minute": 1260,
+        "period_minutes": 1440
+      }
+    },
+    {
+      "id": "player:at_roof",
+      "kind": "social.player.place",
+      "actor_id": "system:director",
+      "payload": {
+        "location_id": "roof"
+      }
+    },
+    {
+      "id": "fact:weather",
+      "kind": "social.fact.register",
+      "actor_id": "system:director",
+      "payload": {
+        "fact_id": "nile:evening-breeze",
+        "source_npc_id": "salma",
+        "visibility": "public"
+      }
+    },
+    {
+      "id": "ingredient:leaves",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "leaves",
+        "unit": "g"
+      }
+    },
+    {
+      "id": "ingredient:bread",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "bread",
+        "unit": "piece"
+      }
+    },
+    {
+      "id": "ingredient:cup",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "paper_cup",
+        "unit": "piece"
+      }
+    },
+    {
+      "id": "stock:leaves",
+      "kind": "stock.add",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "leaves",
+        "quantity": 60
+      }
+    },
+    {
+      "id": "stock:bread",
+      "kind": "stock.add",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "bread",
+        "quantity": 12
+      }
+    },
+    {
+      "id": "stock:cup",
+      "kind": "stock.add",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "paper_cup",
+        "quantity": 24
+      }
+    },
+    {
+      "id": "station:heat",
+      "kind": "station.register",
+      "actor_id": "system:director",
+      "payload": {
+        "station_id": "kettle",
+        "station_type": "heat"
+      }
+    },
+    {
+      "id": "station:serve",
+      "kind": "station.register",
+      "actor_id": "system:director",
+      "payload": {
+        "station_id": "counter",
+        "station_type": "serve"
+      }
+    },
+    {
+      "id": "recipe:tea",
+      "kind": "recipe.define",
+      "actor_id": "system:director",
+      "payload": {
+        "recipe_id": "tea",
+        "steps": [
+          {
+            "station_type": "heat",
+            "inputs": {
+              "leaves": 3
+            },
+            "work_minutes": 2
+          },
+          {
+            "station_type": "serve",
+            "inputs": {
+              "paper_cup": 1
+            },
+            "work_minutes": 1
+          }
+        ],
+        "shelf_minutes": 0
+      }
+    },
+    {
+      "id": "recipe:bread",
+      "kind": "recipe.define",
+      "actor_id": "system:director",
+      "payload": {
+        "recipe_id": "plain_bread",
+        "steps": [
+          {
+            "station_type": "serve",
+            "inputs": {
+              "bread": 1
+            },
+            "work_minutes": 1
+          }
+        ],
+        "shelf_minutes": 0
+      }
+    },
+    {
+      "id": "venue",
+      "kind": "service.configure",
+      "actor_id": "system:director",
+      "payload": {
+        "venue_id": "kiosk",
+        "location_id": "kiosk",
+        "counter_slots": 2,
+        "takeaway_slots": 1,
+        "table_ids": [
+          "bench1"
+        ]
+      }
+    },
+    {
+      "id": "unit:roof",
+      "kind": "housing.unit.register",
+      "actor_id": "system:housing",
+      "payload": {
+        "unit_id": "roof",
+        "location_id": "roof",
+        "kind": "roof",
+        "area_sqm": 24,
+        "rent_minor": 0,
+        "period_minutes": 0
+      }
+    },
+    {
+      "id": "unit:flat",
+      "kind": "housing.unit.register",
+      "actor_id": "system:housing",
+      "payload": {
+        "unit_id": "flat",
+        "location_id": "flat",
+        "kind": "apartment",
+        "area_sqm": 60,
+        "rent_minor": 25000,
+        "period_minutes": 43200
+      }
+    },
+    {
+      "id": "roof:right",
+      "kind": "housing.roof.grant",
+      "actor_id": "system:bootstrap",
+      "payload": {
+        "unit_id": "roof"
+      }
+    },
+    {
+      "id": "type:chair",
+      "kind": "home.type.define",
+      "actor_id": "system:catalog",
+      "payload": {
+        "type_id": "chair",
+        "price_minor": 4500,
+        "actions": [
+          "sit"
+        ]
+      }
+    },
+    {
+      "id": "object:chair",
+      "kind": "home.object.grant",
+      "actor_id": "system:bootstrap",
+      "payload": {
+        "object_id": "starter_chair",
+        "type_id": "chair"
+      }
+    },
+    {
+      "id": "price:tea",
+      "kind": "economy.recipe.price.set",
+      "actor_id": "system:pricing",
+      "payload": {
+        "recipe_id": "tea",
+        "amount_minor": 200
+      }
+    },
+    {
+      "id": "price:bread",
+      "kind": "economy.recipe.price.set",
+      "actor_id": "system:pricing",
+      "payload": {
+        "recipe_id": "plain_bread",
+        "amount_minor": 125
+      }
+    },
+    {
+      "id": "cash:authored",
+      "kind": "economy.fund",
+      "actor_id": "system:treasury",
+      "payload": {
+        "transaction_id": "opening:fund:1",
+        "amount_minor": 6000,
+        "source_id": "starter-opening-budget"
+      }
+    }
+  ]
+}

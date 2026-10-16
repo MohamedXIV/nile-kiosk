@@ -1,10 +1,10 @@
 ; Engine configuration file.
-; Nile Kiosk — D001 experimental Godot harness; not final engine choice.
+; Kiosk on the Nile — production gameplay entry (provisional 2D art).
 config_version=5
 
 [application]
-config/name="Nile Kiosk — Dialogue Spike"
-run/main_scene="res://scenes/kiosk_spike.tscn"
+config/name="Kiosk on the Nile"
+run/main_scene="res://scenes/nile_kiosk_game.tscn"
 
 [display]
 window/size/viewport_width=960
