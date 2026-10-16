@@ -356,13 +356,16 @@ static func _wants_service(seed: int, data: Dictionary, occurrence: int, effecti
     var key: String = str(seed)+":"+str(data["plan_id"])+":"+str(occurrence)
     return (key.sha256_text().substr(0,7).hex_to_int() % 10000) < chance
 
-func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictionary, seed: int) -> Dictionary:
+func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictionary, seed: int, closed_venue: String = "") -> Dictionary:
     var data: Dictionary = fire["data"]
     var occurrence: int = int(fire["occurrence"])
     var order_id: String = "demand:"+str(data["plan_id"])+":"+str(occurrence)
     var result: Dictionary = {"order_id":order_id,"npc_id":data["npc_id"],
         "at_minute":fire["world_minute"],"cause_id":fire["job_id"]+":"+str(occurrence),
         "outcome":"skipped"}
+    if data["venue_id"] == closed_venue:
+        result["reason"] = "kiosk_closed"
+        return result
     var chance: int = int(data["chance_bp"])
     if data.has("social_rule"):
         var rule: Dictionary = data["social_rule"]
@@ -412,7 +415,7 @@ func _demand_fire(fire: Dictionary, living: RefCounted, scheduler_jobs: Dictiona
     result["reason"] = ""
     return result
 
-func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> Array:
+func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1, closed_venue: String = "") -> Array:
     var living: RefCounted = starting_society.clone_state()
     var outcomes: Array = []
     for fire in fires:
@@ -424,7 +427,7 @@ func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictio
             var cause: String = "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])
             outcomes.append_array(departing(npc_result["npc_id"], int(fire["world_minute"]), cause, scheduler_jobs, false))
         if fire["topic"] == "service.demand.offer":
-            outcomes.append(_demand_fire(fire,living,scheduler_jobs,seed))
+            outcomes.append(_demand_fire(fire,living,scheduler_jobs,seed,closed_venue))
         if fire["topic"] == "service.demand.expire":
             var plan: Dictionary = fire["data"]
             var oid: String = "demand:"+str(plan["plan_id"])+":"+str(fire["occurrence"])
@@ -444,8 +447,8 @@ func simulate(fires: Array, starting_society: RefCounted, scheduler_jobs: Dictio
                     "outcome": "deadline", "at_minute": fire["world_minute"], "cause_id": "schedule:" + fire["job_id"] + ":" + str(fire["occurrence"])})
     return outcomes
 
-func project_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> Array:
-    return duplicate_domain().simulate(fires, society, scheduler_jobs.duplicate(true), seed)
+func project_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1, closed_venue: String = "") -> Array:
+    return duplicate_domain().simulate(fires, society, scheduler_jobs.duplicate(true), seed, closed_venue)
 
-func apply_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1) -> void:
-    simulate(fires, society, scheduler_jobs, seed)
+func apply_firings(fires: Array, society: RefCounted, scheduler_jobs: Dictionary, seed: int = 1, closed_venue: String = "") -> void:
+    simulate(fires, society, scheduler_jobs, seed, closed_venue)
