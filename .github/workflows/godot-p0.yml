@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - project.godot
+      - "content/world/**"
+      - "content/navigation/**"
+      - "content/service/**"
       - "scenes/**"
       - "scripts/**"
       - "tests/**"
@@ -168,6 +171,16 @@ jobs:
           timeout 90s godot --headless --path . --script res://tests/test_play_c6.gd 2>&1 | tee /tmp/play-c6.log
           grep -q 'PLAY C6: PASS' /tmp/play-c6.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C6: FAIL)' /tmp/play-c6.log; then exit 1; fi
+      - name: E6 native real game entry, autonomous demand and save/replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e6_game_entry.gd 2>&1 | tee /tmp/e6-game.log
+          grep -q 'E6 GAME ENTRY: PASS' /tmp/e6-game.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E6 GAME ENTRY: FAIL)' /tmp/e6-game.log; then exit 1; fi
+      - name: Headless production game entry scene smoke
+        run: |
+          godot --headless --path . res://scenes/nile_kiosk_game.tscn --quit-after 20 2>&1 | tee /tmp/e6-scene.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E6_GAME_BOOT_FAILED)' /tmp/e6-scene.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
