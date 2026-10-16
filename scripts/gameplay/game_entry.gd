@@ -29,6 +29,11 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
     if not parsed.get("ok", false): return parsed
     graph = parsed["graph"]
+    if session.world.view()["life"]["policy"].is_empty():
+        var configured_life: Dictionary = session.command("game:life:configure", "system:director",
+            "life.configure", {"venue_id":"kiosk","kiosk_room_id":"kiosk",
+            "home_room_id":"roof","wake_minute":480,"minimum_sleep_minutes":240})
+        if not configured_life.get("ok",false): return configured_life
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -75,11 +80,22 @@ func listen_near() -> Dictionary:
     return graph.overhear(session, position(), _id("listen"))
 
 func service_near() -> Dictionary:
+    if not session.world.view()["life"]["open"]:
+        return {"ok":false,"code":"KIOSK_CLOSED"}
     if room() != "kiosk":
         return {"ok":false,"code":"NOT_AT_KIOSK"}
     if position().distance_to(COUNTER) > COUNTER_RADIUS:
         return {"ok":false,"code":"COUNTER_TOO_FAR"}
     return ServicePlay.perform_next(session, "kiosk")
+
+func open_kiosk() -> Dictionary:
+    return session.command(_id("open"),"player","life.open",{})
+
+func close_kiosk() -> Dictionary:
+    return session.command(_id("close"),"player","life.close",{})
+
+func sleep_at_home() -> Dictionary:
+    return session.command(_id("sleep"),"player","life.sleep",{})
 
 func wait_minutes(minutes: int = 5) -> Dictionary:
     if minutes < 1 or minutes > 5:
@@ -111,6 +127,8 @@ func status() -> Dictionary:
         "revision": int(v["sequence"]),
         "digest": JSON.stringify(v).sha256_text(),
         "offer_count": orders.size(),
+        "kiosk_open": bool(v["life"]["open"]),
+        "sleep_count": int(v["life"]["sleep_count"]),
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
         "npc_mahmoud": session.world.npc("mahmoud").get("location_id",""),
