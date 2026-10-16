@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "policy": {
+    "venue_id": "kiosk",
+    "kiosk_room_id": "kiosk",
+    "home_room_id": "roof",
+    "wake_minute": 480,
+    "minimum_sleep_minutes": 240
+  }
+}

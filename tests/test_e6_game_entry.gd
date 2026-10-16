@@ -41,9 +41,10 @@ func _run() -> void:
     for i in range(9):
         check(g.move_world(18,0).get("ok",false),"street walk %d" % i)
     check(g.travel_near().get("ok",false) and g.room()=="kiosk","street/kiosk")
-    check(g.service_near()["code"]=="COUNTER_TOO_FAR","cannot remotely cook")
+    check(g.service_near()["code"]=="KIOSK_CLOSED","closed store rejects service")
     for i in range(4):
         check(g.move_world(18,0).get("ok",false),"kiosk counter approach %d" % i)
+    check(g.open_kiosk().get("ok",false),"player opens kiosk")
     check(g.service_near()["code"]=="NO_ACTIVE_ORDER","no fake offer")
     for i in range(3):
         check(g.wait_minutes().get("ok",false),"real clock waiting")

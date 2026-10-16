@@ -41,6 +41,13 @@ async function moveDiagonal(ms) {
   await page.keyboard.up("d");
 }
 async function press(key) { await page.keyboard.press(key); }
+async function walkBack(ms) {
+  await page.keyboard.down("w");
+  await page.keyboard.down("a");
+  await page.waitForTimeout(ms);
+  await page.keyboard.up("a");
+  await page.keyboard.up("w");
+}
 try {
   const base = process.argv[2] || "http://127.0.0.1:8765";
   await page.goto(base + "/game/index.html", { waitUntil: "load", timeout: 30000 });
@@ -59,6 +66,9 @@ try {
   const kiosk = await until("E6_GAME_DOOR",2);
   check(kiosk.location === "kiosk", "street/kiosk portal");
   await moveDiagonal(520);
+  await press("o");
+  const opened = await until("E6_GAME_OPEN");
+  check(opened.kiosk_open === true, "player did not open the kiosk");
   await press("j"); await until("E6_GAME_WAIT",0);
   await press("j"); await until("E6_GAME_WAIT",1);
   await press("j");
@@ -76,9 +86,36 @@ try {
   const restored = await until("E6_GAME_RESTORED");
   check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted",
     "browser reload lost game state, pending order or location");
+  await press("c");
+  const closed = await until("E6_GAME_CLOSE");
+  check(closed.kiosk_open === false && closed.location === "kiosk", "early voluntary close failed");
+  await walkBack(940);
+  await press("e");
+  const backStreet = await until("E6_GAME_DOOR",3);
+  check(backStreet.location === "street", "kiosk-to-street return");
+  await walkBack(1400);
+  await press("e");
+  const backLanding = await until("E6_GAME_DOOR",4);
+  check(backLanding.location === "landing", "street-to-landing return");
+  await walkBack(1400);
+  await press("e");
+  const backHome = await until("E6_GAME_DOOR",5);
+  check(backHome.location === "roof", "landing-to-home return");
+  await press("z");
+  const slept = await until("E6_GAME_SLEEP");
+  check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open,
+    "player did not reach canonical next-day morning");
+  await press("p");
+  const morningSaved = await until("E6_GAME_SAVE",1);
+  await page.waitForTimeout(1700);
+  await page.reload({ waitUntil: "load" });
+  const morningRestored = await until("E6_GAME_RESTORED",1);
+  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 &&
+    morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
-  console.log("E6_GAME_CHROMIUM_PASS: production entry, spatial travel, autonomous order, real acceptance, save/reload");
+  console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
+  console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
 } finally {
   await context.close();
   await browser.close();

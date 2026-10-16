@@ -7,6 +7,7 @@ on:
       - "content/world/**"
       - "content/navigation/**"
       - "content/service/**"
+      - "content/life/**"
       - "scenes/**"
       - "scripts/**"
       - "tests/**"
@@ -181,6 +182,12 @@ jobs:
         run: |
           godot --headless --path . res://scenes/nile_kiosk_game.tscn --quit-after 20 2>&1 | tee /tmp/e6-scene.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E6_GAME_BOOT_FAILED)' /tmp/e6-scene.log; then exit 1; fi
+      - name: E1 native canonical daily rhythm, closed demand, sleep and replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e1_daily_life.gd 2>&1 | tee /tmp/e1-daily-life.log
+          grep -q 'E1 DAILY LIFE: PASS' /tmp/e1-daily-life.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E1 DAILY LIFE: FAIL)' /tmp/e1-daily-life.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests

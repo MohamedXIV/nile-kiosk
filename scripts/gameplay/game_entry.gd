@@ -8,6 +8,7 @@ const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
+const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -29,6 +30,15 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
     if not parsed.get("ok", false): return parsed
     graph = parsed["graph"]
+    if session.world.view()["life"]["policy"].is_empty():
+        if not FileAccess.file_exists(DAILY_POLICY):
+            return {"ok":false,"code":"DAILY_POLICY_NOT_FOUND"}
+        var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(DAILY_POLICY))
+        if typeof(raw) != TYPE_DICTIONARY or raw.size() != 2 or raw.get("schema") != 1 or typeof(raw.get("policy")) != TYPE_DICTIONARY:
+            return {"ok":false,"code":"INVALID_DAILY_POLICY"}
+        var configured_life: Dictionary = session.command("game:life:configure", "system:director",
+            "life.configure", raw["policy"])
+        if not configured_life.get("ok",false): return configured_life
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -75,11 +85,22 @@ func listen_near() -> Dictionary:
     return graph.overhear(session, position(), _id("listen"))
 
 func service_near() -> Dictionary:
+    if not session.world.view()["life"]["open"]:
+        return {"ok":false,"code":"KIOSK_CLOSED"}
     if room() != "kiosk":
         return {"ok":false,"code":"NOT_AT_KIOSK"}
     if position().distance_to(COUNTER) > COUNTER_RADIUS:
         return {"ok":false,"code":"COUNTER_TOO_FAR"}
     return ServicePlay.perform_next(session, "kiosk")
+
+func open_kiosk() -> Dictionary:
+    return session.command(_id("open"),"player","life.open",{})
+
+func close_kiosk() -> Dictionary:
+    return session.command(_id("close"),"player","life.close",{})
+
+func sleep_at_home() -> Dictionary:
+    return session.command(_id("sleep"),"player","life.sleep",{})
 
 func wait_minutes(minutes: int = 5) -> Dictionary:
     if minutes < 1 or minutes > 5:
@@ -111,6 +132,8 @@ func status() -> Dictionary:
         "revision": int(v["sequence"]),
         "digest": JSON.stringify(v).sha256_text(),
         "offer_count": orders.size(),
+        "kiosk_open": bool(v["life"]["open"]),
+        "sleep_count": int(v["life"]["sleep_count"]),
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
         "npc_mahmoud": session.world.npc("mahmoud").get("location_id",""),
