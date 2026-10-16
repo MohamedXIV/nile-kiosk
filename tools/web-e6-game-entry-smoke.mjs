@@ -59,6 +59,9 @@ try {
   const kiosk = await until("E6_GAME_DOOR",2);
   check(kiosk.location === "kiosk", "street/kiosk portal");
   await moveDiagonal(520);
+  await press("o");
+  const opened = await until("E6_GAME_OPEN");
+  check(opened.kiosk_open === true, "player did not open the kiosk");
   await press("j"); await until("E6_GAME_WAIT",0);
   await press("j"); await until("E6_GAME_WAIT",1);
   await press("j");
