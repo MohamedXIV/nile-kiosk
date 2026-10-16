@@ -9,7 +9,8 @@ const EconomyWorld = preload("res://scripts/core/economy_world.gd")
 const HousingWorld = preload("res://scripts/core/housing_world.gd")
 const NarrativeWorld = preload("res://scripts/core/narrative_world.gd")
 const SpatialWorld = preload("res://scripts/core/spatial_world.gd")
-const VERSION: int = 8
+const DailyLife = preload("res://scripts/core/daily_life_world.gd")
+const VERSION: int = 9
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -26,6 +27,7 @@ var economy: RefCounted = EconomyWorld.new()
 var housing: RefCounted = HousingWorld.new()
 var narrative: RefCounted = NarrativeWorld.new()
 var spatial: RefCounted = SpatialWorld.new()
+var life: RefCounted = DailyLife.new()
 var facts: Dictionary = {}
 var receipts: Dictionary = {}
 var events: Array[Dictionary] = []
@@ -127,6 +129,7 @@ static func _exact_keys(value: Dictionary, expected: Array) -> bool:
     return true
 
 static func _event_kind(command_kind: String) -> String:
+    if DailyLife.owns(command_kind): return DailyLife.event_kind(command_kind)
     if SpatialWorld.owns(command_kind): return SpatialWorld.event_kind(command_kind)
     if NarrativeWorld.owns(command_kind):
         return NarrativeWorld.event_kind(command_kind)
@@ -153,6 +156,8 @@ static func _event_kind(command_kind: String) -> String:
     return ""
 
 static func _command_kind(event_kind: String) -> String:
+    var life_command: String = DailyLife.command_kind(event_kind)
+    if not life_command.is_empty(): return life_command
     var spatial_command: String = SpatialWorld.command_kind(event_kind)
     if not spatial_command.is_empty(): return spatial_command
     var narrative_command: String = NarrativeWorld.command_kind(event_kind)
@@ -191,7 +196,27 @@ func _find_fire(fire_id: String) -> bool:
                 return true
     return false
 
+func _plan_time_effect(target_minute: int) -> Dictionary:
+    var fires: Dictionary = Scheduler.plan(jobs, target_minute, sequence + 1)
+    if not fires.get("ok", false): return fires
+    return {"ok":true,"effect":{
+        "to_minute":target_minute, "fires":fires["fires"],
+        "npc_outcomes":society.project_firings(fires["fires"]),
+        "cooking_outcomes":cooking.project_firings(fires["fires"], jobs),
+        "order_outcomes":service.project_firings(fires["fires"], society, jobs, seed, life.blocked_venue()),
+        "housing_outcomes":housing.project_firings(fires["fires"])
+    }}
+
 func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
+    if DailyLife.owns(kind):
+        var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, world_minute)
+        if not step.get("ok", false): return step
+        if kind == "life.sleep":
+            var slept: Dictionary = _plan_time_effect(int(step["effect"]["to_minute"]))
+            if not slept.get("ok", false): return slept
+            slept["effect"]["wake_day"] = step["effect"]["wake_day"]
+            return slept
+        return step
     if SpatialWorld.owns(kind):
         return spatial.plan(kind, payload, actor_id, society, housing)
     if kind == "social.player.place" and spatial.initialized():
@@ -209,6 +234,8 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
             planned["effect"]["transfer"] = checked["effect"]
         return planned
     if OrderWorld.owns(kind):
+        if kind in ["order.offer", "order.accept"] and not life.is_open(str(payload.get("venue_id", service.orders.get(payload.get("order_id",""),{}).get("venue_id","")))):
+            return {"ok":false,"code":"KIOSK_CLOSED"}
         return service.plan(kind, payload, actor_id, society, cooking, jobs, world_minute)
     if CookingWorld.command(kind):
         return cooking.plan(kind, payload, actor_id, jobs, world_minute)
@@ -262,16 +289,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
             var target: Dictionary = Clock.advance_target(world_minute, int(payload["steps"]), minutes_per_step)
             if not target["ok"]:
                 return target
-            var fires: Dictionary = Scheduler.plan(jobs, target["target"], sequence + 1)
-            if not fires["ok"]:
-                return fires
-            return {"ok": true, "effect": {
-                "to_minute": target["target"], "fires": fires["fires"],
-                "npc_outcomes": society.project_firings(fires["fires"]),
-                "cooking_outcomes": cooking.project_firings(fires["fires"], jobs),
-                "order_outcomes": service.project_firings(fires["fires"], society, jobs, seed),
-                "housing_outcomes": housing.project_firings(fires["fires"])
-            }}
+            return _plan_time_effect(int(target["target"]))
         "schedule.create":
             if not _exact_keys(payload, ["job_id", "due_minute", "priority", "topic", "data", "every_minutes"]):
                 return {"ok": false, "code": "INVALID_PAYLOAD"}
@@ -356,6 +374,8 @@ func _apply_event(raw: Dictionary) -> bool:
     if not matching_json(raw, expected):
         return false
     sequence = int(next_seq)
+    if DailyLife.owns(kind):
+        life.apply_command(kind, planned["effect"])
     if SpatialWorld.owns(kind):
         spatial.apply_command(kind, request, planned["effect"])
         if kind == "spatial.player.travel":
@@ -401,7 +421,7 @@ func _apply_event(raw: Dictionary) -> bool:
             if not acknowledgements.has(request["consumer_id"]):
                 acknowledgements[request["consumer_id"]] = {}
             acknowledgements[request["consumer_id"]][request["fire_id"]] = true
-        "time.advance":
+        "time.advance", "life.sleep":
             for fire in planned["effect"]["fires"]:
                 var job: Dictionary = jobs[fire["job_id"]]
                 job["execution_count"] += 1
@@ -430,6 +450,7 @@ func snapshot() -> Dictionary:
         "society": society.snapshot(), "cooking": cooking.snapshot(), "service": service.snapshot(),
         "economy": economy.snapshot(), "housing": housing.snapshot(),
         "narrative": narrative.snapshot(), "spatial": spatial.snapshot(),
+        "life": life.snapshot(),
         "facts": facts.duplicate(true), "receipts": receipts.duplicate(true),
         "events": events.duplicate(true)
     }
