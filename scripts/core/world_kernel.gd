@@ -122,13 +122,15 @@ func dispatch(command: Dictionary) -> Dictionary:
     if not WorldState._json_value(payload):
         return _rejected("INVALID_PAYLOAD")
     payload = WorldState._canonical(payload)
-    var checked: Dictionary = _state.plan(kind, payload, actor)
     if kind == "knowledge.grant" and not WorldState._exact_keys(payload, ["fact_id"]):
         return _rejected("INVALID_PAYLOAD")
+    # Idempotency must be resolved BEFORE re-planning a transition:
+    # after an open or a sleep, re-planning the same command would reject.
     if _state.receipts.has(id):
         if _state.receipts[id]["signature"] != WorldState.command_signature(kind, actor, payload):
             return _rejected("ID_CONFLICT")
         return (_state.receipts[id]["result"] as Dictionary).duplicate(true)
+    var checked: Dictionary = _state.plan(kind, payload, actor)
     if not checked.get("ok", false):
         return _rejected(checked["code"])
     if kind == "time.advance" and int(payload["steps"]) == 0:
