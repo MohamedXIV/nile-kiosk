@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "graph_id": "nile-opening-rooms-v1",
+  "rooms": [
+    {
+      "id": "roof",
+      "width": 240,
+      "height": 160,
+      "spawn": [
+        175,
+        70
+      ]
+    },
+    {
+      "id": "landing",
+      "width": 240,
+      "height": 160,
+      "spawn": [
+        40,
+        70
+      ]
+    },
+    {
+      "id": "street",
+      "width": 240,
+      "height": 160,
+      "spawn": [
+        45,
+        70
+      ]
+    },
+    {
+      "id": "kiosk",
+      "width": 240,
+      "height": 160,
+      "spawn": [
+        45,
+        70
+      ]
+    },
+    {
+      "id": "flat",
+      "width": 240,
+      "height": 160,
+      "spawn": [
+        55,
+        80
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "roof_to_landing",
+      "from": "roof",
+      "to": "landing",
+      "entry": [
+        185,
+        70
+      ],
+      "arrival": [
+        40,
+        70
+      ],
+      "unit_id": ""
+    },
+    {
+      "id": "landing_to_roof",
+      "from": "landing",
+      "to": "roof",
+      "entry": [
+        35,
+        70
+      ],
+      "arrival": [
+        175,
+        70
+      ],
+      "unit_id": "roof"
+    },
+    {
+      "id": "landing_to_street",
+      "from": "landing",
+      "to": "street",
+      "entry": [
+        210,
+        70
+      ],
+      "arrival": [
+        45,
+        70
+      ],
+      "unit_id": ""
+    },
+    {
+      "id": "street_to_landing",
+      "from": "street",
+      "to": "landing",
+      "entry": [
+        40,
+        70
+      ],
+      "arrival": [
+        200,
+        70
+      ],
+      "unit_id": ""
+    },
+    {
+      "id": "street_to_kiosk",
+      "from": "street",
+      "to": "kiosk",
+      "entry": [
+        205,
+        70
+      ],
+      "arrival": [
+        45,
+        70
+      ],
+      "unit_id": ""
+    },
+    {
+      "id": "kiosk_to_street",
+      "from": "kiosk",
+      "to": "street",
+      "entry": [
+        35,
+        70
+      ],
+      "arrival": [
+        195,
+        70
+      ],
+      "unit_id": ""
+    },
+    {
+      "id": "landing_to_flat",
+      "from": "landing",
+      "to": "flat",
+      "entry": [
+        120,
+        35
+      ],
+      "arrival": [
+        50,
+        80
+      ],
+      "unit_id": "flat"
+    },
+    {
+      "id": "flat_to_landing",
+      "from": "flat",
+      "to": "landing",
+      "entry": [
+        40,
+        80
+      ],
+      "arrival": [
+        115,
+        55
+      ],
+      "unit_id": ""
+    }
+  ],
+  "anchors": [
+    {
+      "npc_id": "salma",
+      "room_id": "kiosk",
+      "point": [
+        125,
+        70
+      ]
+    },
+    {
+      "npc_id": "mahmoud",
+      "room_id": "kiosk",
+      "point": [
+        200,
+        110
+      ]
+    }
+  ]
+}
