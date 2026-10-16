@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "plan": {
+    "plan_id": "opening:mahmoud:tea",
+    "npc_id": "mahmoud",
+    "venue_id": "kiosk",
+    "recipe_id": "tea",
+    "route": "counter",
+    "first_minute": 1035,
+    "interval_minutes": 1440,
+    "wait_minutes": 120,
+    "chance_bp": 10000
+  }
+}
