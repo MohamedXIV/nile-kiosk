@@ -177,9 +177,10 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not WorldState.integral(data.get("version"), 1):
         return false
     var version: int = int(data["version"])
+    if version == 9 and data.size() != 19: return false
     if version == 8 and data.size() != 18: return false
     if version == 7 and data.size() != 17: return false
-    if version not in [7, 8]: return false
+    if version not in [7, 8, 9]: return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
@@ -187,6 +188,10 @@ func restore_snapshot(data: Dictionary) -> bool:
         if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
     var expected: Dictionary = candidate.snapshot()
+    if version in [7, 8]:
+        # Older saves have no canonical daily-life projection.
+        expected.erase("life")
+    if version == 8: expected["version"] = 8
     if version == 7:
         # v7 has no spatial events. Every other domain and receipt is replayed.
         if candidate.spatial.initialized(): return false
@@ -195,7 +200,7 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not _matches(data, expected):
         return false
     _state = candidate
-    last_restore_was_migration = version == 7
+    last_restore_was_migration = version in [7, 8]
     return true
 
 func save_to_file(path: String) -> bool:
