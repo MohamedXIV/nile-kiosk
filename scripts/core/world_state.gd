@@ -212,6 +212,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
         var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, world_minute)
         if not step.get("ok", false): return step
         if kind == "life.sleep":
+            if paused: return {"ok":false,"code":"PAUSED"}
             var slept: Dictionary = _plan_time_effect(int(step["effect"]["to_minute"]))
             if not slept.get("ok", false): return slept
             slept["effect"]["wake_day"] = step["effect"]["wake_day"]
