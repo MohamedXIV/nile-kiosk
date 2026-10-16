@@ -70,7 +70,7 @@ try {
   await press("p");
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "accepted" && saved.location === "kiosk", "save after order acceptance");
-  await page.reload({ waitUntil: "load" });
+  // Godot Web syncs user:// into browser storage asynchronously; match established Chromium save gates.\n  await page.waitForTimeout(1600);\n  await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted",
     "browser reload lost game state, pending order or location");
