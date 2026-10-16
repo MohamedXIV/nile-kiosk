@@ -62,13 +62,19 @@ func _act(kind: String) -> void:
         "serve": result = game.service_near()
         "wait": result = game.wait_minutes()
         "save": result = game.save_game()
+        "open": result = game.open_kiosk()
+        "close": result = game.close_kiosk()
+        "sleep": result = game.sleep_at_home()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
             "serve":"Service: " + str(result.get("kind","updated")),
             "wait":"Five quiet minutes pass.",
-            "save":"Your evening has been saved."
+            "save":"Your evening has been saved.",
+            "open":"Kiosk open. Take your time.",
+            "close":"Closed for now. Your evening is yours.",
+            "sleep":"Another morning begins."
         }.get(kind, "Done")
     else:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
@@ -83,6 +89,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_G: _act("serve")
         KEY_J: _act("wait")
         KEY_P: _act("save")
+        KEY_O: _act("open")
+        KEY_C: _act("close")
+        KEY_Z: _act("sleep")
 
 func _iso(point: Vector2) -> Vector2:
     # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
@@ -157,9 +166,12 @@ func _draw() -> void:
     _text(Vector2(24,28),"KIOSK ON THE NILE",22,Color("#efbd73"))
     _text(Vector2(480,27),"Day %d   %02d:%02d" % [state["day"],state["hour"],state["minute_of_hour"]],17)
     _text(Vector2(765,27),"%d piastres" % state["money"],16)
+    _text(Vector2(25,53),"KIOSK OPEN" if state["kiosk_open"] else "KIOSK CLOSED",14,
+        Color("#abdb9f") if state["kiosk_open"] else Color("#e1aa91"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
-    _text(Vector2(28,500),"WASD move   E doorway   F listen   G serve   J wait   P save",15,Color("#e2c18b"))
+    _text(Vector2(28,500),"WASD move   E door   F listen   G serve   O open   C close   Z sleep",15,Color("#e2c18b"))
+    _text(Vector2(480,526),"J wait   P save",13,Color("#e2c18b"))
     var near: Dictionary = game.nearest_portal()
     if not near.is_empty():
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
