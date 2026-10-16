@@ -101,15 +101,10 @@ func _text(p: Vector2, line: String, size: int = 16, color: Color = Color("#eadf
 
 func _figure(at: Vector2, color: Color, label: String) -> void:
     var foot: Vector2 = _iso(at)
-    draw_ellipse(foot+Vector2(0,2),Vector2(13,5),Color(0,0,0,0.3))
+    draw_ellipse(foot+Vector2(0,2),13.0,5.0,Color(0,0,0,0.3))
     draw_rect(Rect2(foot+Vector2(-7,-27),Vector2(14,20)),color)
     draw_circle(foot+Vector2(0,-32),8,Color("#dcae7d"))
     _text(foot+Vector2(-22,-46),label,12,Color("#fff2d5"))
-
-func draw_ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
-    draw_set_transform(center)
-    draw_circle(Vector2.ZERO,radii.x,color)
-    draw_set_transform(Vector2.ZERO)
 
 func _draw() -> void:
     draw_rect(Rect2(0,0,960,540),Color("#101a21"))
