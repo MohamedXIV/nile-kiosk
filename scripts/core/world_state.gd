@@ -430,7 +430,7 @@ func _apply_event(raw: Dictionary) -> bool:
                     job["status"] = "completed"
                 else:
                     job["due_minute"] += job["every_minutes"]
-            service.apply_firings(planned["effect"]["fires"], society, jobs, seed)
+            service.apply_firings(planned["effect"]["fires"], society, jobs, seed, life.blocked_venue())
             society.apply_firings(planned["effect"]["fires"])
             cooking.apply_firings(planned["effect"]["fires"], jobs)
             housing.apply_firings(planned["effect"]["fires"])
