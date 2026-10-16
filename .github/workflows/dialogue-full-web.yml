@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "content/ink/**"
+      - "content/world/**"
+      - "content/navigation/**"
+      - "content/service/**"
       - "content/dialogue_manager/**"
       - "scripts/**"
       - "scenes/**"
@@ -16,6 +19,7 @@ on:
       - "tools/web-play-c4-smoke.mjs"
       - "tools/web-play-c5-smoke.mjs"
       - "tools/web-play-c6-smoke.mjs"
+      - "tools/web-e6-game-entry-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -82,51 +86,55 @@ jobs:
         run: |
           mkdir -p build/dialogue-web/dm build/dialogue-web/ink
           cp project.godot /tmp/nile-project.godot
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/dialogue_manager_spike.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/dialogue_manager_spike.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/dm/index.html
           cp /tmp/nile-project.godot project.godot
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_spike.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/ink_spike.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/ink/index.html
           cp /tmp/nile-project.godot project.godot
           mkdir -p build/dialogue-web/ink-persist
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/ink_browser_persistence_spike.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/ink_browser_persistence_spike.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/ink-persist/index.html
           cp /tmp/nile-project.godot project.godot
       - name: Export production WorldKernel integration
         run: |
           cp project.godot /tmp/nile-project.godot
           mkdir -p build/dialogue-web/production-world
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/p7_world_integration.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/p7_world_integration.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/production-world/index.html
           cp /tmp/nile-project.godot project.godot
       - name: Export CONTENT C0 traversable QA world
         run: |
           cp project.godot /tmp/nile-project.godot
           mkdir -p build/dialogue-web/play-c1
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_world_traversal.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/qa_world_traversal.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/play-c1/index.html
           cp /tmp/nile-project.godot project.godot
       - name: Export autonomous NPC customer-demand QA scene
         run: |
           cp project.godot /tmp/nile-project.godot
           mkdir -p build/dialogue-web/play-c4
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_autonomous_kiosk.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/qa_autonomous_kiosk.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/play-c4/index.html
           cp /tmp/nile-project.godot project.godot
       - name: Export socially-conditioned NPC demand QA scene
         run: |
           cp project.godot /tmp/nile-project.godot
           mkdir -p build/dialogue-web/play-c5
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_social_kiosk.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/qa_social_kiosk.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/play-c5/index.html
           cp /tmp/nile-project.godot project.godot
       - name: Export repeat-visit customer experience QA scene
         run: |
           cp project.godot /tmp/nile-project.godot
           mkdir -p build/dialogue-web/play-c6
-          sed -i 's#run/main_scene="res://scenes/kiosk_spike.tscn"#run/main_scene="res://scenes/qa_repeat_customer.tscn"#' project.godot
+          sed -i 's#^run/main_scene=.*$#run/main_scene="res://scenes/qa_repeat_customer.tscn"#' project.godot
           godot --headless --path . --export-release Web build/dialogue-web/play-c6/index.html
           cp /tmp/nile-project.godot project.godot
+      - name: Export playable production game (default main scene)
+        run: |
+          mkdir -p build/dialogue-web/game
+          godot --headless --path . --export-release Web build/dialogue-web/game/index.html
       - name: Chromium acceptance — both engines
         run: |
           python3 -m http.server 8765 --directory build/dialogue-web >/tmp/d001-dialogue-web-server.log 2>&1 &
@@ -141,10 +149,13 @@ jobs:
           node tools/web-play-c4-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c5-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c6-smoke.mjs http://127.0.0.1:8765
+          node tools/web-e6-game-entry-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: d001-full-web-screenshots
-          path: /tmp/d001-full-web-*.png
+          path: |
+            /tmp/d001-full-web-*.png
+            /tmp/nile-e6-*.png
           if-no-files-found: ignore
