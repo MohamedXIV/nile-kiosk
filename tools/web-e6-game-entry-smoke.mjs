@@ -159,12 +159,12 @@ try {
   await press("h");
   const heated = await until("E6_GAME_TEA_HEAT",0);
   check(heated.tea_stage === "active" && heated.tea_ready_in > 0, "kettle not heating in canonical P3");
-  await press("h");
-  const premature = await until("E6_GAME_TEA_HEAT",1);
-  check(premature.revision === heated.revision, "could finish kettle before P3 ready minute");
+  // Godot Native asserts an immediate early H rejects without mutation.
+  // The real browser advances world minutes while waiting for key/log updates,
+  // so a second H isn't guaranteed to be premature by the time it is pressed.
   await press("j"); await until("E6_GAME_WAIT",3);
   await press("h");
-  const lifted = await until("E6_GAME_TEA_HEAT",2);
+  const lifted = await until("E6_GAME_TEA_HEAT",1);
   check(lifted.tea_stage === "waiting" && lifted.tea_action === "U", "lifting kettle didn't advance canonical recipe");
   check(lifted.npc_mahmoud_mode === "counter" && lifted.npc_mahmoud_x === 145 &&
     lifted.npc_mahmoud_y === 85, "real NPC didn't reach physical counter");
