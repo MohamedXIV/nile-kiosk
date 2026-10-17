@@ -1,6 +1,6 @@
 # E4 — Canonical Event/Condition Opportunities (bounded first slice)
 
-**Status: implementation candidate; do not declare verified until exact-head native and Chromium checks complete.** Scope: authored, once-only **narrative opportunity unlocks**. This is not an unrestricted quest scripting language and does not launch an Ink session.
+**Status: VERIFIED BOUNDED SLICE / MERGED 2026-10-18** — [PR #78](https://github.com/MohamedXIV/nile-kiosk/pull/78), squash `08a4295dc678a38ea714f5bd3c762460a6de9dd5`; tested head `36b63796d52c13d1ac815c1e6e983b4181a66ed8` passed [full Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39077276545) and [full Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39077276515). Scope: authored, once-only **narrative opportunity unlocks**. This is not an unrestricted quest scripting language and does not launch an Ink session.
 
 ## Authority
 
