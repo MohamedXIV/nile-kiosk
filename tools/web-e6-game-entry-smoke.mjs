@@ -48,6 +48,37 @@ async function walkBack(ms) {
   await page.keyboard.up("a");
   await page.keyboard.up("w");
 }
+async function nudgeY(towardsPositive) {
+  // S+A follows world +Y, W+D world -Y in the fixed 2:1 controls.
+  const keys = towardsPositive ? ["s","a"] : ["w","d"];
+  await page.keyboard.down(keys[0]);
+  await page.keyboard.down(keys[1]);
+  await page.waitForTimeout(160);
+  await page.keyboard.up(keys[1]);
+  await page.keyboard.up(keys[0]);
+}
+async function walkBackThroughDoor(destination, doorwayX) {
+  // Timed key-holds are frame-rate-dependent in Chromium; don't assume a
+  // 1400 ms walk lands precisely within the 38-unit world portal radius.
+  await walkBack(1060);
+  for (let attempt=0; attempt<9; attempt++) {
+    const index = (traces.E6_GAME_DOOR || []).length;
+    await press("e");
+    const seen = await until("E6_GAME_DOOR", index);
+    if (seen.location === destination) return seen;
+    const dx = doorwayX - seen.x;
+    const dy = 70 - seen.y;
+    if (Math.abs(dy) > 20) await nudgeY(dy > 0);
+    else if (Math.abs(dx) > 8) {
+      if (dx > 0) await moveDiagonal(155);
+      else await walkBack(155);
+    } else {
+      // Within the axis tolerances but just outside a circular doorway.
+      await nudgeY(dy > 0);
+    }
+  }
+  throw new Error("Could not traverse return doorway to " + destination);
+}
 try {
   const base = process.argv[2] || "http://127.0.0.1:8765";
   await page.goto(base + "/game/index.html", { waitUntil: "load", timeout: 30000 });
@@ -115,18 +146,13 @@ try {
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
   check(closed.kiosk_open === false && closed.location === "kiosk", "early voluntary close failed");
-  // The river spot is deliberately farther from the exit than the counter.
-  await walkBack(1400);
-  await press("e");
-  const backStreet = await until("E6_GAME_DOOR",3);
+  // Use live portal-travel feedback to correct small frame-rate differences
+  // rather than relying on a wall-clock hold to hit three narrow doorways.
+  const backStreet = await walkBackThroughDoor("street", 35);
   check(backStreet.location === "street", "kiosk-to-street return");
-  await walkBack(1400);
-  await press("e");
-  const backLanding = await until("E6_GAME_DOOR",4);
+  const backLanding = await walkBackThroughDoor("landing", 40);
   check(backLanding.location === "landing", "street-to-landing return");
-  await walkBack(1400);
-  await press("e");
-  const backHome = await until("E6_GAME_DOOR",5);
+  const backHome = await walkBackThroughDoor("roof", 35);
   check(backHome.location === "roof", "landing-to-home return");
   await press("q");
   const rooftopMoment = await until("E6_GAME_QUIET",1);
