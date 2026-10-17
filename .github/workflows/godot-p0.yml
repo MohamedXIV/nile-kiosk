@@ -194,6 +194,12 @@ jobs:
           godot --headless --path . --script res://tests/test_e4_story_opportunities.gd 2>&1 | tee /tmp/e4-opportunities.log
           grep -q 'E4 OPPORTUNITIES: PASS' /tmp/e4-opportunities.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E4 OPPORTUNITIES: FAIL)' /tmp/e4-opportunities.log; then exit 1; fi
+      - name: E4 real compiled Ink opportunity, player choice and mid-session disk resume
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e4_story_ink.gd 2>&1 | tee /tmp/e4-story-ink.log
+          grep -q 'E4 STORY INK: PASS' /tmp/e4-story-ink.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E4 STORY INK: FAIL)' /tmp/e4-story-ink.log; then exit 1; fi
       - name: E1 quiet moments — native spatial activity, scheduler and disk replay
         run: |
           set -o pipefail
