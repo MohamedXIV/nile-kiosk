@@ -209,7 +209,7 @@ func _plan_time_effect(target_minute: int) -> Dictionary:
 
 func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
     if DailyLife.owns(kind):
-        var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, world_minute)
+        var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, housing, world_minute)
         if not step.get("ok", false): return step
         if kind in ["life.sleep","life.activity"]:
             if paused: return {"ok":false,"code":"PAUSED"}
@@ -219,6 +219,8 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
                 elapsed["effect"]["wake_day"] = step["effect"]["wake_day"]
             else:
                 elapsed["effect"]["activity_id"] = step["effect"]["activity_id"]
+                if step["effect"].has("object_use"):
+                    elapsed["effect"]["object_use"] = step["effect"]["object_use"].duplicate(true)
             return elapsed
         return step
     if SpatialWorld.owns(kind):
@@ -380,6 +382,11 @@ func _apply_event(raw: Dictionary) -> bool:
     sequence = int(next_seq)
     if DailyLife.owns(kind):
         life.apply_command(kind, planned["effect"])
+        if kind == "life.activity" and planned["effect"].has("object_use"):
+            var object_use: Dictionary = planned["effect"]["object_use"]
+            housing.apply_command("home.object.interact", object_use,
+                {"object_id":object_use["object_id"],"action_id":"listen"},
+                world_minute, expected["event_id"], sequence, actor_id, command_id, jobs)
     if SpatialWorld.owns(kind):
         spatial.apply_command(kind, request, planned["effect"])
         if kind == "spatial.player.travel":
