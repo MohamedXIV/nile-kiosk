@@ -14,6 +14,9 @@ var minute_elapsed: float = 0.0
 var last_marker: String = ""
 var player_body: CharacterBody2D
 var furniture_bodies: Array[StaticBody2D] = []
+var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
+var story_pending: bool = false
+var story_line: String = ""
 
 func _ready() -> void:
     call_deferred("_boot")
@@ -42,11 +45,20 @@ func report(marker: String) -> void:
 
 func _process(delta: float) -> void:
     if not initialized: return
+    if story_pending and game.session.ink_ready(Game.RIVER_STORY_ID):
+        _story_action("begin")
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
     minute_elapsed += minf(delta, 0.25)
     if move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
+        if story_open or story_pending:
+            move_elapsed = 0.0
+        else:
+            _process_movement()
+    _process_clock()
+
+func _process_movement() -> void:
         var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
         var dy: int = int(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) - int(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
         if dx != 0 or dy != 0:
@@ -54,6 +66,8 @@ func _process(delta: float) -> void:
             if _player_move_clear(Vector2(intended)):
                 var moved: Dictionary = game.move_screen(dx, dy)
                 if moved.get("ok", false): queue_redraw()
+
+func _process_clock() -> void:
     if minute_elapsed >= MINUTE_INTERVAL:
         minute_elapsed = fmod(minute_elapsed, MINUTE_INTERVAL)
         var tick: Dictionary = game.wait_minutes(1)
@@ -135,10 +149,64 @@ func _act(kind: String) -> void:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
     report("E6_GAME_" + kind.to_upper())
 
+func _story_action(kind: String, option_id: String = "") -> void:
+    var result: Dictionary = {}
+    match kind:
+        "begin": result = game.river_story_begin()
+        "next": result = game.river_story_next()
+        "choose": result = game.river_story_choose(option_id)
+    if not result.get("ok", false):
+        if kind == "begin" and result.get("code", "") == "INK_LOADING":
+            story_pending = true
+            notice = "Salma is getting ready to talk..."
+        else:
+            story_pending = false
+            notice = "Conversation: " + str(result.get("code", "UNKNOWN"))
+        report("E4_STORY_" + ("LOADING" if story_pending else "REJECTED"))
+        return
+    story_pending = false
+    var code: String = str(result.get("code", ""))
+    match code:
+        "STARTED", "RESUMED":
+            story_open = true
+            story_line = "Salma is here. Press Enter to listen."
+            notice = "A moment beside the Nile."
+        "LINE":
+            story_open = true
+            story_line = str(result.get("speaker_id", "salma")).capitalize() + ": " + str(result.get("text", ""))
+        "WAITING":
+            story_open = true
+            story_line = "What would you like to say?"
+        "FINISHED":
+            story_open = false
+            story_line = ""
+            notice = "The conversation settles. You return to the evening."
+        _:
+            story_open = true
+            story_line = "Press Enter to continue."
+    report("E4_STORY_" + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
+
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
+    if story_open or story_pending:
+        match event.keycode:
+            KEY_ENTER, KEY_KP_ENTER:
+                if story_open: _story_action("next")
+            KEY_1:
+                if story_open: _story_action("choose", "rest")
+            KEY_2:
+                if story_open: _story_action("choose", "city")
+            KEY_ESCAPE:
+                story_open = false
+                story_pending = false
+                story_line = ""
+                notice = "You can return to the conversation later."
+                report("E4_STORY_DISMISS")
+            KEY_P: _act("save")
+        return
     match event.keycode:
+        KEY_N: _story_action("begin")
         KEY_E: _act("door")
         KEY_F: _act("talk")
         KEY_G: _act("serve")
@@ -291,7 +359,7 @@ func _draw() -> void:
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     _text(Vector2(28,500),"WASD move   E door   F listen   G orders   H heat   U pour   Q quiet   O/C open/close",14,Color("#e2c18b"))
-    _text(Vector2(480,526),"J wait   P save   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
+    _text(Vector2(480,526),"J wait   P save   N talk to Salma   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
     if location == "roof":
         _text(Vector2(28,526),"B/V/R/X radio    T buy/place bed (%d)    Y store bed" % state["bed_price"],13,Color("#e2c18b"))
     if location == "kiosk":
@@ -301,3 +369,19 @@ func _draw() -> void:
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
     if not state["active_order"].is_empty():
         _text(Vector2(585,526),"Order: " + str(state["order_status"]),14,Color("#d2b98c"))
+    if game.river_story_available() and state["river_story_phase"] != "finished" and location == "kiosk":
+        var salma: Dictionary = game.npc_pose("salma")
+        if not salma.is_empty() and game.position().distance_to(salma["position"]) <= Graph.RADIUS:
+            _text(Vector2(710,395),"N · Talk to Salma",15,Color("#f1ca80"))
+    if story_open or story_pending:
+        draw_rect(Rect2(60,242,840,192),Color("#162d31"))
+        draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))
+        _text(Vector2(84,280),"By the Nile · Salma",20,Color("#f0d8a8"))
+        _text(Vector2(84,315),story_line if not story_pending else "Opening conversation...",17)
+        var choices: Array = state["river_story_choices"]
+        if choices.is_empty():
+            _text(Vector2(84,394),"Enter · Continue       Esc · Leave       P · Save",15,Color("#ddbb7f"))
+        else:
+            for i in range(mini(choices.size(),2)):
+                _text(Vector2(84,356+i*25),"%d · %s" % [i+1, str(choices[i]["text"])],16,Color("#ddbb7f"))
+            _text(Vector2(610,411),"Esc · Leave   P · Save",13,Color("#ddbb7f"))
