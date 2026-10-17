@@ -50,6 +50,7 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
     map_rid = NavigationServer2D.map_create()
     region_rid = NavigationServer2D.region_create()
     NavigationServer2D.map_set_active(map_rid,true)
+    NavigationServer2D.region_set_enabled(region_rid,true)
     NavigationServer2D.region_set_navigation_polygon(region_rid,poly)
     NavigationServer2D.region_set_map(region_rid,map_rid)
     NavigationServer2D.map_force_update(map_rid)
