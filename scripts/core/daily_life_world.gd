@@ -7,11 +7,13 @@ var last_wake_day: int = -1
 var sleep_count: int = 0
 
 static func owns(kind: String) -> bool:
-    return kind in ["life.configure", "life.open", "life.close", "life.sleep"]
+    return kind in ["life.configure", "life.activities.configure", "life.activity", "life.open", "life.close", "life.sleep"]
 
 static func event_kind(kind: String) -> String:
     match kind:
         "life.configure": return "life.configured"
+        "life.activities.configure": return "life.activities_configured"
+        "life.activity": return "life.activity_done"
         "life.open": return "life.opened"
         "life.close": return "life.closed"
         "life.sleep": return "life.slept"
@@ -20,6 +22,8 @@ static func event_kind(kind: String) -> String:
 static func command_kind(kind: String) -> String:
     match kind:
         "life.configured": return "life.configure"
+        "life.activities_configured": return "life.activities.configure"
+        "life.activity_done": return "life.activity"
         "life.opened": return "life.open"
         "life.closed": return "life.close"
         "life.slept": return "life.sleep"
@@ -65,8 +69,53 @@ func plan(kind: String, payload: Dictionary, actor: String,
         if not rooms.has(payload["home_room_id"]) or not rooms.has(payload["kiosk_room_id"]) or payload["home_room_id"] == payload["kiosk_room_id"]:
             return fail("INVALID_ROOMS")
         return {"ok":true,"effect":{"policy":payload.duplicate(true)}}
+    if kind == "life.activities.configure":
+        if actor != "system:director" or payload.size() != 1 or not payload.has("activities"):
+            return fail("INVALID_ACTIVITY_POLICY")
+        if policy.is_empty(): return fail("LIFE_NOT_CONFIGURED")
+        if policy.has("activities"): return fail("ACTIVITIES_ALREADY_CONFIGURED")
+        if typeof(payload["activities"]) != TYPE_ARRAY or payload["activities"].is_empty() or payload["activities"].size() > 8:
+            return fail("INVALID_ACTIVITY_POLICY")
+        var seen: Dictionary = {}
+        for activity in payload["activities"]:
+            if typeof(activity) != TYPE_DICTIONARY or activity.size() != 7:
+                return fail("INVALID_ACTIVITY_POLICY")
+            for key in ["id","room_id","x","y","radius","minutes","requires_closed"]:
+                if not activity.has(key): return fail("INVALID_ACTIVITY_POLICY")
+            if typeof(activity["id"]) != TYPE_STRING or (activity["id"] as String).is_empty() or (activity["id"] as String).length() > 64 or seen.has(activity["id"]):
+                return fail("INVALID_ACTIVITY_POLICY")
+            seen[activity["id"]] = true
+            var found: Dictionary = {}
+            for room in spatial.graph["rooms"]:
+                if room["id"] == activity["room_id"]: found = room
+            if found.is_empty() or activity["room_id"] not in [policy["home_room_id"],policy["kiosk_room_id"]]:
+                return fail("INVALID_ACTIVITY_ROOM")
+            for field in ["x","y","radius","minutes"]:
+                if typeof(activity[field]) != TYPE_INT: return fail("INVALID_ACTIVITY_POLICY")
+            if int(activity["x"]) < 0 or int(activity["x"]) > int(found["width"]) or int(activity["y"]) < 0 or int(activity["y"]) > int(found["height"]):
+                return fail("INVALID_ACTIVITY_POSITION")
+            if int(activity["radius"]) < 1 or int(activity["radius"]) > 50 or int(activity["minutes"]) < 1 or int(activity["minutes"]) > 60 or typeof(activity["requires_closed"]) != TYPE_BOOL:
+                return fail("INVALID_ACTIVITY_POLICY")
+        return {"ok":true,"effect":{"activities":payload["activities"].duplicate(true)}}
     if policy.is_empty(): return fail("LIFE_NOT_CONFIGURED")
-    if actor != "player" or not payload.is_empty(): return fail("INVALID_PLAYER_ACTION")
+    if actor != "player": return fail("INVALID_PLAYER_ACTION")
+    if kind == "life.activity":
+        if payload.size() != 1 or typeof(payload.get("activity_id")) != TYPE_STRING:
+            return fail("INVALID_ACTIVITY")
+        for activity in policy.get("activities",[]):
+            if activity["id"] != payload["activity_id"]: continue
+            if not spatial.initialized() or spatial.player["room_id"] != activity["room_id"]:
+                return fail("WRONG_ACTIVITY_ROOM")
+            var dx: int = int(spatial.player["x"]) - int(activity["x"])
+            var dy: int = int(spatial.player["y"]) - int(activity["y"])
+            if dx*dx + dy*dy > int(activity["radius"]) * int(activity["radius"]):
+                return fail("TOO_FAR")
+            if bool(activity["requires_closed"]) and open: return fail("CLOSE_KIOSK_FIRST")
+            if int(activity["minutes"]) > Clock.MAX_MINUTE - minute:
+                return fail("TIME_OVERFLOW")
+            return {"ok":true,"effect":{"to_minute":minute+int(activity["minutes"]),"activity_id":str(activity["id"])}}
+        return fail("UNKNOWN_ACTIVITY")
+    if not payload.is_empty(): return fail("INVALID_PLAYER_ACTION")
     var location: String = str(spatial.player["room_id"]) if spatial.initialized() else society.player_location
     match kind:
         "life.open":
@@ -92,6 +141,7 @@ func plan(kind: String, payload: Dictionary, actor: String,
 func apply_command(kind: String, effect: Dictionary) -> void:
     match kind:
         "life.configure": policy = effect["policy"].duplicate(true)
+        "life.activities.configure": policy["activities"] = effect["activities"].duplicate(true)
         "life.open", "life.close": open = bool(effect["open"])
         "life.sleep":
             last_wake_day = int(effect["wake_day"])
