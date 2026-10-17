@@ -262,6 +262,31 @@
         "amount_minor": 6000,
         "source_id": "starter-opening-budget"
       }
+    },
+    {
+      "id": "moment:river-watch",
+      "kind": "narrative.opportunity.register",
+      "actor_id": "system:narrative",
+      "payload": {
+        "opportunity_id": "river_watch_reflection",
+        "trigger_event": "life.activity_done",
+        "when": {
+          "all": [
+            {
+              "player_at": "kiosk"
+            },
+            {
+              "kiosk_open": true
+            },
+            {
+              "time_at_least": 1020
+            },
+            {
+              "event_seen": "life.opened"
+            }
+          ]
+        }
+      }
     }
   ]
 }
