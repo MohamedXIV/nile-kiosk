@@ -222,7 +222,7 @@ func _draw() -> void:
         draw_colored_polygon(_floor_polygon(Vector2(80,55),Vector2(143,115)),Color("#366653"))
         draw_colored_polygon(_floor_polygon(Vector2(94,67),Vector2(134,84)),Color("#bb8a4f"))
         draw_circle(_iso(Vector2(116,80)),8,Color("#e7bc6d"))
-        draw_colored_polygon(_floor_polygon(Vector2(94,86),Vector2(135,91)),Color("#a87346"))
+        draw_colored_polygon(_floor_polygon(Vector2(94,111),Vector2(135,119)),Color("#a87346"))
         draw_colored_polygon(_floor_polygon(Vector2(168,99),Vector2(177,121)),Color("#607d94"))
         _text(_iso(Vector2(100,50))+Vector2(-18,-18),"Tea counter",12)
     if location == "flat":
