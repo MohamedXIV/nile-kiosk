@@ -11,6 +11,7 @@ const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
 const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
+const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -71,6 +72,14 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var radio_activity: Dictionary = session.command("game:radio:activity:v1","system:director",
             "life.activities.extend",{"activities":[radio_pack["activity"]]})
         if not radio_activity.get("ok",false): return radio_activity
+    if not FileAccess.file_exists(MEAL_POLICY): return {"ok":false,"code":"MISSING_MEAL_POLICY"}
+    var meals: Variant = JSON.parse_string(FileAccess.get_file_as_string(MEAL_POLICY))
+    if typeof(meals) != TYPE_DICTIONARY or meals.size() != 2 or meals.get("schema") != 1 or typeof(meals.get("recipes")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_MEAL_POLICY"}
+    if session.world.needs_view()["meal_values"].is_empty():
+        var provision: Dictionary = session.command("game:needs:meals:v1","system:director",
+            "needs.meals.configure",{"recipes":meals["recipes"]})
+        if not provision.get("ok",false): return provision
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -124,6 +133,56 @@ func service_near() -> Dictionary:
     if position().distance_to(COUNTER) > COUNTER_RADIUS:
         return {"ok":false,"code":"COUNTER_TOO_FAR"}
     return ServicePlay.perform_next(session, "kiosk")
+
+func personal_bread_near() -> Dictionary:
+    # A modest self-meal is a real P3 recipe, not a free Hunger hotkey.
+    # Each press advances a canonical cook step; world time still passes and
+    # unfinished preparation survives save/reload until its own deadline.
+    if room() != "kiosk": return {"ok":false,"code":"NOT_AT_KIOSK"}
+    if position().distance_to(COUNTER) > COUNTER_RADIUS:
+        return {"ok":false,"code":"COUNTER_TOO_FAR"}
+    var v: Dictionary = session.world.view()
+    var cooking: Dictionary = v["cooking"]
+    var ids: Array = cooking["items"].keys()
+    ids.sort()
+    for item_id in ids:
+        var item: Dictionary = cooking["items"][item_id]
+        if str(item["job_id"]).begins_with("personal:") and item["status"] == "ready":
+            var eaten: Dictionary = session.command(_id("personal_eat"),"player","needs.eat",{"item_id":item_id})
+            if eaten.get("ok",false):
+                eaten["phase"] = "eat"
+                eaten["caption"] = "A little bread, made for yourself."
+            return eaten
+    ids = cooking["preparations"].keys()
+    ids.sort()
+    for job_id in ids:
+        if not str(job_id).begins_with("personal:"): continue
+        var stage: String = str(cooking["preparations"][job_id]["stage"])
+        var command_kind: String = ""
+        var payload: Dictionary = {"job_id":job_id}
+        match stage:
+            "waiting":
+                command_kind = "cook.step.begin"
+                payload["station_id"] = "counter"
+            "active": command_kind = "cook.step.finish"
+            "interrupted":
+                command_kind = "cook.step.resume"
+                payload["station_id"] = "counter"
+        if command_kind.is_empty(): continue
+        var result: Dictionary = session.command(_id("personal_step"),"player",command_kind,payload)
+        if result.get("ok",false):
+            result["phase"] = "finish" if stage == "active" else "begin"
+            result["caption"] = "Bread is ready to eat." if stage == "active" else "Preparing a little bread. Give it a minute."
+        return result
+    if int(v["world_minute"]) > 2147483587:
+        return {"ok":false,"code":"TIME_OVERFLOW"}
+    var started: Dictionary = session.command(_id("personal_start"),"player","cook.start",
+        {"job_id":"personal:" + str(v["sequence"] + 1),"recipe_id":"plain_bread",
+         "deadline_minute":int(v["world_minute"])+60})
+    if started.get("ok",false):
+        started["phase"] = "start"
+        started["caption"] = "A little bread for yourself. Press K again to prepare it."
+    return started
 
 func open_kiosk() -> Dictionary:
     return session.command(_id("open"),"player","life.open",{})
@@ -221,6 +280,8 @@ func status() -> Dictionary:
         "offer_count": orders.size(),
         "kiosk_open": bool(v["life"]["open"]),
         "sleep_count": int(v["life"]["sleep_count"]),
+        "hunger": int(v["needs"]["hunger"]), "rest": int(v["needs"]["rest"]),
+        "mood": int(v["needs"]["mood"]),
         "quiet_count": quiet_count,
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),

@@ -1,6 +1,6 @@
 # Needs and wellbeing — the difference between mood and a life worth living
 
-**Gap IDs:** NEED-01, NEED-02. **Implementation tracker:** [E2 #57](https://github.com/MohamedXIV/nile-kiosk/issues/57). **Status:** design principles AGREED; production gameplay **NOT STARTED**.
+**Gap IDs:** NEED-01, NEED-02. **Implementation tracker:** [E2 #57](https://github.com/MohamedXIV/nile-kiosk/issues/57). **Status:** design principles AGREED; E2 P0 implementation in [PR #68](https://github.com/MohamedXIV/nile-kiosk/pull/68), [native CI](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39037366128); [Chromium PR checks](https://github.com/MohamedXIV/nile-kiosk/pull/68/checks) must pass before merge. **PARTIAL, not full E2 acceptance.**
 
 ## Three visible needs, one hidden long-term tendency
 
@@ -27,3 +27,11 @@ Mood can subtly color cooking attentiveness, reactions and interaction cadence, 
 ## Acceptance contract (pending)
 
 Test same meal/activity under two distinct contexts and repeated over time; one short-lived mood boost versus a slower sustained baseline improvement; poor-mood recovery with bounded gameplay impact; sleeping with and without a real comfort object; movement between kiosk and home, persistence, deterministic replay, browser-visible readable state. None of these tests are complete in P5 today.
+
+## E2 P0 production contract (balance not approved)
+
+`scripts/core/needs_world.gd` owns Hunger/Rest/Mood, hidden `wellbeingBaseline`, activity saturation and authored recipe nourishment. It is projected in schema v10 and reconstructed exclusively by WorldKernel event replay; legacy v7–v9 snapshots are verified against their historical envelopes then migrated through replay. Clock loss uses absolute slot boundaries, so equivalent elapsed-time chunking yields identical physical readings. Sleep restores actual Rest, with a conditional benefit only from a **legitimately placed owned bed**; buying/granting furniture alone never changes Mood. Leisure at an authored site gives a small contextual lift with within-day saturation. The slower baseline can improve through multiple qualifying days, never a freely repeatable interaction.
+
+A personal meal may only consume an already **ready** P3 cooked item at an operating venue, through an atomic WorldKernel command whose event marks the item `player:meal`; accepted-order recipes are protected. Current authored nourishment is provisional (`content/life/nile_meals.v1.json`). The live production scene has restrained Hunger/Rest/Mood presentation, and a contextual **K personal-bread interaction** at the kiosk counter: start / prepare / await one canonical world minute / finish / consume a real P3 cooked item. Unfinished stages persist; it is not the eventual E3 tactile food experience. Hidden baseline is never shown. Further E2 work must connect actual home food preparation, nuanced environmental heat/comfort, food variety and authored social events, tune long-term rates from real play, and test extended negative/positive mood scenarios.
+
+**Evidence:** `tests/test_e2_needs.gd`, [native CI](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39037366128), [Chromium PR checks](https://github.com/MohamedXIV/nile-kiosk/pull/68/checks), historical migration `tests/test_play_c2.gd`. Browser must pass at merge head. Unmet environment and pacing behavior remains E2 work.

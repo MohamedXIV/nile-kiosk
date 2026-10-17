@@ -200,6 +200,12 @@ jobs:
           godot --headless --path . --script res://tests/test_e1_radio.gd 2>&1 | tee /tmp/e1-radio.log
           grep -q 'E1 RADIO: PASS' /tmp/e1-radio.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E1 RADIO: FAIL)' /tmp/e1-radio.log; then exit 1; fi
+      - name: E2 canonical needs, contextual activity, P3 food and P5 rest
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e2_needs.gd 2>&1 | tee /tmp/e2-needs.log
+          grep -q 'E2 NEEDS: PASS' /tmp/e2-needs.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E2 NEEDS: FAIL)' /tmp/e2-needs.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
