@@ -96,7 +96,8 @@ try {
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
   check(closed.kiosk_open === false && closed.location === "kiosk", "early voluntary close failed");
-  await walkBack(940);
+  // The river spot is deliberately farther from the exit than the counter.
+  await walkBack(1400);
   await press("e");
   const backStreet = await until("E6_GAME_DOOR",3);
   check(backStreet.location === "street", "kiosk-to-street return");
