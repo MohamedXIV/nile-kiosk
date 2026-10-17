@@ -287,6 +287,35 @@
           ]
         }
       }
+    },
+    {
+      "id": "invitation:mahmoud-after-tea",
+      "kind": "narrative.opportunity.register",
+      "actor_id": "system:narrative",
+      "payload": {
+        "opportunity_id": "mahmoud_after_tea",
+        "initiator_npc_id": "mahmoud",
+        "trigger_event": "order.delivered",
+        "when": {
+          "all": [
+            {
+              "player_at": "kiosk"
+            },
+            {
+              "npc_at": {
+                "npc_id": "mahmoud",
+                "location_id": "kiosk"
+              }
+            },
+            {
+              "kiosk_open": true
+            },
+            {
+              "event_seen": "order.accepted"
+            }
+          ]
+        }
+      }
     }
   ]
 }
