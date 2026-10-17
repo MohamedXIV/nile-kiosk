@@ -81,6 +81,12 @@ static func unlock(rules: Dictionary, opportunities: Dictionary, event: Dictiona
         if opportunities.has(opportunity_id): continue
         var rule: Dictionary = rules[opportunity_id]
         if rule["trigger_event"] != event["kind"]: continue
+        # NPC-initiated offers must originate from that NPC's actual customer
+        # delivery, not an unrelated delivery by somebody else.
+        if rule.has("initiator_npc_id"):
+            var order_id: String = str(event["payload"]["request"].get("order_id", ""))
+            if state.service.orders.get(order_id, {}).get("npc_id", "") != rule["initiator_npc_id"]:
+                continue
         if not satisfied(rule["when"], state): continue
         opportunities[opportunity_id] = {
             "source_event_id": event["event_id"],
@@ -88,3 +94,5 @@ static func unlock(rules: Dictionary, opportunities: Dictionary, event: Dictiona
             "world_minute": state.world_minute,
             "trigger_event": event["kind"]
         }
+        if rule.has("initiator_npc_id"):
+            opportunities[opportunity_id]["initiator_npc_id"] = rule["initiator_npc_id"]
