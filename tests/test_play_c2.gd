@@ -82,6 +82,9 @@ func _run() -> void:
     old.erase("spatial")
     old.erase("life")
     old.erase("needs")
+    # v7 also predates E4 opportunity definitions and their result projection.
+    old["narrative"].erase("opportunity_rules")
+    old["narrative"].erase("opportunities")
     old["version"]=7
     var old_path="user://nk-v7-upgrade.json"
     var f=FileAccess.open(old_path,FileAccess.WRITE)
