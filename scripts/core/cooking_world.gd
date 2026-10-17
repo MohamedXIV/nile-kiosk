@@ -80,6 +80,54 @@ func snapshot() -> Dictionary:
         "items": items.duplicate(true), "waste": waste.duplicate(true)
     }
 
+# Canonical E3 sensory quality is projected from the *verified event log* for
+# an actual produced tea item. It does not require a second cooking state,
+# mutate legacy P3 item snapshots or change the v10 save contract. Quantities
+# and grades are provisional, not approved economic or gameplay balancing.
+func item_quality(item_id: String, history: Array[Dictionary]) -> Dictionary:
+    if not items.has(item_id): return {}
+    var item: Dictionary = items[item_id]
+    if str(item["recipe_id"]) != "tea": return {}
+    var job_id: String = str(item["job_id"])
+    var ready_at: int = -1
+    var previous_finish: int = -1
+    var late_minutes: int = 0
+    var handoff_minutes: int = 0
+    var interruptions: int = 0
+    var finished_steps: int = 0
+    for event in history:
+        var kind: String = str(event["kind"])
+        if kind not in ["cook.step_begun","cook.step_resumed",
+            "cook.step_interrupted","cook.step_finished"]:
+            continue
+        var payload: Dictionary = event["payload"]
+        if str(payload["request"].get("job_id","")) != job_id: continue
+        var when: int = int(event["world_minute"])
+        match kind:
+            "cook.step_begun", "cook.step_resumed":
+                if kind == "cook.step_begun" and previous_finish >= 0:
+                    handoff_minutes = mini(20,handoff_minutes + mini(20,maxi(0,when - previous_finish)))
+                    previous_finish = -1
+                ready_at = int(payload["effect"]["ready_minute"])
+            "cook.step_interrupted":
+                ready_at = -1
+                interruptions = mini(3,interruptions + 1)
+            "cook.step_finished":
+                if ready_at < 0: return {}
+                late_minutes = mini(20,late_minutes + mini(20,maxi(0,when - ready_at)))
+                ready_at = -1
+                previous_finish = when
+                finished_steps += 1
+    if finished_steps != recipes["tea"]["steps"].size() or previous_finish != int(item["created_minute"]):
+        return {}
+    # Waiting after heat or leaving the kettle on has observable consequences,
+    # without blocking service, reducing payment, or creating a failure spiral.
+    var score: int = maxi(25,100 - late_minutes * 8 - handoff_minutes * 2 - interruptions * 10)
+    var grade: String = "good" if score >= 85 else ("okay" if score >= 60 else "rough")
+    return {"item_id":item_id,"grade":grade,"score":score,
+        "late_minutes":late_minutes,"handoff_minutes":handoff_minutes,
+        "interruptions":interruptions,"source_event_id":item["event_id"]}
+
 func copy_domain() -> RefCounted:
     var cloned: RefCounted = get_script().new()
     cloned.ingredients = ingredients.duplicate(true)

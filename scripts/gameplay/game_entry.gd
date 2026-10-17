@@ -221,6 +221,11 @@ func tea_action_near(key: String) -> Dictionary:
     if response.get("ok",false):
         response["caption"] = "Hands on: " + str(context["caption"])
         response["gesture"] = key
+        if str(response.get("kind","")) == "cook.step.finish":
+            var quality: Dictionary = session.world.prepared_quality("item:" + str(context["job_id"]))
+            if not quality.is_empty():
+                response["quality"] = quality.duplicate(true)
+                response["caption"] = "Tea finished: " + str(quality["grade"]) + " (timing matters)."
     return response
 
 func personal_bread_near() -> Dictionary:
@@ -390,7 +395,17 @@ func status() -> Dictionary:
             quiet_count += 1
             last_quiet = str(event["payload"]["request"]["activity_id"])
     var tea_context: Dictionary = active_tea_step()
+    var latest_tea: Dictionary = {}
+    for item in v["cooking"]["items"].values():
+        if str(item["recipe_id"]) != "tea" or not str(item["job_id"]).begins_with("play:c3:prep:"):
+            continue
+        if latest_tea.is_empty() or str(item["event_id"]) > str(latest_tea["event_id"]):
+            latest_tea = item
+    var quality: Dictionary = session.world.prepared_quality(str(latest_tea.get("item_id",""))) if not latest_tea.is_empty() else {}
     return {
+        "tea_quality":str(quality.get("grade","")),
+        "tea_quality_score":int(quality.get("score",0)),
+        "tea_quality_item":str(quality.get("item_id","")),
         "tea_stage":str(tea_context.get("stage","")),
         "tea_action":str(tea_context.get("key","")),
         "tea_ready_in":int(tea_context.get("ready_in",0)),

@@ -236,6 +236,9 @@ func _draw() -> void:
             "Give it %d world minute(s)" % state["tea_ready_in"] if state["tea_ready_in"] > 0 else
             ("Lift / finish" if state["tea_stage"] == "active" else "Start the next step")]
         _text(Vector2(28,431),guidance,18,Color("#f0d6a2"))
+    if location == "kiosk" and state["tea_stage"].is_empty() and not state["tea_quality"].is_empty():
+        draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
+        _text(Vector2(28,431),"Last tea: " + str(state["tea_quality"]) + " · timing stays with the prepared cup",17,Color("#f0d6a2"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     _text(Vector2(28,500),"WASD move   E door   F listen   G orders   H heat   U pour   Q quiet   O/C open/close",14,Color("#e2c18b"))

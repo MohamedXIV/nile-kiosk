@@ -170,6 +170,9 @@ try {
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
     "finished tea wasn't authentic prepared item for pending order");
+  check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
+    finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
+    "late player actions did not create a distinct real P3 tea quality");
   // Approach the physical riverside quiet spot; spend authored time while
   // a real NPC has an accepted order. No fake Mood/finance reward.
   await moveDiagonal(480);
@@ -185,6 +188,9 @@ try {
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   check(restored.hunger === saved.hunger && restored.rest === saved.rest && restored.mood === saved.mood, "E2 needs lost on browser reload");
+  check(restored.tea_quality === saved.tea_quality && restored.tea_quality_score === saved.tea_quality_score &&
+    restored.tea_quality_item === saved.tea_quality_item,
+    "E3 prepared cup quality changed after hard Chromium reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
     restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
     "browser reload lost game state, pending order or location");
@@ -223,6 +229,7 @@ try {
   console.log("E2_NEEDS_CHROMIUM_PASS: clock needs, no purchase buff, real leisure and hard reload");
   console.log("E2_HOME_BED_CHROMIUM_PASS: paid P5 bed, real placement/storage, no instant buff, next-day rest and reload");
   console.log("E3_TEA_HANDS_CHROMIUM_PASS: heat/lift/pour/finish real P3 preparation, wrong and early gesture rejected, G blocked, saved Web");
+  console.log("E3_TEA_QUALITY_CHROMIUM_PASS: overdue kettle/pour reduces canonical item score, visual quality and hard browser replay");
 } finally {
   await context.close();
   await browser.close();

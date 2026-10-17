@@ -63,6 +63,11 @@ func cooking_view() -> Dictionary:
 func prepared_item(item_id: String) -> Dictionary:
     return _state.cooking.items.get(item_id, {}).duplicate(true)
 
+func prepared_quality(item_id: String) -> Dictionary:
+    # Fully deterministic from authenticated item + immutable canonical P3
+    # event timestamps. The receipt survives save/replay and item delivery.
+    return _state.cooking.item_quality(item_id, _state.events).duplicate(true)
+
 func spatial_view() -> Dictionary:
     return _state.spatial.snapshot()
 
