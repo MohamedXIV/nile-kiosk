@@ -23,8 +23,6 @@ static func owns(kind: String) -> bool:
 
 static func event_kind(kind: String) -> String:
     match kind:
-        "narrative.opportunity.register":
-            opportunity_rules[p["opportunity_id"]] = p.duplicate(true)
         "narrative.story.register": return "narrative.story_registered"
         "narrative.opportunity.register": return "narrative.opportunity_registered"
         "narrative.session.start": return "narrative.session_started"
@@ -242,6 +240,8 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
 func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int, event_id: String,
         society: RefCounted, sequence: int) -> void:
     match kind:
+        "narrative.opportunity.register":
+            opportunity_rules[p["opportunity_id"]] = p.duplicate(true)
         "narrative.story.register":
             stories[p["story_id"]] = p.duplicate(true)
         "narrative.session.start":
