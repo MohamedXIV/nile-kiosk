@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "opportunity_id": "river_watch_reflection",
+  "session_id": "river_watch_reflection",
+  "ink_path": "res://content/ink/nile_river_reflection.ink.json",
+  "story": {
+    "story_id": "river_watch_reflection",
+    "beats": {
+      "river_open": {
+        "speaker_id": "salma",
+        "fact_id": ""
+      },
+      "river_rest": {
+        "speaker_id": "salma",
+        "fact_id": ""
+      },
+      "river_city": {
+        "speaker_id": "salma",
+        "fact_id": ""
+      },
+      "river_end": {
+        "speaker_id": "salma",
+        "fact_id": ""
+      }
+    },
+    "choice_points": {
+      "river_choice": {
+        "rest": {
+          "text": "I needed a quiet minute.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        },
+        "city": {
+          "text": "The city never seems to rest.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        }
+      }
+    }
+  }
+}

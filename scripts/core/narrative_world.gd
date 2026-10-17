@@ -17,7 +17,7 @@ static func exact(p: Dictionary, keys: Array) -> bool:
     return true
 
 static func owns(kind: String) -> bool:
-    return kind in ["narrative.story.register", "narrative.opportunity.register", "narrative.session.start",
+    return kind in ["narrative.story.register", "narrative.opportunity.register", "narrative.opportunity.begin", "narrative.session.start",
         "narrative.line.commit", "narrative.choice.wait", "narrative.choice.select",
         "narrative.session.finish"]
 
@@ -25,6 +25,7 @@ static func event_kind(kind: String) -> String:
     match kind:
         "narrative.story.register": return "narrative.story_registered"
         "narrative.opportunity.register": return "narrative.opportunity_registered"
+        "narrative.opportunity.begin": return "narrative.opportunity_begun"
         "narrative.session.start": return "narrative.session_started"
         "narrative.line.commit": return "narrative.line_committed"
         "narrative.choice.wait": return "narrative.choice_waiting"
@@ -36,6 +37,7 @@ static func command_kind(kind: String) -> String:
     match kind:
         "narrative.story_registered": return "narrative.story.register"
         "narrative.opportunity_registered": return "narrative.opportunity.register"
+        "narrative.opportunity_begun": return "narrative.opportunity.begin"
         "narrative.session_started": return "narrative.session.start"
         "narrative.line_committed": return "narrative.line.commit"
         "narrative.choice_waiting": return "narrative.choice.wait"
@@ -166,11 +168,21 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         return {"ok": true, "effect": {"story_id": p["story_id"]}}
     if actor != "system:narrative":
         return fail("UNAUTHORIZED")
-    if kind == "narrative.session.start":
-        if not exact(p, ["session_id", "story_id", "participants", "ink_state"]) or not id(p.get("session_id")) or not id(p.get("story_id")) or not _valid_cursor(p.get("ink_state")):
+    if kind in ["narrative.session.start", "narrative.opportunity.begin"]:
+        var offered: bool = kind == "narrative.opportunity.begin"
+        var required: Array = ["session_id", "story_id", "participants", "ink_state", "opportunity_id"] if offered else ["session_id", "story_id", "participants", "ink_state"]
+        if not exact(p, required) or not id(p.get("session_id")) or not id(p.get("story_id")) or not _valid_cursor(p.get("ink_state")):
             return fail("INVALID_PAYLOAD")
         if not stories.has(p["story_id"]): return fail("UNKNOWN_STORY")
         if sessions.has(p["session_id"]): return fail("SESSION_EXISTS")
+        if offered:
+            if not id(p.get("opportunity_id")) or not opportunities.has(p["opportunity_id"]):
+                return fail("OPPORTUNITY_LOCKED")
+            if p["story_id"] != p["opportunity_id"] or typeof(p.get("participants")) != TYPE_ARRAY or not p["participants"].has("player"):
+                return fail("INVALID_OPPORTUNITY_PARTICIPANTS")
+            for existing in sessions.values():
+                if existing.get("opportunity_id", "") == p["opportunity_id"]:
+                    return fail("OPPORTUNITY_ALREADY_STARTED")
         var present: Dictionary = _participants(p["participants"], society)
         if not present["ok"]: return present
         return {"ok": true, "effect": {"location_id": present["location_id"]}}
@@ -244,12 +256,14 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
             opportunity_rules[p["opportunity_id"]] = p.duplicate(true)
         "narrative.story.register":
             stories[p["story_id"]] = p.duplicate(true)
-        "narrative.session.start":
+        "narrative.session.start", "narrative.opportunity.begin":
             sessions[p["session_id"]] = {"session_id": p["session_id"], "story_id": p["story_id"],
                 "participants": p["participants"].duplicate(true), "location_id": effect["location_id"],
                 "phase": "running", "point_id": "", "ink_state": p["ink_state"].duplicate(true),
                 "lines": [], "choices": [], "started_minute": minute, "started_event_id": event_id,
                 "last_event_id": event_id}
+            if kind == "narrative.opportunity.begin":
+                sessions[p["session_id"]]["opportunity_id"] = p["opportunity_id"]
         "narrative.line.commit":
             var s: Dictionary = sessions[p["session_id"]]
             s["lines"].append({"beat_id": effect["beat_id"], "speaker_id": effect["speaker_id"],

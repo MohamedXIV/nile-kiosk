@@ -18,6 +18,8 @@ const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const TEA_ACTION_POLICY = "res://content/cooking/nile_tea_actions.v1.json"
 const TEA_REACTIONS_POLICY = "res://content/service/nile_tea_reactions.v1.json"
 const EXCHANGE_POLICY = "res://content/social/nile_kiosk_exchange.v1.json"
+const RIVER_STORY_POLICY = "res://content/social/nile_river_reflection.v1.json"
+const RIVER_STORY_ID = "river_watch_reflection"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -31,6 +33,7 @@ var bed_pack: Dictionary = {}
 var tea_actions: Dictionary = {}
 var tea_reactions: Dictionary = {}
 var exchange_pack: Dictionary = {}
+var river_story_pack: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -171,6 +174,21 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
             return {"ok":false,"code":"INVALID_EXCHANGE"}
         seen_speakers[npc_id] = true
     exchange_pack = exchange.duplicate(true)
+    # P6 owns the story contract, and the packaged Ink asset owns only prose.
+    if not FileAccess.file_exists(RIVER_STORY_POLICY):
+        return {"ok":false,"code":"RIVER_STORY_MANIFEST_NOT_FOUND"}
+    var river_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(RIVER_STORY_POLICY))
+    if typeof(river_raw) != TYPE_DICTIONARY or river_raw.size() != 5 or river_raw.get("schema") != 1 or river_raw.get("opportunity_id") != RIVER_STORY_ID or river_raw.get("session_id") != RIVER_STORY_ID or typeof(river_raw.get("story")) != TYPE_DICTIONARY or typeof(river_raw.get("ink_path")) != TYPE_STRING:
+        return {"ok":false,"code":"INVALID_RIVER_STORY_MANIFEST"}
+    if not str(river_raw["ink_path"]).begins_with("res://content/ink/") or not str(river_raw["ink_path"]).ends_with(".ink.json") or str(river_raw["ink_path"]).contains(".."):
+        return {"ok":false,"code":"INVALID_RIVER_STORY_PATH"}
+    if river_raw["story"].get("story_id", "") != RIVER_STORY_ID:
+        return {"ok":false,"code":"INVALID_RIVER_STORY_ID"}
+    river_story_pack = river_raw.duplicate(true)
+    if not session.world.narrative_view()["stories"].has(RIVER_STORY_ID):
+        var registered: Dictionary = session.command("game:e4:river:story:v1", "system:narrative",
+            "narrative.story.register", river_story_pack["story"])
+        if not registered.get("ok", false): return registered
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -502,6 +520,45 @@ func wait_minutes(minutes: int = 5) -> Dictionary:
         return {"ok":false,"code":"INVALID_WAIT"}
     return session.advance(minutes, _id("wait"))
 
+func river_story_session() -> Dictionary:
+    return session.world.narrative_session(RIVER_STORY_ID)
+
+func river_story_available() -> bool:
+    return session.world.narrative_opportunities().has(RIVER_STORY_ID)
+
+func river_story_begin() -> Dictionary:
+    if not river_story_available():
+        return {"ok":false,"code":"STORY_NOT_UNLOCKED"}
+    var active: Dictionary = river_story_session()
+    if active.get("phase", "") == "finished":
+        return {"ok":false,"code":"STORY_ALREADY_FINISHED"}
+    if room() != "kiosk":
+        return {"ok":false,"code":"NOT_AT_KIOSK"}
+    var pose: Dictionary = npc_pose("salma")
+    if pose.is_empty() or position().distance_to(pose["position"]) > Graph.RADIUS:
+        return {"ok":false,"code":"SALMA_TOO_FAR"}
+    if session.ink == null or not session.ink.sessions.has(RIVER_STORY_ID):
+        if not session.attach_ink(RIVER_STORY_ID, river_story_pack["ink_path"]):
+            return {"ok":false,"code":"INK_STORY_NOT_FOUND"}
+    if not session.ink_ready(RIVER_STORY_ID):
+        return {"ok":false,"code":"INK_LOADING"}
+    if not active.is_empty():
+        return {"ok":true,"code":"RESUMED","phase":active["phase"]}
+    var started: Dictionary = session.ink_begin_opportunity(RIVER_STORY_ID, RIVER_STORY_ID,
+        ["salma","player"], _id("story_begin"))
+    if started.get("ok", false): started["code"] = "STARTED"
+    return started
+
+func river_story_next() -> Dictionary:
+    if not session.ink_ready(RIVER_STORY_ID):
+        return {"ok":false,"code":"INK_NOT_READY"}
+    return session.ink_next(RIVER_STORY_ID, _id("story_next"))
+
+func river_story_choose(option_id: String) -> Dictionary:
+    if not session.ink_ready(RIVER_STORY_ID):
+        return {"ok":false,"code":"INK_NOT_READY"}
+    return session.ink_choose(RIVER_STORY_ID, option_id, _id("story_choose"))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -570,6 +627,8 @@ func status() -> Dictionary:
         "mood": int(v["needs"]["mood"]),
         "quiet_count": quiet_count,
         "story_opportunities": session.world.narrative_opportunities(),
+        "river_story_phase": str(river_story_session().get("phase","")),
+        "river_story_choices": session.ink_choices(RIVER_STORY_ID) if session.ink_ready(RIVER_STORY_ID) else [],
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
         "radio_uses": int(radio_state.get("use_count",0)),

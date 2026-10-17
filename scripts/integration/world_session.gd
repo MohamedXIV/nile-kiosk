@@ -111,6 +111,10 @@ func ink_begin(session_id: String, story_id: String, participants: Array, comman
     if ink == null: return {"ok": false, "code": "INK_NOT_ATTACHED"}
     return ink.begin(session_id, story_id, participants, command_id)
 
+func ink_begin_opportunity(session_id: String, opportunity_id: String, participants: Array, command_id: String) -> Dictionary:
+    if ink == null: return {"ok": false, "code": "INK_NOT_ATTACHED"}
+    return ink.begin_opportunity(session_id, opportunity_id, participants, command_id)
+
 func ink_next(session_id: String, command_id: String) -> Dictionary:
     if ink == null: return {"ok": false, "code": "INK_NOT_ATTACHED"}
     return ink.advance(session_id, command_id)
