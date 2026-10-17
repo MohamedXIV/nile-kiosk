@@ -134,14 +134,21 @@ try {
   await press("o");
   const opened = await until("E6_GAME_OPEN");
   check(opened.kiosk_open === true, "player did not open the kiosk");
-  await press("j"); await until("E6_GAME_WAIT",0);
-  await press("j"); await until("E6_GAME_WAIT",1);
+  await press("j");
+  const firstAside = await until("E6_GAME_WAIT",0);
+  check(firstAside.minute === 1039 && firstAside.ambient_npc === "salma" &&
+    firstAside.ambient_beat === 0 && firstAside.ambient_line.includes("river"),
+    "Salma did not initiate the authored neighbor exchange");
+  await press("j");
+  const silence = await until("E6_GAME_WAIT",1);
+  check(silence.minute === 1044 && silence.ambient_line === "",
+    "incidental dialogue should leave quiet time between the remarks");
   await press("j");
   const afterWait = await until("E6_GAME_WAIT",2);
   check(afterWait.minute >= 1035 && afterWait.npc_mahmoud === "kiosk" && afterWait.order_status === "offered", "autonomous order did not appear");
-  check(afterWait.ambient_npc === "salma" && afterWait.ambient_beat === 0 &&
-    afterWait.ambient_line.includes("river") && !afterWait.customer_reaction,
-    "two physically present neighbors did not start an independent ambient exchange");
+  check(afterWait.ambient_npc === "mahmoud" && afterWait.ambient_beat === 1 &&
+    afterWait.ambient_line.includes("still") && !afterWait.customer_reaction,
+    "Mahmoud did not answer Salma when both neighbors were present");
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");
@@ -174,8 +181,7 @@ try {
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
     "finished tea wasn't authentic prepared item for pending order");
-  check(finishedTea.ambient_npc === "mahmoud" && finishedTea.ambient_beat === 1 &&
-    finishedTea.ambient_line.includes("still"), "Mahmoud did not answer Salma while player cooked");
+  check(finishedTea.ambient_line === "", "incidental two-line exchange repeated instead of returning to silence");
   check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");

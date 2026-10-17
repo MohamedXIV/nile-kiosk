@@ -52,6 +52,8 @@ func _run() -> void:
         check(g.wait_minutes().get("ok",false),"real clock waiting")
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
+    check(g.ambient_exchange().is_empty(),"no incidental exchange before the first authored beat")
+    check(g.wait_minutes(4).get("ok",false),"reach first spontaneous NPC aside")
     var before_aside: String = g.status()["digest"]
     var first_aside: Dictionary = g.ambient_exchange()
     check(first_aside.get("npc_id","")=="salma" and first_aside.get("beat",-1)==0 and
@@ -109,8 +111,8 @@ func _run() -> void:
     check(balanced["score"] > rough["score"],"patient vs delayed tea same quality")
     check(restored.status()["tea_quality"]=="good" and restored.status()["tea_quality_item"]==item_id,
         "real game failed to surface canonical sensory quality")
-    # The independent exchange continues while hands-on cooking happens.
-    check(restored.ambient_exchange().is_empty(),"ambient chatter should leave room for silence")
+    # Nonblocking: Salma's short line remains visible while tea is brewed.
+    check(restored.ambient_exchange().get("npc_id","")=="salma","cooking should not freeze the nearby speaker")
     check(restored.wait_minutes(5).get("ok",false) and restored.wait_minutes(2).get("ok",false),
         "advance to the second authored speech beat without moving NPCs by hand")
     var second_aside: Dictionary = restored.ambient_exchange()

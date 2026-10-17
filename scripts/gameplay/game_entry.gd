@@ -257,10 +257,12 @@ func ambient_exchange() -> Dictionary:
     var now: int = int(session.world.view()["world_minute"])
     var elapsed: int = now - int(exchange_pack["first_minute"])
     if elapsed < 0: return {}
+    # Only one authored exchange per day, not an endless chatter loop.
+    elapsed = elapsed % 1440
     var beat_minutes: int = int(exchange_pack["beat_minutes"])
-    if elapsed % beat_minutes >= int(exchange_pack["visible_minutes"]):
-        return {}
     var lines: Array = exchange_pack["lines"]
+    if int(elapsed / beat_minutes) >= lines.size() or elapsed % beat_minutes >= int(exchange_pack["visible_minutes"]):
+        return {}
     # Don't invent a conversation when either participant is absent.
     for line in lines:
         if str(session.world.npc(str(line["speaker_id"])).get("location_id","")) != room():
