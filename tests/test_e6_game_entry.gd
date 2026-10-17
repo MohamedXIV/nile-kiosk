@@ -6,7 +6,10 @@ const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
 
 func _initialize() -> void:
-    _run()
+    _run_and_report.call_deferred()
+
+func _run_and_report() -> void:
+    await _run()
     if failures.is_empty():
         print("E6 GAME ENTRY: PASS (canonical opening, traversal, demand, cooking, payment, save/reload)")
         quit(0)
@@ -26,6 +29,10 @@ func _run() -> void:
     var started: Dictionary = g.start(SAVE)
     check(started.get("ok",false) and started.get("code","")=="NEW_WORLD","new session "+JSON.stringify(started))
     if not started.get("ok",false): return
+    # Godot NavigationServer2D first map sync occurs on a physics frame.
+    # Do not query paths inside SceneTree._initialize(), even after force_update.
+    await physics_frame
+    await physics_frame
     check(g.room()=="roof" and g.status()["minute"]==1020,"initial roof at authored opening time")
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
     check(g.status()["npc_mahmoud"]=="street","visitor not pre-teleported")

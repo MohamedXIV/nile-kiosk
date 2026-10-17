@@ -55,20 +55,10 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
     NavigationServer2D.region_set_enabled(region_rid,true)
     NavigationServer2D.region_set_navigation_polygon(region_rid,poly)
     NavigationServer2D.region_set_map(region_rid,map_rid)
-    NavigationServer2D.map_force_update(map_rid)
-    for home in homes:
-        for goal in destinations:
-            var route: PackedVector2Array = NavigationServer2D.map_get_path(map_rid,home,goal,true)
-            if route.size() < 2:
-                var diagnostic: Dictionary = {"ok":false,"code":"NAV_ROUTE_UNREACHABLE","from":str(home),
-                    "to":str(goal),"waypoints":route.size(),"polygons":poly.get_polygon_count(),
-                    "map_active":NavigationServer2D.map_is_active(map_rid),
-                    "regions":NavigationServer2D.map_get_regions(map_rid).size(),
-                    "closest_start":str(NavigationServer2D.map_get_closest_point(map_rid,home)),
-                    "closest_target":str(NavigationServer2D.map_get_closest_point(map_rid,goal)),
-                    "mesh_faces":poly.get_navigation_mesh().get_polygon_count()}
-                dispose()
-                return diagnostic
+    # Godot 4.6 does not allow a map query until the first physics map
+    # synchronization, even with map_force_update(). Endpoints are checked
+    # now, and actual reachability is asserted after the next physics tick
+    # by the native/Chromium acceptance tests (never fall back to LERP).
     geometry = raw.duplicate(true)
     return {"ok":true}
 
