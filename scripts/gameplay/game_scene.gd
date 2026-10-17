@@ -65,6 +65,7 @@ func _act(kind: String) -> void:
         "open": result = game.open_kiosk()
         "close": result = game.close_kiosk()
         "sleep": result = game.sleep_at_home()
+        "quiet": result = game.quiet_near()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
@@ -74,7 +75,8 @@ func _act(kind: String) -> void:
             "save":"Your evening has been saved.",
             "open":"Kiosk open. Take your time.",
             "close":"Closed for now. Your evening is yours.",
-            "sleep":"Another morning begins."
+            "sleep":"Another morning begins.",
+            "quiet":str(result.get("caption","A quiet moment passes."))
         }.get(kind, "Done")
     else:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
@@ -92,6 +94,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_O: _act("open")
         KEY_C: _act("close")
         KEY_Z: _act("sleep")
+        KEY_Q: _act("quiet")
 
 func _iso(point: Vector2) -> Vector2:
     # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
@@ -152,6 +155,14 @@ func _draw() -> void:
     if location == "flat":
         draw_colored_polygon(_floor_polygon(Vector2(48,48),Vector2(104,100)),Color("#ac9078"))
         _text(_iso(Vector2(57,45))+Vector2(-10,-18),"Small apartment",12)
+    # Authored quiet spots are world positions, not UI-owned activity state.
+    for activity in game.quiet_activities():
+        if activity["room_id"] != location: continue
+        var center: Vector2 = _iso(Vector2(int(activity["x"]),int(activity["y"])))
+        var reachable: bool = game.position().distance_to(Vector2(int(activity["x"]),int(activity["y"]))) <= int(activity["radius"])
+        draw_circle(center,7,Color("#f0cb7f") if reachable else Color("#8b8c79"))
+        _text(center + Vector2(-32,-17),"Q: " + str(activity["id"]).replace("_"," "),12,
+            Color("#f3e1bb") if reachable else Color("#b8a89a"))
     for door in game.graph.visible_exits(location):
         var target: Vector2 = _iso(Graph.point(door["entry"]))
         var locked: bool = not door["unit_id"].is_empty() and not game.session.world.can_access_unit(door["unit_id"])
@@ -170,8 +181,8 @@ func _draw() -> void:
         Color("#abdb9f") if state["kiosk_open"] else Color("#e1aa91"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
-    _text(Vector2(28,500),"WASD move   E door   F listen   G serve   O open   C close   Z sleep",15,Color("#e2c18b"))
-    _text(Vector2(480,526),"J wait   P save",13,Color("#e2c18b"))
+    _text(Vector2(28,500),"WASD move   E door   F listen   G serve   Q quiet   O open   C close   Z sleep",14,Color("#e2c18b"))
+    _text(Vector2(480,526),"J wait   P save   Quiet moments: %d" % state["quiet_count"],13,Color("#e2c18b"))
     var near: Dictionary = game.nearest_portal()
     if not near.is_empty():
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
