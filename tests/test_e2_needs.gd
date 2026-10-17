@@ -25,7 +25,7 @@ func run() -> void:
     check(boot.get("ok",false), "new world")
     if not boot.get("ok",false): return
     var start: Dictionary = g.status()
-    check(g.session.world.view()["version"]==10 and g.session.world.view()["needs"]["meal_values"].has("plain_bread"),"schema/personal nutrition")
+    check(g.session.world.view()["version"]==11 and g.session.world.view()["needs"]["meal_values"].has("plain_bread"),"schema/personal nutrition")
     check(start["hunger"] < 75 and start["rest"] < 80 and start["mood"]>=25,"opening time evolved needs")
     check(not g.listen_radio().get("ok",false),"radio requires real placed object")
     var before: int = g.status()["mood"]

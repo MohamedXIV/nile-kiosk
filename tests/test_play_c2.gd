@@ -33,7 +33,7 @@ func _run() -> void:
     var model=Session.new(81,SAVE)
     check(model.bootstrap_from_content(Catalog).get("ok",false),"C0 import")
     var legacy: Dictionary=model.world.view()
-    check(legacy["version"]==10 and legacy["spatial"]["graph"].is_empty(),"fresh baseline")
+    check(legacy["version"]==11 and legacy["spatial"]["graph"].is_empty(),"fresh baseline")
     check(model.configure_navigation(Routes).get("ok",false),"graph init")
     check(model.world.spatial_view()["graph"]["graph_id"]=="qa-room-route-c1","graph not event-owned")
     check(pos(model)=={"room_id":"roof","x":175,"y":70},"initial pose")
@@ -82,6 +82,9 @@ func _run() -> void:
     old.erase("spatial")
     old.erase("life")
     old.erase("needs")
+    # v7 also predates E4 opportunity definitions and their result projection.
+    old["narrative"].erase("opportunity_rules")
+    old["narrative"].erase("opportunities")
     old["version"]=7
     var old_path="user://nk-v7-upgrade.json"
     var f=FileAccess.open(old_path,FileAccess.WRITE)
@@ -90,7 +93,7 @@ func _run() -> void:
     var migrated=Session.new(2,old_path)
     check(migrated.load_existing().get("code")=="MIGRATED","verified v7 upgrade not recognized")
     check(migrated.world.last_restore_was_migration,"migration not declared")
-    check(migrated.world.view()["version"]==10 and migrated.world.view()["sequence"]==old["sequence"],"upgrade altered existing event log")
+    check(migrated.world.view()["version"]==11 and migrated.world.view()["sequence"]==old["sequence"],"upgrade altered existing event log")
     check(migrated.world.balance_minor()==300 and migrated.world.npc("reda")["location_id"]=="street","legacy social/economy altered")
     check(migrated.world.spatial_view()["graph"].is_empty(),"invented legacy pose")
     check(migrated.configure_navigation(Routes).get("ok",false),"audited initial pose event after migration")

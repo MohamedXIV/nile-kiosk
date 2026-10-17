@@ -27,6 +27,9 @@ func player_knows(fact_id: String) -> bool:
 func narrative_view() -> Dictionary:
     return _state.narrative.snapshot()
 
+func narrative_opportunities() -> Dictionary:
+    return _state.narrative.opportunities.duplicate(true)
+
 func narrative_session(session_id: String) -> Dictionary:
     return _state.narrative.sessions.get(session_id, {}).duplicate(true)
 
@@ -187,11 +190,12 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not WorldState.integral(data.get("version"), 1):
         return false
     var version: int = int(data["version"])
+    if version == 11 and data.size() != 20: return false
     if version == 10 and data.size() != 20: return false
     if version == 9 and data.size() != 19: return false
     if version == 8 and data.size() != 18: return false
     if version == 7 and data.size() != 17: return false
-    if version not in [7, 8, 9, 10]: return false
+    if version not in [7, 8, 9, 10, 11]: return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
@@ -199,6 +203,12 @@ func restore_snapshot(data: Dictionary) -> bool:
         if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
     var expected: Dictionary = candidate.snapshot()
+    if version <= 10:
+        # v11's rule/outcome projections are deterministic and reconstructable.
+        # Older saves genuinely lack them; compare their original shape.
+        expected["narrative"].erase("opportunity_rules")
+        expected["narrative"].erase("opportunities")
+        expected["version"] = version
     if version in [7, 8, 9]:
         # Older saves replay needs from the event log without trusting an invented projection.
         expected.erase("needs")
@@ -214,7 +224,7 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not _matches(data, expected):
         return false
     _state = candidate
-    last_restore_was_migration = version in [7, 8, 9]
+    last_restore_was_migration = version in [7, 8, 9, 10]
     return true
 
 func save_to_file(path: String) -> bool:

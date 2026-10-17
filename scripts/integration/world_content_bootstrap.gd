@@ -13,6 +13,7 @@ const AUTHORS: Dictionary = {
     "npc.routine.create": "system:director",
     "social.player.place": "system:director",
     "social.fact.register": "system:director",
+    "narrative.opportunity.register": "system:narrative",
     "social.familiarity.set": "system:director",
     "ingredient.define": "system:director",
     "stock.add": "system:director",

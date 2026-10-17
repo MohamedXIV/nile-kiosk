@@ -11,7 +11,7 @@ const NarrativeWorld = preload("res://scripts/core/narrative_world.gd")
 const SpatialWorld = preload("res://scripts/core/spatial_world.gd")
 const DailyLife = preload("res://scripts/core/daily_life_world.gd")
 const Needs = preload("res://scripts/core/needs_world.gd")
-const VERSION: int = 10
+const VERSION: int = 11
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -461,6 +461,10 @@ func _apply_event(raw: Dictionary) -> bool:
             if kind == "life.activity":
                 needs.on_activity(str(planned["effect"]["activity_id"]),world_minute)
     events.append(expected)
+    # Post-commit read-only rule evaluation. The one-shot opportunity marker
+    # is derived from this same canonical event and rebuilt on replay.
+    if kind != "narrative.opportunity.register":
+        narrative.observe_event(expected, self)
     receipts[command_id] = {
         "signature": command_signature(kind, actor_id, request),
         "result": {"ok": true, "code": "APPLIED", "event_id": expected["event_id"], "revision": sequence}

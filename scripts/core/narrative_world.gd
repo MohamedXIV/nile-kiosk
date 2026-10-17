@@ -1,8 +1,11 @@
 extends RefCounted
 ## SYS P6: deterministic authored narrative sessions. Ink owns prose/cursor, not world truth.
 const MAX_INT: int = 2147483647
+const OpportunityRules = preload("res://scripts/core/story_opportunity_rules.gd")
 var stories: Dictionary = {}
 var sessions: Dictionary = {}
+var opportunity_rules: Dictionary = {}
+var opportunities: Dictionary = {}
 
 static func id(v: Variant) -> bool:
     return typeof(v) == TYPE_STRING and not (v as String).strip_edges().is_empty() and (v as String).length() <= 128
@@ -14,13 +17,14 @@ static func exact(p: Dictionary, keys: Array) -> bool:
     return true
 
 static func owns(kind: String) -> bool:
-    return kind in ["narrative.story.register", "narrative.session.start",
+    return kind in ["narrative.story.register", "narrative.opportunity.register", "narrative.session.start",
         "narrative.line.commit", "narrative.choice.wait", "narrative.choice.select",
         "narrative.session.finish"]
 
 static func event_kind(kind: String) -> String:
     match kind:
         "narrative.story.register": return "narrative.story_registered"
+        "narrative.opportunity.register": return "narrative.opportunity_registered"
         "narrative.session.start": return "narrative.session_started"
         "narrative.line.commit": return "narrative.line_committed"
         "narrative.choice.wait": return "narrative.choice_waiting"
@@ -31,6 +35,7 @@ static func event_kind(kind: String) -> String:
 static func command_kind(kind: String) -> String:
     match kind:
         "narrative.story_registered": return "narrative.story.register"
+        "narrative.opportunity_registered": return "narrative.opportunity.register"
         "narrative.session_started": return "narrative.session.start"
         "narrative.line_committed": return "narrative.line.commit"
         "narrative.choice_waiting": return "narrative.choice.wait"
@@ -42,7 +47,9 @@ static func fail(code: String) -> Dictionary:
     return {"ok": false, "code": code}
 
 func snapshot() -> Dictionary:
-    return {"stories": stories.duplicate(true), "sessions": sessions.duplicate(true)}
+    return {"stories": stories.duplicate(true), "sessions": sessions.duplicate(true),
+        "opportunity_rules": opportunity_rules.duplicate(true),
+        "opportunities": opportunities.duplicate(true)}
 
 static func _valid_cursor(cursor: Variant) -> bool:
     if typeof(cursor) != TYPE_ARRAY or cursor.is_empty() or cursor.size() > 128:
@@ -138,7 +145,19 @@ func _speech(society: RefCounted, speaker: String, fact_id: String, mode: String
         return planned
     return {"ok": true, "request": request, "effect": planned["effect"]}
 
+func observe_event(event: Dictionary, world: RefCounted) -> void:
+    OpportunityRules.unlock(opportunity_rules, opportunities, event, world)
+
 func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs: Dictionary, minute: int) -> Dictionary:
+    if kind == "narrative.opportunity.register":
+        if actor != "system:narrative": return fail("UNAUTHORIZED")
+        if not exact(p, ["opportunity_id", "trigger_event", "when"]) or not id(p.get("opportunity_id")) or not id(p.get("trigger_event")):
+            return fail("INVALID_OPPORTUNITY")
+        if p["trigger_event"] == "narrative.opportunity_registered" or not OpportunityRules.valid_condition(p.get("when")):
+            return fail("INVALID_OPPORTUNITY")
+        if opportunity_rules.has(p["opportunity_id"]): return fail("OPPORTUNITY_EXISTS")
+        if opportunity_rules.size() >= 64: return fail("OPPORTUNITY_LIMIT")
+        return {"ok": true, "effect": {"opportunity_id": p["opportunity_id"]}}
     if kind == "narrative.story.register":
         if actor != "system:narrative": return fail("UNAUTHORIZED")
         var check: Dictionary = _validate_story(p)
@@ -221,6 +240,8 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
 func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int, event_id: String,
         society: RefCounted, sequence: int) -> void:
     match kind:
+        "narrative.opportunity.register":
+            opportunity_rules[p["opportunity_id"]] = p.duplicate(true)
         "narrative.story.register":
             stories[p["story_id"]] = p.duplicate(true)
         "narrative.session.start":
