@@ -226,6 +226,36 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
     return {"npc_id":npc_id,"room_id":room_id,"position":current,
         "mode":mode,"order_id":order_id,"route_waypoints":route_waypoints}
 
+# Godot-native 2D segment/solid queries against the SAME physical furniture
+# that already blocks player movement and AStarGrid2D routes. Sight is NOT
+# hearing: a listener can still hear a public voice around a table.
+func clear_sightline(room_id: String, a: Vector2, b: Vector2) -> bool:
+    if not rooms.has(room_id) or not a.is_finite() or not b.is_finite():
+        return false
+    if room_id != str(visit_spots.get("room_id","")) or navigator == null:
+        return true  # No solids authored for other rooms yet.
+    for rect in navigator.obstacle_rects():
+        if rect.has_point(a) or rect.has_point(b):
+            return false
+        var corners: PackedVector2Array = PackedVector2Array([
+            rect.position,Vector2(rect.end.x,rect.position.y),
+            rect.end,Vector2(rect.position.x,rect.end.y)])
+        for i in range(4):
+            if Geometry2D.segment_intersects_segment(a,b,corners[i],corners[(i+1)%4]) != null:
+                return false
+    return true
+
+func npcs_have_visual_contact(session: RefCounted, first_id: String, second_id: String) -> bool:
+    if first_id == second_id: return false
+    var first: Dictionary = npc_pose(session,first_id)
+    var second: Dictionary = npc_pose(session,second_id)
+    if first.is_empty() or second.is_empty() or first["room_id"] != second["room_id"]:
+        return false
+    # Brief local conversation, not communication across a whole venue.
+    if first["position"].distance_to(second["position"]) > 110.0:
+        return false
+    return clear_sightline(str(first["room_id"]),first["position"],second["position"])
+
 func nearby_npc(session: RefCounted, current: Vector2) -> Dictionary:
     var loc: String = str(session.world.social_view()["player_location"])
     var ids: Array = anchors.keys()

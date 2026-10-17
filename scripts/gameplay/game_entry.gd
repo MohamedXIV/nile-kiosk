@@ -285,6 +285,11 @@ func ambient_exchange() -> Dictionary:
     for line in lines:
         if str(session.world.npc(str(line["speaker_id"])).get("location_id","")) != room():
             return {}
+    # Both participants have to be mutually visible at their ACTUAL P1/P4
+    # poses. P2 presence alone must not cause through-furniture conversation.
+    if not graph.npcs_have_visual_contact(session,
+            str(lines[0]["speaker_id"]),str(lines[1]["speaker_id"])):
+        return {}
     var beat: int = int(elapsed / beat_minutes)
     var chosen: Dictionary = lines[beat % lines.size()]
     var npc_id: String = str(chosen["speaker_id"])
