@@ -178,7 +178,7 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         if offered:
             if not id(p.get("opportunity_id")) or not opportunities.has(p["opportunity_id"]):
                 return fail("OPPORTUNITY_LOCKED")
-            if p["story_id"] != p["opportunity_id"] or not p["participants"].has("player"):
+            if p["story_id"] != p["opportunity_id"] or typeof(p.get("participants")) != TYPE_ARRAY or not p["participants"].has("player"):
                 return fail("INVALID_OPPORTUNITY_PARTICIPANTS")
             for existing in sessions.values():
                 if existing.get("opportunity_id", "") == p["opportunity_id"]:
