@@ -1,12 +1,12 @@
-# Roadmap — System-First Development (2026-10-14)
+# Roadmap — System-First Development (reconciled 2026-10-17)
 
-**Policy: system-first, not vertical-slice-first.** Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. **SYS P0–P7 are now verified and merged** with real native/Chromium whole-world integration. Next: production content authoring and actual playable spatial presentation (still pending art review), not a second authoritative world implementation. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
+**Policy: system-first, not vertical-slice-first.** The current [Experience Execution Board / Agent Handoff](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) tracks exact shipped slices, remaining candidates, dependencies, proposals and the agent update protocol. Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. **SYS P0–P7 are now verified and merged** with real native/Chromium whole-world integration. Next: production content authoring and actual playable spatial presentation (still pending art review), not a second authoritative world implementation. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
 
 | Order | Workstream | Delivery gate |
 | --- | --- | --- |
 | 0 | Foundation documentation | Core fantasy, era, visual assumptions and open choices recorded |
 | 1 | D001 Dialogue system spike — **complete for defined scope** | Both candidates passed native concurrency and disk save, full kiosk browser; Ink selected as provisional narrative baseline |
-| 2 | V001 spatial/cutaway and **visual art approval** | Existing Godot/Blender/Chromium geometry proof in PR #20; roof-room start, neighbor and 60m² flat; art **still under user review** |
+| 2 | V001 spatial/cutaway and **visual art approval** | Technical Godot/Blender/Chromium proof in open [PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20), **unmerged**; roof-room, neighbor and 60m² flat; final art approval [#19](https://github.com/MohamedXIV/nile-kiosk/issues/19) **deferred by user**. Do not block gameplay or claim visual acceptance. |
 | 2a | **V001-A — roof-room real 2D asset pack** | 3D measured model → independently authored/cleaned 2D floor/walls/cutaway/bed/desk/fan/lamp; pivot/lighting/collision/save and real browser art review |
 | 2b | V001-B landing and V001-C south-flat pack | Two clearly opposed doors + opaque north neighbor; 60m² flat kitchen/bath and unit cutaway, without icon-like room framing |
 | 2c | Proposed 2:1 projection migration (only if adopted) | Rebuild Blender/Godot/manifest/sprites simultaneously from projection v0.1; no mixed generations; reprojection and real Chromium proof |
@@ -22,18 +22,26 @@
 
 ## Player-experience recovery workstream (not finished; tracked separately)
 
-After SYS P0–P7 and PLAY C1–C6, the next missing work is **player-facing simulation and authored experience**, not another competing engine. **Every item below is OPEN implementation work**, even though its canonical foundation exists. [Traceability matrix](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) supplies feature-level status/evidence and separates AGREED from PROPOSED.
+After SYS P0–P7 and PLAY C1–C6, the next missing work is **player-facing simulation and authored experience**, not another competing engine. **All six Experience Epics remain OPEN, but some user-facing behaviors are now verified sub-deliveries.** Do not reset E1/E6 to NONE, or mark their whole design complete from narrower PRs. [Traceability matrix](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) supplies feature-level status/evidence and separates AGREED from PROPOSED.
 
 | Work | Scope, existing baseline and missing acceptance |
 | --- | --- |
-| [E1 #56](https://github.com/MohamedXIV/nile-kiosk/issues/56) | Player-directed kiosk/home daily loop, close early, downtime/optional leisure; reuse P1/P2/P4 |
-| [E2 #57](https://github.com/MohamedXIV/nile-kiosk/issues/57) | Hunger/Rest/Mood with hidden wellbeing baseline, context, soft consequences; **not** P5 object-use counters |
-| [E3 #58](https://github.com/MohamedXIV/nile-kiosk/issues/58) | Tactile cooking/quality and socially learned recipe variants; P3/C3 lifecycle only is verified |
-| [E4 #59](https://github.com/MohamedXIV/nile-kiosk/issues/59) | Visit modes, in-world dialogue, natural interjections, real knowledge-driven opportunities; P2/P6/C5/C6 scopes remain intact |
-| [E5 #60](https://github.com/MohamedXIV/nile-kiosk/issues/60) | Supplier/travel/market trade-offs and home items with lived comfort effects; P5 ledger/housing is foundation |
-| [E6 #61](https://github.com/MohamedXIV/nile-kiosk/issues/61) | Real default gameplay entry, soundscape/spatial feedback and integration; V001 [#19](https://github.com/MohamedXIV/nile-kiosk/issues/19)/[PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) still unapproved separately |
+| [E1 #56](https://github.com/MohamedXIV/nile-kiosk/issues/56) | **PARTIAL**: [PR #64](https://github.com/MohamedXIV/nile-kiosk/pull/64) canonical open/close/home sleep; [#65](https://github.com/MohamedXIV/nile-kiosk/pull/65) roof/Nile quiet activity; [#66](https://github.com/MohamedXIV/nile-kiosk/pull/66) paid owned/placed radio with real scheduled listening. Still: final radio audio, fuller home agency, longer pacing/human acceptance, optional fishing **PROPOSED**. |
+| [E2 #57](https://github.com/MohamedXIV/nile-kiosk/issues/57) | **NONE in production**: Hunger/Rest/visible Mood + hidden baseline, contextual/saturating recovery, gentle consequences. E1 radio/quiet and P5 usage are input foundations **without comfort benefits**. |
+| [E3 #58](https://github.com/MohamedXIV/nile-kiosk/issues/58) | **FOUNDATION_ONLY**: P3/C3 recipes/time/order serving exist; player gestures, deterministic quality and socially discovered attempts are missing. Proposed implementation slices in [agent board](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md#e3--tactile-cooking-and-recipe-learning-58). |
+| [E4 #59](https://github.com/MohamedXIV/nile-kiosk/issues/59) | **FOUNDATION/PARTIAL**: P2/P6/C5/C6 routines/dialogue/recurring demand exist; real visitor circulation, live spatial Ink, optional interjections, nuanced memory and real E5 referral are not implemented. |
+| [E5 #60](https://github.com/MohamedXIV/nile-kiosk/issues/60) | **FOUNDATION/PARTIAL home item**: P5 ledger/ownership; PR #66 proves one paid/placed/used radio, **not actual comfort**, supplier trade-offs, contact/referral market or approved transport. |
+| [E6 #61](https://github.com/MohamedXIV/nile-kiosk/issues/61) | **PARTIAL**: [PR #63](https://github.com/MohamedXIV/nile-kiosk/pull/63) replaced default D001 entry with real starter WorldKernel scene; real soundscape/Ink spatial UI/RTL/accessibility/art review pending. V001 [#19](https://github.com/MohamedXIV/nile-kiosk/issues/19)/[PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) deferred/unmerged. |
 
-**Execution:** choose ready bounded features across workstreams; use real authored content and production commands, preserve replay/save/QA truth, and avoid shipping the one-file prototype, D001 startup scene, or QA debug arena as the game. Do not claim an E-feature complete from a finished design doc or a narrowly green subsystem test. [Parent #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
+**Execution:** follow [live agent execution board](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) for next candidate slices and idea parking lot; keep suggestions in their owning E-Issue, design ledger and board instead of relying on conversation memory. Choose ready bounded features across workstreams; use real authored content and production commands, preserve replay/save/QA truth, and avoid shipping the one-file prototype, D001 startup scene, or QA debug arena as the game. Do not claim an E-feature complete from a finished design doc or a narrowly green subsystem test. [Parent #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
+
+
+## Next execution / agent continuity (2026-10-17)
+
+- **Current fact, not an estimate:** SYS P0–P7, C0 and PLAY C1–C6 verified in their stated scopes; E1 P0–P2 and E6 P0 shipped as **partial Experience**. E2 production needs domain is missing, and tactile E3, social E4, supplier/comfort E5, audio/visual E6 still need substantial gameplay acceptance. All E1–E6 issues stay OPEN. No defensible percentage or promised completion date.
+- **Dependency-ready selection:** E2 canonical needs can immediately use E1 real sleep/leisure/P5 home use. E3 tactile cooking and E4 NPC circulation/spatial dialogue can start independently over P3/P4/P6; E5 comfort depends on E2 context, and E5 referrals depend on E4 social facts. E6 in-world audio/UI can proceed without final art; #19 visual gate is independent. This is *not* a forced waterfall or a requirement to shrink scope.
+- **Document every idea:** agreed outcome vs proposed detail (radio sound/era stations, fishing, zoom/follow/cutaways, supplier delivery/market, bus/tricycle, recipe stages, UI/needs curves) and what is deferred/blocked. The [agent execution board](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) contains specific proposed batches, acceptance and cross-epic dependencies; [traceability](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) tracks proof.
+- **Continuation without chat context:** read `AGENTS.md`, this roadmap, execution board, [#55](https://github.com/MohamedXIV/nile-kiosk/issues/55), then the target Epic. After merge, update all of them with actual evidence. Do not assume that old comments showing main HEAD are current.
 
 ## Working rules
 

@@ -12,6 +12,14 @@
 - Report actually run tests separately from proposed acceptance gates. Failed or unrun checks are not PASS.
 - Prefer official engine features before inventing custom substitutes. Pin add-on versions/commits for reproducible spikes.
 
+## Mandatory: preserve executable roadmap and future ideas across agents (2026-10-17)
+
+- **Read [Experience Execution Board & Agent Handoff](docs/experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) before selecting a new E1–E6 batch.** It contains shipped PRs, exact remaining feature gates, candidate next batches/dependencies, and the PROPOSED idea parking lot. Also read [Roadmap](docs/ROADMAP.md), Epic [#55](https://github.com/MohamedXIV/nile-kiosk/issues/55) and the relevant E-issue; never assume another agent has this chat context.
+- **Preserve depth, not shrink scope to make a progress bar move.** E1 P0–P2 [PRs #64–#66](https://github.com/MohamedXIV/nile-kiosk/pulls?q=is%3Apr+is%3Amerged+E1) and E6 P0 [PR #63](https://github.com/MohamedXIV/nile-kiosk/pull/63) have shipped **narrow verified subsets**. E1–E6 are still OPEN, and the exact future work is tracked in the board and issues.
+- **Record every newly proposed gameplay/art/production idea** in its owning Epic or a useful independently closable issue, the [execution board](docs/experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md), and where relevant the [decision register](docs/DECISION_REGISTER.md). Label `AGREED` vs `PROPOSED` vs `OPEN`, dependencies, and any default numbers as provisional. New ideas are **not** automatically user-approved work.
+- **After each implementation merge:** update the relevant traceability row, Epic issue, execution board and roadmap **with exact proof and remaining acceptance**. Keep the most recent verified commit/runs as historical context, but always recheck current GitHub state. Record any live PR/CI failure or unresolved choice before handing off.
+- **Visual direction:** fixed-angle **2D isometric/dimetric is the current working gameplay baseline**, with 3D allowed for authoring assets, **not active real-time 3D gameplay**. Exact 2:1 camera and zoom/follow/interior framing remain proposed production details; final visual approval is deferred under #19/PR #20. Art comparison screenshots must preserve actual prototype projection/framing.
+
 ## Mandatory: do not confuse designed, built and verified
 
 **Before selecting, implementing or closing gameplay work:**

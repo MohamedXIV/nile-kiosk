@@ -14,9 +14,15 @@ Gameplay is spatial. Short text belongs near actual NPC speakers, not a global c
 
 Use a restrained readable period-authentic presentation; Arabic/RTL and localization require their own eventual signoff, since D001 used English test fixtures. Sound settings/off mode must not block gameplay; visual interaction cues remain clear without audio. Detailed mixing, soundtrack rights, fonts and scene density are **OPEN** production choices.
 
+## Implemented experience vs remaining ambience
+
+- [E1 #56](https://github.com/MohamedXIV/nile-kiosk/issues/56) now includes earned, purchased and placed radio use ([PR #66](https://github.com/MohamedXIV/nile-kiosk/pull/66)); **no audible track, tuning or era-authentic licensed music** is implemented. Roof/Nile quiet moments from [PR #65](https://github.com/MohamedXIV/nile-kiosk/pull/65) spend real game time but have no finished ambient mix.
+- [Experience execution board](../experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) tracks candidate next audio/UI/RTL, spatial speech, orthographic zoom/follow and deferred 2D cutaway work; all proposals stay proposals until chosen.
+- The default entry is **working gameplay**, not artistic signoff. A visual review must preserve the playable prototype's actual perspective/framing rather than silently changing camera angle in concept images.
+
 ## Architecture and visual gate
 
-- `project.godot` currently boots the D001 dialogue `kiosk_spike.tscn`; `qa_traversal_scene.gd` is honest debug visualization (circles/labels/QA control keys), **not a shippable game UI**. E6 must connect a real production-owned world entry with E1/E3/E4 gameplay, without promoting test fixtures to permanent content.
+- **Reconciled 2026-10-17:** [PR #63](https://github.com/MohamedXIV/nile-kiosk/pull/63) has already changed the `project.godot` default to `scenes/nile_kiosk_game.tscn`. This is a canonical starter `WorldSession`/WorldKernel game scene with **provisional code-drawn presentation**, not a finished in-world UI. `kiosk_spike.tscn` and `qa_traversal_scene.gd` remain narrower test/debug references. E6 must now deepen cooking/social/needs and atmospheric feedback on the real entry, not re-implement its launch wiring.
 - Keep the art direction in [Visual World Bible](VISUAL_WORLD_BIBLE.md): fixed oblique angled 2D cutaways, 3D-authored spatial accuracy, **2D-delivered** distinct assets, warm light, real room proportions. Existing [V001 PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) is technically proven but **visually unapproved**. Never auto-merge on a green screenshot test.
 - The game can prove mechanics with placeholder presentation first, but must not label that a complete atmospheric experience.
 

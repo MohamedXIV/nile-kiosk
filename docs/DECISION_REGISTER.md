@@ -1,6 +1,6 @@
 # Nile Kiosk — Decision register (design vs proof)
 
-**Updated 2026-10-14.** This is the durable orientation map for future authors and agents; consult the linked detailed specifications before editing the game. **Agreed experience ≠ shipped implementation ≠ final art approval.**
+**Originally 2026-10-14; experience/camera status reconciled 2026-10-17.** This is the durable orientation map for future authors and agents; consult the linked detailed specifications before editing the game. **Agreed experience ≠ shipped implementation ≠ final art approval.**
 
 | Topic | Design direction / commitment | Status and caveats |
 | --- | --- | --- |
@@ -13,6 +13,7 @@
 | Visual target | Fixed-angle playable, cozy, lived-in Egyptian isometric-style cutaway, **not an SVG icon / miniature villa** | **Direction agreed**; final 2D painted style NOT approved |
 | Art workflow | 3D as authored **spatial guide**, 2D as delivered layered modular game assets with actual cleanup and pivots | **Chosen direction for next experiments**; individual packs not yet production-ready |
 | Projection | One consistent affine mapping, fixed orthographic view, transparent layers with contact anchors | **Requirement agreed**; exact **2:1** parameters in [v0.1](architecture/ISOMETRIC_PROJECTION_CONTRACT_V0_1.md) are **proposed**, current PR #20 is ~2.067:1 |
+| Camera/gameplay comparison | Real-time 3D removed from active comparison; existing 2D isometric plays well and is the working baseline; three-quarter top-down stays a comparison reference | **Working direction**, not final art approval. Smooth zoom, camera follow and auto interior framing are **PROPOSED next usability tests**. Never mistake isometric *orthographic zoom* for a perspective dolly, change screen-world hit-testing or fake the projection in comparison images. |
 | Cutaways | Unit-aware roof/upper-front-wall hiding, low wall silhouettes, collisions kept, neighbor opaque | **Design agreed**; production-quality implementation to verify |
 | Lighting | Local runtime lights/shadows with neutral base, optional normal/emissive maps | **Target agreed**; current lamp toggle is only a spike |
 | Engine | Godot 4/GDScript currently validating fixed-camera 2D presentation; browser build highly desirable | **Provisional** until V001 visual sign-off |
@@ -26,7 +27,7 @@
 
 This register records large design commitments, **not** whether the player can actually experience them. Refer to [Design/Implementation Traceability](design/DESIGN_IMPLEMENTATION_TRACEABILITY.md) for **separately** labeled AGREED/PROPOSED/OPEN decisions and NONE/FOUNDATION_ONLY/PARTIAL/VERIFIED_SCOPE implementation evidence, plus the six recovered design specs. [Epic #55](https://github.com/MohamedXIV/nile-kiosk/issues/55) and [issues #56–#61](https://github.com/MohamedXIV/nile-kiosk/issues/56) track pending feature acceptance. In particular, **P3 recipes are not tactile cooking/quality; P5 item interaction is not home comfort/needs; P6 conversations are not final spatial social presentation; C6 demand memory is not authored NPC preference memory**.
 
-The quiet-day fantasy, contextual Mood with hidden baseline, learning recipes through conversations/experiments, optional non-rewarding encounters, social referrals, freedom to close early and ambient Nile/Cairo feel are retained as **design direction only until separately proven in production**. Examples (exact finances, tricycle, fishing rules, progression enum, specific item catalog and sound technique) are not automatically committed.
+The quiet-day fantasy, contextual Mood with hidden baseline, learning recipes through conversations/experiments, optional non-rewarding encounters, social referrals, freedom to close early and ambient Nile/Cairo feel are retained as **design direction**. [PRs #63–#66](https://github.com/MohamedXIV/nile-kiosk/pulls?q=is%3Apr+is%3Amerged) now verify a **narrow** canonical playable entry, daily rhythm, quiet activity and purchased/placed radio. They **do not** prove the unfinished needs, tactile cooking, actual social performance, supplier gameplay or atmospheric sound. The complete [cross-agent execution board](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) preserves future suggested batches and open decisions. Examples (exact finances, tricycle, fishing rules, progression enum, specific item catalog and sound technique) are not automatically committed.
 
 ## Verified against live GitHub when written
 
@@ -35,7 +36,11 @@ The quiet-day fantasy, contextual Mood with hidden baseline, learning recipes th
 - [V001 issue #19](https://github.com/MohamedXIV/nile-kiosk/issues/19): separate artist/visual review required.
 - [D001 decision](spikes/D001-DECISION.md) and [browser refresh persistence](spikes/D001-browser-refresh.md): prior proof of genuine Ink Web save/refresh within covered smoke scope, not claim of cross-device permanence.
 
-## Next actionable order — authored content and actual playable integration (2026-10-13)
+## Current execution orientation (reconciled 2026-10-17)
+
+E1 game day/quiet/radio have been implemented in scoped PRs #64–#66, and E6 canonical playable entry in PR #63, while every Experience Epic #56–#61 remains OPEN. Read the [living execution/agent handoff board](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) for all proposed subsequent batches, E2–E5 dependencies, audio/UI/RTL ideas and art/camera decisions. **Do not choose the next task solely from the older historical checklist below.** Preserve user-approved system-first development rather than a disposable one-day build.
+
+## Next actionable order — authored content and actual playable integration (2026-10-13) (historical)
 
 1. SYS P0–P7, Content C0 and PLAY C1/C2/C3/C4/C5/C6 are done; PLAY C3 [PR #48](https://github.com/MohamedXIV/nile-kiosk/pull/48) adds real game-input cooking/orders/payment on the QA scene, while [PLAY C4 PR #50](https://github.com/MohamedXIV/nile-kiosk/pull/50) adds world-time customer demand independently of player UI; [PLAY C5 PR #52](https://github.com/MohamedXIV/nile-kiosk/pull/52) makes these demand probabilities conditionally depend on NPC knowledge and NPC-to-NPC trust at the scheduled world minute, while [PLAY C6 PR #54](https://github.com/MohamedXIV/nile-kiosk/pull/54) derives visit memory from real paid/abandoned service, with no parallel reputation state. Real character writing and balance remain pending. Use [the production world importer](systems/CONTENT_C0_WORLD_BOOTSTRAP.md) to author real NPC/recipe/location data; the C0 QA catalog is **not balanced gameplay content**.
 2. Connect real gameplay input/navigation/interaction presentation to the already-owned domain commands. Do not promote P7 test-fixture prices/NPCs or the D001 scene to a shipped default.
