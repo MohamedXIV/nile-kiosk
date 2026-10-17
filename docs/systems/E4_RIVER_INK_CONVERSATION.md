@@ -1,6 +1,6 @@
 # E4 — Player-Selected River Opportunity → Real Ink Conversation
 
-**Status: implementation candidate until exact-head Native + Chromium/Ink pass and merge.** This is the playable follow-up to [PR #78](https://github.com/MohamedXIV/nile-kiosk/pull/78), not a new narrative authority or general quest scripting engine.
+**Status: VERIFIED / MERGED 2026-10-18** — [PR #79](https://github.com/MohamedXIV/nile-kiosk/pull/79) squash-merged `b303f3267f4a7fd7f5e13387fc2899ec41840c88`, exact tested feature head `e7eaf632352b79b584219f7c473b6bea811349a1` passed [Full Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39078574094) and [Full Web/Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39078574098), including `E4 STORY INK: PASS` and `E4_STORY_CHROMIUM_PASS`.  The implementation is a bounded playable first conversation, not full E4. This is the playable follow-up to [PR #78](https://github.com/MohamedXIV/nile-kiosk/pull/78), not a new narrative authority or general quest scripting engine.
 
 ## Behavior
 
