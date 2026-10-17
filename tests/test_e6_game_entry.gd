@@ -6,10 +6,7 @@ const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
 
 func _initialize() -> void:
-    _run_and_report.call_deferred()
-
-func _run_and_report() -> void:
-    await _run()
+    _run()
     if failures.is_empty():
         print("E6 GAME ENTRY: PASS (canonical opening, traversal, demand, cooking, payment, save/reload)")
         quit(0)
@@ -29,10 +26,6 @@ func _run() -> void:
     var started: Dictionary = g.start(SAVE)
     check(started.get("ok",false) and started.get("code","")=="NEW_WORLD","new session "+JSON.stringify(started))
     if not started.get("ok",false): return
-    # Godot NavigationServer2D first map sync occurs on a physics frame.
-    # Do not query paths inside SceneTree._initialize(), even after force_update.
-    await physics_frame
-    await physics_frame
     check(g.room()=="roof" and g.status()["minute"]==1020,"initial roof at authored opening time")
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
     check(g.status()["npc_mahmoud"]=="street","visitor not pre-teleported")
@@ -62,16 +55,7 @@ func _run() -> void:
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
     var path: PackedVector2Array = g.graph.navigation_path(Vector2(200,110),Vector2(145,85))
-    var navserver: RID = g.graph.navigator.map_rid
-    print("E4_NAV_DIAGNOSTIC "+JSON.stringify({
-        "regions":NavigationServer2D.map_get_regions(navserver).size(),
-        "active":NavigationServer2D.map_is_active(navserver),
-        "closest_a":str(NavigationServer2D.map_get_closest_point(navserver,Vector2(200,110))),
-        "closest_b":str(NavigationServer2D.map_get_closest_point(navserver,Vector2(145,85))),
-        "short_path":str(g.graph.navigation_path(Vector2(125,70),Vector2(145,85))),
-        "path":str(path)
-    }))
-    check(path.size() >= 3,"Godot NavMesh did not create a route around kiosk furniture")
+    check(path.size() >= 3,"Godot AStarGrid2D did not create a route around kiosk furniture")
     var straight: float = Vector2(200,110).distance_to(Vector2(145,85))
     var routed: float = 0.0
     for k in range(1,path.size()):
@@ -84,7 +68,7 @@ func _run() -> void:
         "y_edges":[8,63,86,99,130,152],"blocked_cells":[[1,2],[3,3],[3,3]]}
     check(not g.graph.configure_walkable(bad_mesh).get("ok",false),"invalid duplicate mesh blocker accepted")
     check(g.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
-        "failed nav config altered already active Godot NavMesh")
+        "failed nav config altered active Godot AStarGrid2D")
     var approaching: Dictionary = g.npc_pose("mahmoud")
     check(approaching.get("mode","")=="approaching" and
         approaching.get("position",Vector2.ZERO)==Vector2(200,110),
@@ -144,7 +128,7 @@ func _run() -> void:
     check(restored.graph.nearby_npc(restored.session,restored.position()).get("npc_id","")=="mahmoud",
         "hearing target disagrees with visible counter position")
     check(restored.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
-        "Godot navigation route changed on disk replay")
+        "Godot native navigation route changed on disk replay")
     check(restored.tea_action_near("H").get("kind","")=="cook.step.finish","player lifts hot kettle")
     check(restored.tea_action_near("U").get("kind","")=="cook.step.begin","player pours tea")
     check(restored.wait_minutes(1).get("ok",false),"wait for serving")

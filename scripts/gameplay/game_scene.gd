@@ -27,10 +27,6 @@ func _boot() -> void:
         queue_redraw()
         return
     _setup_physics()
-    # Let the engine register and synchronize the navmesh before presenting
-    # a restored moving customer, so UI and hearing share a valid route.
-    await get_tree().physics_frame
-    await get_tree().physics_frame
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
