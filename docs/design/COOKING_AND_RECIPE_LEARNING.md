@@ -23,3 +23,7 @@ Example: a visitor mentions chickpea falafel; much later the player asks about s
 ## Acceptance contract (pending)
 
 One complete authored food item with meaningful distinct manual actions and reproducible quality differences; a player can serve and be paid through P3/P4/P5, and cook for themselves with correct needs where implemented. A separate witnessed hint alters an attempt or available meaningful action, and later dialogue reflects the actual attempt. Check interruptions, bad timings, ingredient depletion, stale orders and save/reload mid-process. Do **not** mark E3 complete simply because the P3 recipe lifecycle already passes.
+
+## E3 starter input experiment — physical tea actions (2026-10-17)
+
+The production kiosk now uses stage-dependent H (heat/lift) and U (pour/finish) controls for the existing two-step P3 tea recipe. `content/cooking/nile_tea_actions.v1.json` declares presentation verbs and keys; actual prerequisites, reserved leaves/cup, world time, station exclusivity, preparation completion, item identity, order delivery and ledger remain canonical P3/P4/P5. Service G cannot bypass the hands-on tea stages, and rejected wrong/early steps cannot mutate GameState. Production UI displays the next appropriate action and readiness based on the projected world job, including after reload. Input mapping and feel are **PROPOSED** experiments, not finalized bindings. Quality grades/timing-to-taste, additional gestures/food types, interruptions and NPC-taught recipe knowledge remain OPEN E3 work.

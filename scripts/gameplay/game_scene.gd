@@ -60,6 +60,8 @@ func _act(kind: String) -> void:
         "door": result = game.travel_near()
         "talk": result = game.listen_near()
         "serve": result = game.service_near()
+        "tea_heat": result = game.tea_action_near("H")
+        "tea_pour": result = game.tea_action_near("U")
         "meal": result = game.personal_bread_near()
         "wait": result = game.wait_minutes()
         "save": result = game.save_game()
@@ -78,6 +80,8 @@ func _act(kind: String) -> void:
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
             "serve":"Service: " + str(result.get("kind","updated")),
+            "tea_heat":str(result.get("caption","Kettle handled.")),
+            "tea_pour":str(result.get("caption","Tea poured.")),
             "meal":str(result.get("caption","Bread prepared.")),
             "wait":"Five quiet minutes pass.",
             "save":"Your evening has been saved.",
@@ -103,6 +107,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_E: _act("door")
         KEY_F: _act("talk")
         KEY_G: _act("serve")
+        KEY_H: _act("tea_heat")
+        KEY_U: _act("tea_pour")
         KEY_K: _act("meal")
         KEY_J: _act("wait")
         KEY_P: _act("save")
@@ -224,9 +230,15 @@ func _draw() -> void:
     _need(Vector2(245,53),"Hunger",state["hunger"],Color("#d4ae78"))
     _need(Vector2(385,53),"Rest",state["rest"],Color("#8badc6"))
     _need(Vector2(525,53),"Mood",state["mood"],Color("#96b79a"))
+    if location == "kiosk" and not state["tea_stage"].is_empty():
+        draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
+        var guidance: String = "Tea · %s: %s" % [state["tea_action"],
+            "Give it %d world minute(s)" % state["tea_ready_in"] if state["tea_ready_in"] > 0 else
+            ("Lift / finish" if state["tea_stage"] == "active" else "Start the next step")]
+        _text(Vector2(28,431),guidance,18,Color("#f0d6a2"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
-    _text(Vector2(28,500),"WASD move   E door   F listen   G serve   Q quiet   O open   C close   Z sleep",14,Color("#e2c18b"))
+    _text(Vector2(28,500),"WASD move   E door   F listen   G orders   H heat   U pour   Q quiet   O/C open/close",14,Color("#e2c18b"))
     _text(Vector2(480,526),"J wait   P save   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
     if location == "roof":
         _text(Vector2(28,526),"B/V/R/X radio    T buy/place bed (%d)    Y store bed" % state["bed_price"],13,Color("#e2c18b"))

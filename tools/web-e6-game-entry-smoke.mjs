@@ -142,6 +142,34 @@ try {
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");
+  await press("g");
+  const teaStarted = await until("E6_GAME_SERVE",1);
+  check(teaStarted.tea_action === "H" && teaStarted.tea_stage === "waiting", "tea did not request heat");
+  await press("g");
+  const blockedShortcut = await until("E6_GAME_SERVE",2);
+  check(blockedShortcut.revision === teaStarted.revision && blockedShortcut.tea_stage === "waiting",
+    "G shortcut bypassed hands-on tea");
+  await press("u");
+  const wrongPour = await until("E6_GAME_TEA_POUR",0);
+  check(wrongPour.revision === teaStarted.revision, "incorrect first gesture advanced world");
+  await press("h");
+  const heated = await until("E6_GAME_TEA_HEAT",0);
+  check(heated.tea_stage === "active" && heated.tea_ready_in > 0, "kettle not heating in canonical P3");
+  await press("h");
+  const premature = await until("E6_GAME_TEA_HEAT",1);
+  check(premature.revision === heated.revision, "could finish kettle before P3 ready minute");
+  await press("j"); await until("E6_GAME_WAIT",3);
+  await press("h");
+  const lifted = await until("E6_GAME_TEA_HEAT",2);
+  check(lifted.tea_stage === "waiting" && lifted.tea_action === "U", "lifting kettle didn't advance canonical recipe");
+  await press("u");
+  const poured = await until("E6_GAME_TEA_POUR",1);
+  check(poured.tea_stage === "active", "pour action didn't begin P3 serving step");
+  await press("j"); await until("E6_GAME_WAIT",4);
+  await press("u");
+  const finishedTea = await until("E6_GAME_TEA_POUR",2);
+  check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
+    "finished tea wasn't authentic prepared item for pending order");
   // Approach the physical riverside quiet spot; spend authored time while
   // a real NPC has an accepted order. No fake Mood/finance reward.
   await moveDiagonal(480);
@@ -194,6 +222,7 @@ try {
   console.log("E1_RADIO_CHROMIUM_PASS: purchase, place, listen, real P5 usage, scheduler and reload");
   console.log("E2_NEEDS_CHROMIUM_PASS: clock needs, no purchase buff, real leisure and hard reload");
   console.log("E2_HOME_BED_CHROMIUM_PASS: paid P5 bed, real placement/storage, no instant buff, next-day rest and reload");
+  console.log("E3_TEA_HANDS_CHROMIUM_PASS: heat/lift/pour/finish real P3 preparation, wrong and early gesture rejected, G blocked, saved Web");
 } finally {
   await context.close();
   await browser.close();
