@@ -569,6 +569,7 @@ func status() -> Dictionary:
         "hunger": int(v["needs"]["hunger"]), "rest": int(v["needs"]["rest"]),
         "mood": int(v["needs"]["mood"]),
         "quiet_count": quiet_count,
+        "story_opportunities": session.world.narrative_opportunities(),
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
         "radio_uses": int(radio_state.get("use_count",0)),
