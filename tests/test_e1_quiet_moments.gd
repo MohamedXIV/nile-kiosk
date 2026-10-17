@@ -2,6 +2,8 @@ extends SceneTree
 ## E1/P1: optional spatial downtime, not an E2 Mood/Rest system.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
+const WorldState = preload("res://scripts/core/world_state.gd")
+const LEGACY_SAVE = "user://nk-e1-before-quiet-v9.json"
 const SAVE = "user://nk-e1-quiet-test.json"
 var errors: Array[String] = []
 
@@ -19,7 +21,7 @@ func move(g: RefCounted, dx: int, dy: int, times: int, label: String) -> void:
         check(g.move_world(dx,dy).get("ok",false),label+":"+str(n))
 
 func run() -> void:
-    for path in [SAVE,SAVE+".tmp"]:
+    for path in [SAVE,SAVE+".tmp",LEGACY_SAVE,LEGACY_SAVE+".tmp"]:
         if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
     var g: RefCounted = Game.new()
     check(g.start(SAVE).get("code","")=="NEW_WORLD","new game boot")
@@ -74,5 +76,27 @@ func run() -> void:
     var live: RefCounted = Kernel.new()
     check(live.restore_snapshot(loaded.session.world.view()),"event replay failed")
     check(JSON.stringify(live.view())==JSON.stringify(loaded.session.world.view()),"replay changed canonical snapshot")
-    for obj in [g,loaded]: obj.dispose()
+    # Rebuild a valid earlier v9 save from the original immutable event prefix,
+    # ending before the optional quiet policy event (no hand-patched snapshots).
+    var earlier: RefCounted = WorldState.new(71)
+    var replay_count: int = 0
+    for event in g.session.world.view()["events"]:
+        if event["kind"] == "life.activities_configured": break
+        check(earlier._apply_event(event),"valid pre-P1 history replay")
+        replay_count += 1
+    check(replay_count > 15 and not earlier.snapshot()["life"]["policy"].has("activities"),"pre-P1 policy fixture")
+    var older: RefCounted = Kernel.new()
+    check(older.restore_snapshot(earlier.snapshot()),"pre-P1 kernel valid")
+    check(older.save_to_file(LEGACY_SAVE),"pre-P1 v9 snapshot saved")
+    var upgraded: RefCounted = Game.new()
+    check(upgraded.start(LEGACY_SAVE).get("code")=="RESTORED","old v9 save preserved")
+    check(upgraded.quiet_activities().size()==2,"old save did not adopt activities")
+    var adopted: int = int(upgraded.session.world.view()["sequence"])
+    check(upgraded.save_game().get("ok",false),"store adopted policy")
+    var roundtrip: RefCounted = Game.new()
+    check(roundtrip.start(LEGACY_SAVE).get("code")=="RESTORED","adopted v9 save reload")
+    check(int(roundtrip.session.world.view()["sequence"])==adopted,"quiet policy configured twice on reload")
+    check(roundtrip.quiet_activities().size()==2,"adopted activities lost")
+    for obj in [g,loaded,upgraded,roundtrip]: obj.dispose()
     if FileAccess.file_exists(SAVE): DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
+    if FileAccess.file_exists(LEGACY_SAVE): DirAccess.remove_absolute(ProjectSettings.globalize_path(LEGACY_SAVE))
