@@ -54,6 +54,16 @@ func _run() -> void:
         check(g.wait_minutes().get("ok",false),"real clock waiting")
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
+    # Built-in Geometry2D: being in the same P2 room is NOT visual contact.
+    # Mahmoud's authored standing point is behind the solid table from Salma.
+    check(not g.graph.npcs_have_visual_contact(g.session,"salma","mahmoud"),
+        "NPCs unrealistically see each other straight through the kiosk table")
+    check(not g.graph.clear_sightline("kiosk",Vector2(160,110),Vector2(190,110)),
+        "straight sightline leaked through Godot furniture")
+    check(g.graph.clear_sightline("kiosk",Vector2(160,75),Vector2(190,75)),
+        "open Godot sightline incorrectly blocked")
+    check(not g.graph.npcs_have_visual_contact(g.session,"salma","salma"),
+        "one NPC counts as two conversing participants")
     var path: PackedVector2Array = g.graph.navigation_path(Vector2(200,110),Vector2(145,85))
     check(path.size() >= 3,"Godot AStarGrid2D did not create a route around kiosk furniture")
     var straight: float = Vector2(200,110).distance_to(Vector2(145,85))
@@ -85,6 +95,8 @@ func _run() -> void:
         first_aside.get("line","").contains("river"),"Salma did not speak during real joint presence")
     check(g.status()["ambient_line"]==first_aside.get("line","") and g.status()["digest"]==before_aside,
         "ambient projection wrote GameState or failed to reach UI")
+    check(g.graph.npcs_have_visual_contact(g.session,"salma","mahmoud"),
+        "arriving at real counter did not restore NPCs' mutual line of sight")
     check(g.customer_reaction().is_empty(),"customer cannot react before delivery")
     var first: Dictionary = g.service_near()
     check(first.get("ok",false) and first.get("kind","")=="order.accept","accept real order")
@@ -101,6 +113,9 @@ func _run() -> void:
     check(restored.start(SAVE).get("code","")=="RESTORED","restore existing opening game")
     check(JSON.stringify(restored.session.world.view())==JSON.stringify(before_load),"entire world state preserved")
     check(restored.room()=="kiosk" and restored.position()==g.position(),"canonical world pose retained")
+    check(restored.graph.npcs_have_visual_contact(restored.session,"salma","mahmoud") ==
+        g.graph.npcs_have_visual_contact(g.session,"salma","mahmoud"),
+        "authored NPC visual contact differs after world reload")
     var job_id: String = "play:c3:prep:" + str(g.status()["active_order"])
     var item_id: String = "item:" + job_id
     # A counterfactual world from the exact same persisted mid-heat snapshot:
