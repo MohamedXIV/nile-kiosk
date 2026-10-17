@@ -12,7 +12,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E4_STORY)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E4_STORY|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -203,6 +203,37 @@ try {
     "NPC quality response not grounded in delivered real rough tea");
   check(deliveredTea.npc_mahmoud_mode === "returning" && deliveredTea.npc_mahmoud_x === 145,
     "customer snapped back before he left the counter");
+  check(deliveredTea.mahmoud_invitation?.source_event_id === deliveredTea.customer_reaction_event &&
+    deliveredTea.mahmoud_invitation?.initiator_npc_id === "mahmoud" &&
+    deliveredTea.mahmoud_invite_near && deliveredTea.mahmoud_story_phase === "",
+    "Mahmoud didn't originate an optional proximity-gated call after HIS real delivery");
+  const npcLoading = (traces.E4_NPC_LOADING || []).length;
+  const npcStarted = (traces.E4_NPC_STARTED || []).length;
+  await press("m"); // The NPC initiated an offer; only the player's response opens Ink.
+  if ((traces.E4_NPC_LOADING || []).length > npcLoading) {
+    await until("E4_NPC_STARTED",npcStarted);
+  } else {
+    await until("E4_NPC_STARTED",npcStarted);
+  }
+  await press("Enter");
+  const npcLine = await until("E4_NPC_LINE");
+  check(npcLine.mahmoud_story_phase === "running", "Mahmoud's real Ink line didn't commit");
+  await press("Enter");
+  const npcChoices = await until("E4_NPC_WAITING");
+  check(npcChoices.mahmoud_story_phase === "choice" && npcChoices.mahmoud_story_choices?.length === 2,
+    "NPC initiation skipped player choice");
+  await press("2"); // Stable option ID order: busy, listen.
+  const npcChoice = await until("E4_NPC_CHOICE");
+  check(npcChoice.mahmoud_story_phase === "running", "accepting NPC dialogue didn't commit Ink choice");
+  await press("Enter"); await until("E4_NPC_LINE",1);
+  await press("Enter"); await until("E4_NPC_LINE",2);
+  await press("Enter");
+  const npcFinished = await until("E4_NPC_FINISHED");
+  check(npcFinished.mahmoud_story_phase === "finished", "NPC-initiated story didn't finish");
+  const deniedNpcIndex = (traces.E4_NPC_REJECTED || []).length;
+  await press("m");
+  const deniedNpc = await until("E4_NPC_REJECTED",deniedNpcIndex);
+  check(deniedNpc.mahmoud_story_phase === "finished", "NPC conversation offered again after completion");
   // Approach the physical riverside quiet spot; spend authored time while
   // a real NPC has received his tea. No Mood/finance reward.
   await moveDiagonal(480);
@@ -272,7 +303,7 @@ try {
     "NPC position changed on Chromium hard reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
     restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed &&
-    restored.river_story_phase === "choice", "browser reload lost game state or real Ink pending choice");
+    restored.river_story_phase === "choice" && restored.mahmoud_story_phase === "finished", "browser reload lost game state or either canonical Ink story");
   await press("n");
   const resumedStory = await until("E4_STORY_RESUMED");
   check(resumedStory.river_story_phase === "choice" && resumedStory.river_story_choices?.length === 2,
@@ -321,6 +352,7 @@ try {
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
+  console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: real delivered tea triggered Mahmoud invite; player consent, native Ink choice and no repeat persisted after hard reload");
   console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
