@@ -1,6 +1,6 @@
 # E4 — NPC-initiated conversation after a real customer interaction
 
-**Status: proposed until exact-head Native + Web/Ink verification.** Builds on the merged [E4 authored triggers](E4_CANONICAL_EVENT_OPPORTUNITIES.md) and [player-selected Ink session](E4_RIVER_INK_CONVERSATION.md).
+**Status: VERIFIED / MERGED 2026-10-18** — [PR #80](https://github.com/MohamedXIV/nile-kiosk/pull/80), squash `f510c82128d1812639628a15cd7e9c879eb41e8b`; exact tested head `3b8fb85ba15781e1af1a46c733e65120124d3990` passed [Full Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39080572400) and [Full Web/Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39080572356), including `E4 NPC INVITATION: PASS`, `E4_NPC_INITIATIVE_CHROMIUM_PASS` and existing `E4_STORY_CHROMIUM_PASS`. One bounded NPC initiative, not a completed E4 social simulation. Builds on the merged [E4 authored triggers](E4_CANONICAL_EVENT_OPPORTUNITIES.md) and [player-selected Ink session](E4_RIVER_INK_CONVERSATION.md).
 
 ## One concrete in-world loop
 
