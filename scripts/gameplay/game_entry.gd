@@ -20,6 +20,8 @@ const TEA_REACTIONS_POLICY = "res://content/service/nile_tea_reactions.v1.json"
 const EXCHANGE_POLICY = "res://content/social/nile_kiosk_exchange.v1.json"
 const RIVER_STORY_POLICY = "res://content/social/nile_river_reflection.v1.json"
 const RIVER_STORY_ID = "river_watch_reflection"
+const MAHMOUD_STORY_POLICY = "res://content/social/nile_mahmoud_after_tea.v1.json"
+const MAHMOUD_STORY_ID = "mahmoud_after_tea"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -34,6 +36,7 @@ var tea_actions: Dictionary = {}
 var tea_reactions: Dictionary = {}
 var exchange_pack: Dictionary = {}
 var river_story_pack: Dictionary = {}
+var mahmoud_story_pack: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -189,6 +192,18 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var registered: Dictionary = session.command("game:e4:river:story:v1", "system:narrative",
             "narrative.story.register", river_story_pack["story"])
         if not registered.get("ok", false): return registered
+    if not FileAccess.file_exists(MAHMOUD_STORY_POLICY):
+        return {"ok":false,"code":"MAHMOUD_STORY_MANIFEST_NOT_FOUND"}
+    var mahmoud_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(MAHMOUD_STORY_POLICY))
+    if typeof(mahmoud_raw) != TYPE_DICTIONARY or mahmoud_raw.size() != 5 or mahmoud_raw.get("schema") != 1 or mahmoud_raw.get("opportunity_id") != MAHMOUD_STORY_ID or mahmoud_raw.get("session_id") != MAHMOUD_STORY_ID or typeof(mahmoud_raw.get("story")) != TYPE_DICTIONARY or typeof(mahmoud_raw.get("ink_path")) != TYPE_STRING:
+        return {"ok":false,"code":"INVALID_MAHMOUD_STORY_MANIFEST"}
+    if not str(mahmoud_raw["ink_path"]).begins_with("res://content/ink/") or not str(mahmoud_raw["ink_path"]).ends_with(".ink.json") or str(mahmoud_raw["ink_path"]).contains("..") or mahmoud_raw["story"].get("story_id","") != MAHMOUD_STORY_ID:
+        return {"ok":false,"code":"INVALID_MAHMOUD_STORY_PATH"}
+    mahmoud_story_pack = mahmoud_raw.duplicate(true)
+    if not session.world.narrative_view()["stories"].has(MAHMOUD_STORY_ID):
+        var registered_mahmoud: Dictionary = session.command("game:e4:mahmoud:story:v1", "system:narrative",
+            "narrative.story.register", mahmoud_story_pack["story"])
+        if not registered_mahmoud.get("ok", false): return registered_mahmoud
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -559,6 +574,53 @@ func river_story_choose(option_id: String) -> Dictionary:
         return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_choose(RIVER_STORY_ID, option_id, _id("story_choose"))
 
+func mahmoud_story_session() -> Dictionary:
+    return session.world.narrative_session(MAHMOUD_STORY_ID)
+
+func mahmoud_invitation() -> Dictionary:
+    return session.world.narrative_opportunities().get(MAHMOUD_STORY_ID, {}).duplicate(true)
+
+func mahmoud_invite_near() -> bool:
+    var offer: Dictionary = mahmoud_invitation()
+    if offer.is_empty() or offer.has("declined_event_id") or mahmoud_story_session().get("phase","") == "finished":
+        return false
+    if room() != "kiosk" or session.world.npc("mahmoud").get("location_id","") != "kiosk":
+        return false
+    var pose: Dictionary = npc_pose("mahmoud")
+    return not pose.is_empty() and position().distance_to(pose["position"]) <= Graph.RADIUS
+
+func mahmoud_story_begin() -> Dictionary:
+    var offer: Dictionary = mahmoud_invitation()
+    if offer.is_empty(): return {"ok":false,"code":"STORY_NOT_UNLOCKED"}
+    if offer.has("declined_event_id"): return {"ok":false,"code":"OPPORTUNITY_DECLINED"}
+    var active: Dictionary = mahmoud_story_session()
+    if active.get("phase","") == "finished": return {"ok":false,"code":"STORY_ALREADY_FINISHED"}
+    if not mahmoud_invite_near(): return {"ok":false,"code":"MAHMOUD_TOO_FAR"}
+    if session.ink == null or not session.ink.sessions.has(MAHMOUD_STORY_ID):
+        if not session.attach_ink(MAHMOUD_STORY_ID,mahmoud_story_pack["ink_path"]):
+            return {"ok":false,"code":"INK_STORY_NOT_FOUND"}
+    if not session.ink_ready(MAHMOUD_STORY_ID):
+        return {"ok":false,"code":"INK_LOADING"}
+    if not active.is_empty(): return {"ok":true,"code":"RESUMED","phase":active["phase"]}
+    var result: Dictionary = session.ink_begin_opportunity(MAHMOUD_STORY_ID,MAHMOUD_STORY_ID,
+        ["mahmoud","player"],_id("mahmoud_begin"))
+    if result.get("ok",false): result["code"] = "STARTED"
+    return result
+
+func mahmoud_story_decline() -> Dictionary:
+    if not mahmoud_invite_near():
+        return {"ok":false,"code":"INVITATION_NOT_NEARBY"}
+    return session.command(_id("mahmoud_decline"),"system:narrative","narrative.opportunity.decline",
+        {"opportunity_id":MAHMOUD_STORY_ID})
+
+func mahmoud_story_next() -> Dictionary:
+    if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
+    return session.ink_next(MAHMOUD_STORY_ID,_id("mahmoud_next"))
+
+func mahmoud_story_choose(option_id: String) -> Dictionary:
+    if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
+    return session.ink_choose(MAHMOUD_STORY_ID,option_id,_id("mahmoud_choose"))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -629,6 +691,10 @@ func status() -> Dictionary:
         "story_opportunities": session.world.narrative_opportunities(),
         "river_story_phase": str(river_story_session().get("phase","")),
         "river_story_choices": session.ink_choices(RIVER_STORY_ID) if session.ink_ready(RIVER_STORY_ID) else [],
+        "mahmoud_invitation": mahmoud_invitation(),
+        "mahmoud_invite_near": mahmoud_invite_near(),
+        "mahmoud_story_phase": str(mahmoud_story_session().get("phase","")),
+        "mahmoud_story_choices": session.ink_choices(MAHMOUD_STORY_ID) if session.ink_ready(MAHMOUD_STORY_ID) else [],
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
         "radio_uses": int(radio_state.get("use_count",0)),

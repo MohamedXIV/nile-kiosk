@@ -17,7 +17,7 @@ static func exact(p: Dictionary, keys: Array) -> bool:
     return true
 
 static func owns(kind: String) -> bool:
-    return kind in ["narrative.story.register", "narrative.opportunity.register", "narrative.opportunity.begin", "narrative.session.start",
+    return kind in ["narrative.story.register", "narrative.opportunity.register", "narrative.opportunity.begin", "narrative.opportunity.decline", "narrative.session.start",
         "narrative.line.commit", "narrative.choice.wait", "narrative.choice.select",
         "narrative.session.finish"]
 
@@ -26,6 +26,7 @@ static func event_kind(kind: String) -> String:
         "narrative.story.register": return "narrative.story_registered"
         "narrative.opportunity.register": return "narrative.opportunity_registered"
         "narrative.opportunity.begin": return "narrative.opportunity_begun"
+        "narrative.opportunity.decline": return "narrative.opportunity_declined"
         "narrative.session.start": return "narrative.session_started"
         "narrative.line.commit": return "narrative.line_committed"
         "narrative.choice.wait": return "narrative.choice_waiting"
@@ -38,6 +39,7 @@ static func command_kind(kind: String) -> String:
         "narrative.story_registered": return "narrative.story.register"
         "narrative.opportunity_registered": return "narrative.opportunity.register"
         "narrative.opportunity_begun": return "narrative.opportunity.begin"
+        "narrative.opportunity_declined": return "narrative.opportunity.decline"
         "narrative.session_started": return "narrative.session.start"
         "narrative.line_committed": return "narrative.line.commit"
         "narrative.choice_waiting": return "narrative.choice.wait"
@@ -153,7 +155,11 @@ func observe_event(event: Dictionary, world: RefCounted) -> void:
 func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs: Dictionary, minute: int) -> Dictionary:
     if kind == "narrative.opportunity.register":
         if actor != "system:narrative": return fail("UNAUTHORIZED")
-        if not exact(p, ["opportunity_id", "trigger_event", "when"]) or not id(p.get("opportunity_id")) or not id(p.get("trigger_event")):
+        var expected_fields: Array = ["opportunity_id", "trigger_event", "when", "initiator_npc_id"] if p.has("initiator_npc_id") else ["opportunity_id", "trigger_event", "when"]
+        if not exact(p, expected_fields) or not id(p.get("opportunity_id")) or not id(p.get("trigger_event")):
+            return fail("INVALID_OPPORTUNITY")
+        if p.has("initiator_npc_id") and (not id(p["initiator_npc_id"]) or not society.npcs.has(p["initiator_npc_id"]) or p["trigger_event"] != "order.delivered"):
+            return fail("INVALID_OPPORTUNITY")
             return fail("INVALID_OPPORTUNITY")
         if p["trigger_event"] == "narrative.opportunity_registered" or not OpportunityRules.valid_condition(p.get("when")):
             return fail("INVALID_OPPORTUNITY")
@@ -168,6 +174,18 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         return {"ok": true, "effect": {"story_id": p["story_id"]}}
     if actor != "system:narrative":
         return fail("UNAUTHORIZED")
+    if kind == "narrative.opportunity.decline":
+        if not exact(p, ["opportunity_id"]) or not id(p.get("opportunity_id")):
+            return fail("INVALID_PAYLOAD")
+        var opportunity_id: String = p["opportunity_id"]
+        if not opportunities.has(opportunity_id): return fail("OPPORTUNITY_LOCKED")
+        if not opportunity_rules[opportunity_id].has("initiator_npc_id"):
+            return fail("NOT_NPC_INVITATION")
+        if opportunities[opportunity_id].has("declined_event_id"): return fail("OPPORTUNITY_DECLINED")
+        for existing in sessions.values():
+            if existing.get("opportunity_id", "") == opportunity_id:
+                return fail("OPPORTUNITY_ALREADY_STARTED")
+        return {"ok": true, "effect": {"opportunity_id": opportunity_id}}
     if kind in ["narrative.session.start", "narrative.opportunity.begin"]:
         var offered: bool = kind == "narrative.opportunity.begin"
         var required: Array = ["session_id", "story_id", "participants", "ink_state", "opportunity_id"] if offered else ["session_id", "story_id", "participants", "ink_state"]
@@ -178,6 +196,8 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         if offered:
             if not id(p.get("opportunity_id")) or not opportunities.has(p["opportunity_id"]):
                 return fail("OPPORTUNITY_LOCKED")
+            if opportunities[p["opportunity_id"]].has("declined_event_id"):
+                return fail("OPPORTUNITY_DECLINED")
             if p["story_id"] != p["opportunity_id"] or typeof(p.get("participants")) != TYPE_ARRAY or not p["participants"].has("player"):
                 return fail("INVALID_OPPORTUNITY_PARTICIPANTS")
             for existing in sessions.values():
@@ -256,6 +276,9 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
             opportunity_rules[p["opportunity_id"]] = p.duplicate(true)
         "narrative.story.register":
             stories[p["story_id"]] = p.duplicate(true)
+        "narrative.opportunity.decline":
+            opportunities[p["opportunity_id"]]["declined_event_id"] = event_id
+            opportunities[p["opportunity_id"]]["declined_minute"] = minute
         "narrative.session.start", "narrative.opportunity.begin":
             sessions[p["session_id"]] = {"session_id": p["session_id"], "story_id": p["story_id"],
                 "participants": p["participants"].duplicate(true), "location_id": effect["location_id"],

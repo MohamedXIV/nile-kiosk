@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "opportunity_id": "mahmoud_after_tea",
+  "session_id": "mahmoud_after_tea",
+  "ink_path": "res://content/ink/nile_mahmoud_after_tea.ink.json",
+  "story": {
+    "story_id": "mahmoud_after_tea",
+    "beats": {
+      "mahmoud_open": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "mahmoud_listen": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "mahmoud_busy": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "mahmoud_end": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      }
+    },
+    "choice_points": {
+      "mahmoud_choice": {
+        "listen": {
+          "text": "Go ahead. I'm listening.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        },
+        "busy": {
+          "text": "Not right now, sorry.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        }
+      }
+    }
+  }
+}
