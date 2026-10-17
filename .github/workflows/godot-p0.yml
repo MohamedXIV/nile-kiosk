@@ -194,6 +194,12 @@ jobs:
           godot --headless --path . --script res://tests/test_e1_quiet_moments.gd 2>&1 | tee /tmp/e1-quiet.log
           grep -q 'E1 QUIET MOMENTS: PASS' /tmp/e1-quiet.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E1 QUIET MOMENTS: FAIL)' /tmp/e1-quiet.log; then exit 1; fi
+      - name: E1 P2 radio — actual P5 object use, scheduler and save replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e1_radio.gd 2>&1 | tee /tmp/e1-radio.log
+          grep -q 'E1 RADIO: PASS' /tmp/e1-radio.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E1 RADIO: FAIL)' /tmp/e1-radio.log; then exit 1; fi
       - name: Run deterministic P0 tests
         run: godot --headless --path . --script res://tests/test_p0.gd
       - name: Run Dialogue Manager P1 integration tests
