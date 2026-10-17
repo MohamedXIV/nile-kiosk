@@ -57,7 +57,7 @@ func _run() -> void:
     var served: Dictionary = g.service_near()
     check(served.get("kind","")=="order.deliver","real prepared tea was not delivered")
     var invite: Dictionary = g.mahmoud_invitation()
-    check(invite.get("source_event_id","")==served.get("event_id",""),"not sourced from actual delivery event")
+    check(invite.get("source_event_id","")==g.customer_reaction().get("source_event_id",""),"not sourced from actual delivery event")
     check(invite.get("initiator_npc_id","")=="mahmoud","wrong NPC initiated contact")
     check(g.mahmoud_invite_near(),"real NPC didn't call player within physical proximity")
     check(g.mahmoud_story_session().is_empty(),"NPC silently started conversation without consent")
