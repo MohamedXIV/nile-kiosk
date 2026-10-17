@@ -79,6 +79,19 @@ func run() -> void:
     check(g.session.command("e2:meal:eat","player","needs.eat",{"item_id":item_id}).get("ok",false),"duplicate receipt")
     check(g.status()["digest"]==eaten,"duplicate eating granted food twice")
     check(g.session.command("e2:meal:again","player","needs.eat",{"item_id":item_id}).get("code")=="ITEM_NOT_READY","second item consumption rejected")
+    # Real player-facing self-meal interaction, using the same stock/stations
+    # and prepared items as P3 rather than a second hunger inventory.
+    check(g.personal_bread_near().get("code","")=="COUNTER_TOO_FAR","personal food proximity")
+    for i in range(4): check(g.move_world(18,0).get("ok",false),"approach counter")
+    check(g.personal_bread_near().get("phase","")=="start","personal recipe starts")
+    check(g.personal_bread_near().get("phase","")=="begin","personal recipe begins")
+    check(g.personal_bread_near().get("code","")=="STEP_NOT_READY","cannot skip preparation")
+    check(g.wait_minutes(1).get("ok",false),"personal preparation time")
+    check(g.personal_bread_near().get("phase","")=="finish","personal bread ready")
+    var pre_second_meal: int = g.status()["hunger"]
+    check(g.personal_bread_near().get("phase","")=="eat","player eats prepared bread")
+    check(g.status()["hunger"] == mini(100,pre_second_meal+24),"personal meal restored actual need")
+    eaten = g.status()["digest"]
     check(g.save_game().get("ok",false),"disk and replay")
     var loaded: RefCounted = Game.new()
     check(loaded.start(SAVE).get("code")=="RESTORED","disk reload")
