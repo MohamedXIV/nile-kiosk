@@ -59,13 +59,13 @@ func _process(delta: float) -> void:
     _process_clock()
 
 func _process_movement() -> void:
-        var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
-        var dy: int = int(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) - int(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
-        if dx != 0 or dy != 0:
-            var intended: Vector2i = Game.screen_delta(dx,dy)
-            if _player_move_clear(Vector2(intended)):
-                var moved: Dictionary = game.move_screen(dx, dy)
-                if moved.get("ok", false): queue_redraw()
+    var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
+    var dy: int = int(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) - int(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
+    if dx != 0 or dy != 0:
+        var intended: Vector2i = Game.screen_delta(dx,dy)
+        if _player_move_clear(Vector2(intended)):
+            var moved: Dictionary = game.move_screen(dx, dy)
+            if moved.get("ok", false): queue_redraw()
 
 func _process_clock() -> void:
     if minute_elapsed >= MINUTE_INTERVAL:
@@ -194,9 +194,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_ENTER, KEY_KP_ENTER:
                 if story_open: _story_action("next")
             KEY_1:
-                if story_open: _story_action("choose", "rest")
-            KEY_2:
                 if story_open: _story_action("choose", "city")
+            KEY_2:
+                if story_open: _story_action("choose", "rest")
             KEY_ESCAPE:
                 story_open = false
                 story_pending = false
