@@ -139,8 +139,10 @@ try {
   await press("j");
   const afterWait = await until("E6_GAME_WAIT",2);
   check(afterWait.minute >= 1035 && afterWait.npc_mahmoud === "kiosk" && afterWait.order_status === "offered", "autonomous order did not appear");
-  check(afterWait.npc_mahmoud_mode === "approaching" && afterWait.npc_mahmoud_x === 200 &&
-    afterWait.npc_mahmoud_y === 110, "real customer didn't begin walking from his standing spot");
+  // Chromium's J wait advances five full world minutes, so the two-minute
+  // approach has already finished when the first polled offer is observed.
+  check(afterWait.npc_mahmoud_mode === "counter" && afterWait.npc_mahmoud_x === 145 &&
+    afterWait.npc_mahmoud_y === 85, "real customer didn't reach the service counter");
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");
