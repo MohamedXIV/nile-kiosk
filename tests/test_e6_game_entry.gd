@@ -83,6 +83,22 @@ func _run() -> void:
     check(not g.graph.configure_walkable(bad_mesh).get("ok",false),"invalid duplicate mesh blocker accepted")
     check(g.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
         "failed nav config altered active Godot AStarGrid2D")
+    # Grid-center solids alone are insufficient: an off-grid NPC can stand
+    # inside the four-unit padded footprint even if its rounded cell is free.
+    # The engine must reject such authored geometry, not return a clipping path.
+    var clearance_grid: Dictionary = {"schema":1,"room_id":"kiosk",
+        "x_edges":[8,65,68,240],"y_edges":[8,77,82,160],
+        "blocked_cells":[[1,1]]}
+    var KioskNav = load("res://scripts/integration/kiosk_navigation.gd")
+    var clearance_probe: RefCounted = KioskNav.new()
+    var clearance_result: Dictionary = clearance_probe.configure(
+        clearance_grid,{"width":240,"height":160},
+        [Vector2(62,80)],[Vector2(80,80)])
+    check(clearance_result.get("code","")=="NAV_CLEARANCE_BLOCKED",
+        "off-grid NPC endpoint slipped into padded furniture despite AStarGrid2D")
+    clearance_probe.dispose()
+    check(g.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
+        "negative clearance configuration must not change the live visitor route")
     var approaching: Dictionary = g.npc_pose("mahmoud")
     check(approaching.get("mode","")=="approaching" and
         approaching.get("position",Vector2.ZERO)==Vector2(200,110),
