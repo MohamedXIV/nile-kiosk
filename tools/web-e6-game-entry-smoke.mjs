@@ -77,6 +77,13 @@ try {
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");
+  // Approach the physical riverside quiet spot; spend authored time while
+  // a real NPC has an accepted order. No fake Mood/finance reward.
+  await moveDiagonal(480);
+  await press("q");
+  const riverMoment = await until("E6_GAME_QUIET");
+  check(riverMoment.quiet_count === 1 && riverMoment.last_quiet === "river_watch" &&
+    riverMoment.order_status === "accepted", "quiet moment lost the live customer order");
   await press("p");
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "accepted" && saved.location === "kiosk", "save after order acceptance");
@@ -84,12 +91,13 @@ try {
   await page.waitForTimeout(1600);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
-  check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted",
+  check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 1,
     "browser reload lost game state, pending order or location");
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
   check(closed.kiosk_open === false && closed.location === "kiosk", "early voluntary close failed");
-  await walkBack(940);
+  // The river spot is deliberately farther from the exit than the counter.
+  await walkBack(1400);
   await press("e");
   const backStreet = await until("E6_GAME_DOOR",3);
   check(backStreet.location === "street", "kiosk-to-street return");
@@ -101,6 +109,10 @@ try {
   await press("e");
   const backHome = await until("E6_GAME_DOOR",5);
   check(backHome.location === "roof", "landing-to-home return");
+  await press("q");
+  const rooftopMoment = await until("E6_GAME_QUIET",1);
+  check(rooftopMoment.quiet_count === 2 && rooftopMoment.last_quiet === "roof_breeze" &&
+    rooftopMoment.money === saved.money, "roof moment or no-reward boundary failed");
   await press("z");
   const slept = await until("E6_GAME_SLEEP");
   check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open,
@@ -110,12 +122,13 @@ try {
   await page.waitForTimeout(1700);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
-  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 &&
+  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 2 &&
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
+  console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
 } finally {
   await context.close();
   await browser.close();

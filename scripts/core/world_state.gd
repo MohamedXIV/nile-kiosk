@@ -211,12 +211,15 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
     if DailyLife.owns(kind):
         var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, world_minute)
         if not step.get("ok", false): return step
-        if kind == "life.sleep":
+        if kind in ["life.sleep","life.activity"]:
             if paused: return {"ok":false,"code":"PAUSED"}
-            var slept: Dictionary = _plan_time_effect(int(step["effect"]["to_minute"]))
-            if not slept.get("ok", false): return slept
-            slept["effect"]["wake_day"] = step["effect"]["wake_day"]
-            return slept
+            var elapsed: Dictionary = _plan_time_effect(int(step["effect"]["to_minute"]))
+            if not elapsed.get("ok", false): return elapsed
+            if kind == "life.sleep":
+                elapsed["effect"]["wake_day"] = step["effect"]["wake_day"]
+            else:
+                elapsed["effect"]["activity_id"] = step["effect"]["activity_id"]
+            return elapsed
         return step
     if SpatialWorld.owns(kind):
         return spatial.plan(kind, payload, actor_id, society, housing)
@@ -422,7 +425,7 @@ func _apply_event(raw: Dictionary) -> bool:
             if not acknowledgements.has(request["consumer_id"]):
                 acknowledgements[request["consumer_id"]] = {}
             acknowledgements[request["consumer_id"]][request["fire_id"]] = true
-        "time.advance", "life.sleep":
+        "time.advance", "life.sleep", "life.activity":
             for fire in planned["effect"]["fires"]:
                 var job: Dictionary = jobs[fire["job_id"]]
                 job["execution_count"] += 1
