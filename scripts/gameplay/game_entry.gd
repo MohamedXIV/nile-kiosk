@@ -10,6 +10,7 @@ const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
+const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -18,6 +19,7 @@ const COUNTER_RADIUS = 48.0
 var session: RefCounted
 var graph: RefCounted
 var quiet_captions: Dictionary = {}
+var radio_pack: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -51,6 +53,24 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var configured_quiet: Dictionary = session.command("game:life:quiet:v1","system:director",
             "life.activities.configure",{"activities":quiet["activities"]})
         if not configured_quiet.get("ok",false): return configured_quiet
+    if not FileAccess.file_exists(RADIO_POLICY):
+        return {"ok":false,"code":"RADIO_POLICY_NOT_FOUND"}
+    var radio_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(RADIO_POLICY))
+    if typeof(radio_raw) != TYPE_DICTIONARY or radio_raw.size() != 7 or radio_raw.get("schema") != 1 or typeof(radio_raw.get("type")) != TYPE_DICTIONARY or typeof(radio_raw.get("activity")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_RADIO_POLICY"}
+    radio_pack = radio_raw.duplicate(true)
+    var h: Dictionary = session.world.housing_view()
+    if not h["types"].has(radio_pack["type"]["type_id"]):
+        var item_type: Dictionary = session.command("game:radio:type:v1","system:catalog",
+            "home.type.define",radio_pack["type"])
+        if not item_type.get("ok",false): return item_type
+    var has_activity: bool = false
+    for activity in quiet_activities():
+        if activity["id"] == radio_pack["activity"]["id"]: has_activity = true
+    if not has_activity:
+        var radio_activity: Dictionary = session.command("game:radio:activity:v1","system:director",
+            "life.activities.extend",{"activities":[radio_pack["activity"]]})
+        if not radio_activity.get("ok",false): return radio_activity
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -135,6 +155,33 @@ func quiet_near() -> Dictionary:
         response["caption"] = quiet_captions.get(chosen["id"],"A quiet moment passes.")
     return response
 
+func buy_radio() -> Dictionary:
+    # Temporary neighborhood-order affordance, not a finished supplier UI.
+    if room() != radio_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    var item_id: String = str(radio_pack["object_id"])
+    return session.command(_id("radio_buy"),"player","home.object.acquire",
+        {"object_id":item_id,"type_id":radio_pack["type"]["type_id"],
+        "transaction_id":"opening:radio:purchase:1"})
+
+func place_radio() -> Dictionary:
+    if room() != radio_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    return session.command(_id("radio_place"),"player","home.object.place",
+        {"object_id":radio_pack["object_id"],"unit_id":radio_pack["unit_id"],
+        "slot_id":radio_pack["slot_id"]})
+
+func store_radio() -> Dictionary:
+    if room() != radio_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    return session.command(_id("radio_store"),"player","home.object.store",
+        {"object_id":radio_pack["object_id"]})
+
+func listen_radio() -> Dictionary:
+    var response: Dictionary = session.command(_id("radio_listen"),"player","life.activity",
+        {"activity_id":radio_pack["activity"]["id"]})
+    if response.get("ok",false):
+        response["activity_id"] = radio_pack["activity"]["id"]
+        response["caption"] = radio_pack["caption"]
+    return response
+
 func wait_minutes(minutes: int = 5) -> Dictionary:
     if minutes < 1 or minutes > 5:
         return {"ok":false,"code":"INVALID_WAIT"}
@@ -153,6 +200,7 @@ func status() -> Dictionary:
             pending.append(str(key))
     pending.sort()
     var active: Dictionary = orders.get(pending[0], {}) if not pending.is_empty() else {}
+    var radio_state: Dictionary = v["housing"]["objects"].get(radio_pack.get("object_id",""),{})
     var last_quiet: String = ""
     var quiet_count: int = 0
     for event in v["events"]:
@@ -174,6 +222,9 @@ func status() -> Dictionary:
         "kiosk_open": bool(v["life"]["open"]),
         "sleep_count": int(v["life"]["sleep_count"]),
         "quiet_count": quiet_count,
+        "radio_owned": not radio_state.is_empty(),
+        "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
+        "radio_uses": int(radio_state.get("use_count",0)),
         "last_quiet": last_quiet,
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
