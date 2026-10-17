@@ -140,7 +140,10 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     if exchange["lines"].size() != 2 or not exchange.has("first_minute") or not exchange.has("beat_minutes") or not exchange.has("visible_minutes"):
         return {"ok":false,"code":"INVALID_EXCHANGE"}
     for field in ["first_minute","beat_minutes","visible_minutes"]:
-        if typeof(exchange[field]) != TYPE_INT:
+        # Godot JSON.parse_string may represent integer literals as floats.
+        # Accept only exact, finite integer values, like existing world policy.
+        var number: Variant = exchange[field]
+        if typeof(number) not in [TYPE_INT,TYPE_FLOAT] or not is_finite(float(number)) or float(number) != float(int(number)):
             return {"ok":false,"code":"INVALID_EXCHANGE"}
     if int(exchange["first_minute"]) < 0 or int(exchange["beat_minutes"]) < 4 or int(exchange["visible_minutes"]) < 1 or int(exchange["visible_minutes"]) >= int(exchange["beat_minutes"]):
         return {"ok":false,"code":"INVALID_EXCHANGE"}
