@@ -29,6 +29,8 @@ func _run() -> void:
     check(g.room()=="roof" and g.status()["minute"]==1020,"initial roof at authored opening time")
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
     check(g.status()["npc_mahmoud"]=="street","visitor not pre-teleported")
+    check(g.npc_pose("mahmoud").is_empty(),"absent visitor cannot be drawn")
+    check(not g.graph.configure_visit_spots({"schema":1}).get("ok",false),"invalid visits must reject")
     var digest_before: String = g.status()["digest"]
     check(g.move_world(60,0)["code"]=="INVALID_DELTA","no movement teleport")
     check(g.status()["digest"]==digest_before,"invalid move wrote event")
@@ -51,6 +53,10 @@ func _run() -> void:
         check(g.wait_minutes().get("ok",false),"real clock waiting")
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
+    var approaching: Dictionary = g.npc_pose("mahmoud")
+    check(approaching.get("mode","")=="approaching" and
+        approaching.get("position",Vector2.ZERO)==Vector2(200,110),
+        "visitor didn't begin from authored standing position on real offer")
     check(g.customer_reaction().is_empty(),"customer cannot react before delivery")
     var first: Dictionary = g.service_near()
     check(first.get("ok",false) and first.get("kind","")=="order.accept","accept real order")
@@ -92,6 +98,11 @@ func _run() -> void:
     check(slow_again.restore_snapshot(slow.view()) and slow_again.prepared_quality(item_id)==rough,
         "late cup quality changed across canonical replay")
     check(restored.wait_minutes(2).get("ok",false),"wait for heat")
+    var at_counter: Dictionary = restored.npc_pose("mahmoud")
+    check(at_counter.get("mode","")=="counter" and at_counter.get("position",Vector2.ZERO)==Vector2(145,85),
+        "visitor failed to reach authored counter with canonical time")
+    check(restored.graph.nearby_npc(restored.session,restored.position()).get("npc_id","")=="mahmoud",
+        "hearing target disagrees with visible counter position")
     check(restored.tea_action_near("H").get("kind","")=="cook.step.finish","player lifts hot kettle")
     check(restored.tea_action_near("U").get("kind","")=="cook.step.begin","player pours tea")
     check(restored.wait_minutes(1).get("ok",false),"wait for serving")
@@ -113,6 +124,9 @@ func _run() -> void:
         "reaction unlinked from real P4 delivery event")
     check(served.get("customer_reaction",{})==reply and restored.status()["customer_reaction"]==reply["line"],
         "customer response not visible to production gameplay")
+    check(restored.npc_pose("mahmoud").get("mode","")=="returning" and
+        restored.npc_pose("mahmoud").get("position",Vector2.ZERO)==Vector2(145,85),
+        "visitor jumped to anchor on delivery")
     check(restored.service_near().get("kind","")=="economy.order.quote","quote")
     check(restored.service_near().get("kind","")=="economy.order.settle","settle")
     check(restored.status()["money"]==6200,"no duplicate payment")
@@ -124,6 +138,13 @@ func _run() -> void:
     check(final.session.world.prepared_quality(item_id)==balanced and final.status()["tea_quality"]=="good",
         "delivered tea lost immutable quality after paid service and disk reload")
     check(final.customer_reaction()==reply,"delivered response lost after canonical P5 settlement and save")
+    check(final.npc_pose("mahmoud")==restored.npc_pose("mahmoud"),
+        "visitor position changed after P5 settlement and world reload")
+    check(final.wait_minutes(3).get("ok",false),"advance world while visitor steps away")
+    check(final.npc_pose("mahmoud").get("mode","")=="standing" and
+        final.npc_pose("mahmoud").get("position",Vector2.ZERO)==Vector2(200,110),
+        "visitor did not return to standing spot")
+    check(final.status()["money"]==6200,"visual visit changed economy")
     var same: String = final.status()["digest"]
     check(final.service_near()["code"]=="NO_ACTIVE_ORDER","already served customer can no longer order again")
     check(final.status()["digest"]==same,"rejected second service changed delivery/reaction")
@@ -133,8 +154,8 @@ func _run() -> void:
             record["world_minute"] = int(record["world_minute"]) + 1
             break
     check(not final.session.world.restore_snapshot(forged),"changed cooking timing bypassed event replay")
-    check(final.status()["digest"]==once,"failed event replay changed live world")
+    check(final.status()["digest"]==same,"failed event replay changed live world")
     check(final.service_near()["code"]=="NO_ACTIVE_ORDER","no duplicate order service")
-    check(final.status()["digest"]==once,"rejected service mutated settled state")
+    check(final.status()["digest"]==same,"rejected service mutated settled state")
     for obj in [g,restored,final]: obj.dispose()
     if FileAccess.file_exists(SAVE): DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))

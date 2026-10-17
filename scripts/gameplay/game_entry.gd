@@ -7,6 +7,7 @@ const Demand = preload("res://scripts/integration/customer_demand_config.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
+const VISITS = "res://content/navigation/nile_kiosk_visit_spots.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
@@ -41,6 +42,11 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
     if not parsed.get("ok", false): return parsed
     graph = parsed["graph"]
+    if not FileAccess.file_exists(VISITS):
+        return {"ok":false,"code":"VISIT_SPOTS_NOT_FOUND"}
+    var visit_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(VISITS))
+    var configured_visits: Dictionary = graph.configure_visit_spots(visit_data)
+    if not configured_visits.get("ok",false): return configured_visits
     if session.world.view()["life"]["policy"].is_empty():
         if not FileAccess.file_exists(DAILY_POLICY):
             return {"ok":false,"code":"DAILY_POLICY_NOT_FOUND"}
@@ -141,6 +147,9 @@ func room() -> String:
 func position() -> Vector2:
     var p: Dictionary = session.world.spatial_view()["player"]
     return Vector2(int(p["x"]), int(p["y"]))
+
+func npc_pose(npc_id: String) -> Dictionary:
+    return graph.npc_pose(session,npc_id)
 
 func _id(action: String) -> String:
     return "game:e6:%s:%d" % [action, int(session.world.view()["sequence"]) + 1]
@@ -444,6 +453,8 @@ func status() -> Dictionary:
             last_quiet = str(event["payload"]["request"]["activity_id"])
     var tea_context: Dictionary = active_tea_step()
     var spoken: Dictionary = customer_reaction()
+    var mahmoud_pose: Dictionary = npc_pose("mahmoud")
+    var mahmoud_xy: Vector2 = mahmoud_pose.get("position",Vector2.ZERO)
     var latest_tea: Dictionary = {}
     for item in v["cooking"]["items"].values():
         if str(item["recipe_id"]) != "tea" or not str(item["job_id"]).begins_with("play:c3:prep:"):
@@ -452,6 +463,9 @@ func status() -> Dictionary:
             latest_tea = item
     var quality: Dictionary = session.world.prepared_quality(str(latest_tea.get("item_id",""))) if not latest_tea.is_empty() else {}
     return {
+        "npc_mahmoud_mode":str(mahmoud_pose.get("mode","absent")),
+        "npc_mahmoud_x":roundi(mahmoud_xy.x),
+        "npc_mahmoud_y":roundi(mahmoud_xy.y),
         "customer_reaction":str(spoken.get("line","")),
         "customer_reaction_npc":str(spoken.get("npc_id","")),
         "customer_reaction_order":str(spoken.get("order_id","")),
