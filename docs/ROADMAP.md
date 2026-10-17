@@ -61,3 +61,6 @@ After SYS P0–P7 and PLAY C1–C6, the next missing work is **player-facing sim
 
 ### E2 P0 — first production needs subset (2026-10-17)
 [PR #68](https://github.com/MohamedXIV/nile-kiosk/pull/68) with [native CI](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39037366128); require green exact-head [Chromium PR checks](https://github.com/MohamedXIV/nile-kiosk/pull/68/checks) to merge. E2 remains OPEN; contextual rooms/heat, nuanced personal meals, ordinary home comforts, longer pacing, balanced mood drift and UX must still be delivered. Numeric values are provisional, never approved balance.
+
+
+**E4 P0 candidate (2026-10-17):** one bounded NPC-to-NPC incidental exchange by Salma and Mahmoud, gated by actual P2 kiosk presence and P1 time, locally audible near their anchors during actual cooking; no new systems, state schema or story effects. Native/Chromium verification pending, exact beat pacing/dialogue proposed. Full E4 conversation/visit/referral gameplay remains open.

@@ -30,6 +30,7 @@ func _run() -> void:
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
     check(g.status()["npc_mahmoud"]=="street","visitor not pre-teleported")
     check(g.npc_pose("mahmoud").is_empty(),"absent visitor cannot be drawn")
+    check(g.ambient_exchange().is_empty(),"no dialogue while on roof or Mahmoud absent")
     check(not g.graph.configure_visit_spots({"schema":1}).get("ok",false),"invalid visits must reject")
     var digest_before: String = g.status()["digest"]
     check(g.move_world(60,0)["code"]=="INVALID_DELTA","no movement teleport")
@@ -57,6 +58,14 @@ func _run() -> void:
     check(approaching.get("mode","")=="approaching" and
         approaching.get("position",Vector2.ZERO)==Vector2(200,110),
         "visitor didn't begin from authored standing position on real offer")
+    check(g.ambient_exchange().is_empty(),"no incidental exchange before the first authored beat")
+    check(g.wait_minutes(4).get("ok",false),"reach first spontaneous NPC aside")
+    var before_aside: String = g.status()["digest"]
+    var first_aside: Dictionary = g.ambient_exchange()
+    check(first_aside.get("npc_id","")=="salma" and first_aside.get("beat",-1)==0 and
+        first_aside.get("line","").contains("river"),"Salma did not speak during real joint presence")
+    check(g.status()["ambient_line"]==first_aside.get("line","") and g.status()["digest"]==before_aside,
+        "ambient projection wrote GameState or failed to reach UI")
     check(g.customer_reaction().is_empty(),"customer cannot react before delivery")
     var first: Dictionary = g.service_near()
     check(first.get("ok",false) and first.get("kind","")=="order.accept","accept real order")
@@ -113,6 +122,13 @@ func _run() -> void:
     check(balanced["score"] > rough["score"],"patient vs delayed tea same quality")
     check(restored.status()["tea_quality"]=="good" and restored.status()["tea_quality_item"]==item_id,
         "real game failed to surface canonical sensory quality")
+    # Nonblocking: Salma's short line remains visible while tea is brewed.
+    check(restored.ambient_exchange().get("npc_id","")=="salma","cooking should not freeze the nearby speaker")
+    check(restored.wait_minutes(5).get("ok",false) and restored.wait_minutes(2).get("ok",false),
+        "advance to the second authored speech beat without moving NPCs by hand")
+    var second_aside: Dictionary = restored.ambient_exchange()
+    check(second_aside.get("npc_id","")=="mahmoud" and second_aside.get("beat",-1)==1 and
+        second_aside.get("line","").contains("still"),"Mahmoud did not answer Salma without player interaction")
     check(restored.customer_reaction().is_empty(),"finished but undelivered cup triggered conversation")
     var served: Dictionary = restored.service_near()
     check(served.get("kind","")=="order.deliver","deliver paid item")
@@ -124,6 +140,7 @@ func _run() -> void:
         "reaction unlinked from real P4 delivery event")
     check(served.get("customer_reaction",{})==reply and restored.status()["customer_reaction"]==reply["line"],
         "customer response not visible to production gameplay")
+    check(restored.ambient_exchange().is_empty(),"incidental remark must give way to genuine customer response")
     check(restored.npc_pose("mahmoud").get("mode","")=="returning" and
         restored.npc_pose("mahmoud").get("position",Vector2.ZERO)==Vector2(145,85),
         "visitor jumped to anchor on delivery")
@@ -138,6 +155,7 @@ func _run() -> void:
     check(final.session.world.prepared_quality(item_id)==balanced and final.status()["tea_quality"]=="good",
         "delivered tea lost immutable quality after paid service and disk reload")
     check(final.customer_reaction()==reply,"delivered response lost after canonical P5 settlement and save")
+    check(final.ambient_exchange().is_empty(),"settled customer response takes precedence")
     check(final.npc_pose("mahmoud")==restored.npc_pose("mahmoud"),
         "visitor position changed after P5 settlement and world reload")
     check(final.wait_minutes(3).get("ok",false),"advance world while visitor steps away")

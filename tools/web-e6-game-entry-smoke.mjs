@@ -134,11 +134,21 @@ try {
   await press("o");
   const opened = await until("E6_GAME_OPEN");
   check(opened.kiosk_open === true, "player did not open the kiosk");
-  await press("j"); await until("E6_GAME_WAIT",0);
-  await press("j"); await until("E6_GAME_WAIT",1);
+  await press("j");
+  const firstAside = await until("E6_GAME_WAIT",0);
+  check(firstAside.minute === 1039 && firstAside.ambient_npc === "salma" &&
+    firstAside.ambient_beat === 0 && firstAside.ambient_line.includes("river"),
+    "Salma did not initiate the authored neighbor exchange");
+  await press("j");
+  const silence = await until("E6_GAME_WAIT",1);
+  check(silence.minute === 1044 && silence.ambient_line === "",
+    "incidental dialogue should leave quiet time between the remarks");
   await press("j");
   const afterWait = await until("E6_GAME_WAIT",2);
   check(afterWait.minute >= 1035 && afterWait.npc_mahmoud === "kiosk" && afterWait.order_status === "offered", "autonomous order did not appear");
+  check(afterWait.ambient_npc === "mahmoud" && afterWait.ambient_beat === 1 &&
+    afterWait.ambient_line.includes("still") && !afterWait.customer_reaction,
+    "Mahmoud did not answer Salma when both neighbors were present");
   // Chromium's J wait advances five full world minutes, so the two-minute
   // approach has already finished when the first polled offer is observed.
   check(afterWait.npc_mahmoud_mode === "counter" && afterWait.npc_mahmoud_x === 145 &&
@@ -168,6 +178,7 @@ try {
   check(lifted.tea_stage === "waiting" && lifted.tea_action === "U", "lifting kettle didn't advance canonical recipe");
   check(lifted.npc_mahmoud_mode === "counter" && lifted.npc_mahmoud_x === 145 &&
     lifted.npc_mahmoud_y === 85, "real NPC didn't reach physical counter");
+  check(lifted.ambient_line === "", "NPC chatter filled an authored silence beat");
   await press("u");
   const poured = await until("E6_GAME_TEA_POUR",1);
   check(poured.tea_stage === "active", "pour action didn't begin P3 serving step");
@@ -176,13 +187,14 @@ try {
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
     "finished tea wasn't authentic prepared item for pending order");
+  check(finishedTea.ambient_line === "", "incidental two-line exchange repeated outside its beat");
   check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
   check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
   await press("g");
   const deliveredTea = await until("E6_GAME_SERVE",3);
-  check(deliveredTea.order_status === "delivered" &&
+  check(deliveredTea.order_status === "delivered" && deliveredTea.ambient_line === "" &&
     deliveredTea.customer_reaction_npc === "mahmoud" &&
     deliveredTea.customer_reaction.includes("strong") &&
     deliveredTea.customer_reaction_order === deliveredTea.active_order &&
@@ -258,6 +270,7 @@ try {
   console.log("E3_TEA_QUALITY_CHROMIUM_PASS: overdue kettle/pour reduces canonical item score, visual quality and hard browser replay");
   console.log("E3_CUSTOMER_REACTION_CHROMIUM_PASS: delivered rough cup triggers authored Mahmoud line, replays after hard Web reload");
   console.log("E4_COUNTER_VISIT_CHROMIUM_PASS: real P4 offer brings guest to counter, service returns him, hearing and rendering share pose and reload");
+  console.log("E4_AMBIENT_EXCHANGE_CHROMIUM_PASS: Salma and Mahmoud exchange two incidental spatial remarks as the player cooks; silence and delivered-cup precedence");
 } finally {
   await context.close();
   await browser.close();

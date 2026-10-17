@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "room_id": "kiosk",
+  "first_minute": 1039,
+  "beat_minutes": 10,
+  "visible_minutes": 5,
+  "lines": [
+    {
+      "speaker_id": "salma",
+      "text": "The river is quiet this evening."
+    },
+    {
+      "speaker_id": "mahmoud",
+      "text": "It never stays still for long."
+    }
+  ]
+}
