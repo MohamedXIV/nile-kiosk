@@ -49,7 +49,9 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
     dispose()
     map_rid = NavigationServer2D.map_create()
     region_rid = NavigationServer2D.region_create()
+    NavigationServer2D.map_set_cell_size(map_rid,poly.cell_size)
     NavigationServer2D.map_set_active(map_rid,true)
+    NavigationServer2D.region_set_transform(region_rid,Transform2D.IDENTITY)
     NavigationServer2D.region_set_enabled(region_rid,true)
     NavigationServer2D.region_set_navigation_polygon(region_rid,poly)
     NavigationServer2D.region_set_map(region_rid,map_rid)
@@ -60,7 +62,11 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
             if route.size() < 2:
                 var diagnostic: Dictionary = {"ok":false,"code":"NAV_ROUTE_UNREACHABLE","from":str(home),
                     "to":str(goal),"waypoints":route.size(),"polygons":poly.get_polygon_count(),
-                    "map_active":NavigationServer2D.map_is_active(map_rid)}
+                    "map_active":NavigationServer2D.map_is_active(map_rid),
+                    "regions":NavigationServer2D.map_get_regions(map_rid).size(),
+                    "closest_start":str(NavigationServer2D.map_get_closest_point(map_rid,home)),
+                    "closest_target":str(NavigationServer2D.map_get_closest_point(map_rid,goal)),
+                    "mesh_faces":poly.get_navigation_mesh().get_polygon_count()}
                 dispose()
                 return diagnostic
     geometry = raw.duplicate(true)
