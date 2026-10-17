@@ -59,10 +59,14 @@ func run() -> void:
     var river: Dictionary = g.quiet_near()
     check(river.get("ok",false) and river.get("activity_id","")=="river_watch","river quiet action")
     check(g.status()["minute"]==1038 and g.status()["quiet_count"]==2,"river time and world history")
+    check(g.status()["story_opportunities"].is_empty(),"closed kiosk did not gate quiet opportunity")
     check(g.status()["npc_mahmoud"]=="kiosk" and g.status()["offer_count"]==0,"closed kiosk and independent NPC while river-watching")
     check(g.open_kiosk().get("ok",false),"quiet time doesn't prevent opening")
     check(g.quiet_near().get("ok",false),"river-watching also possible while open")
     check(g.status()["money"]==6000 and g.status()["quiet_count"]==3,"no farmable rewards")
+    var moments: Dictionary = g.status()["story_opportunities"]
+    check(moments.size()==1 and moments.has("river_watch_reflection"),"authored open-kiosk river moment did not unlock")
+    check(moments.get("river_watch_reflection",{}).get("trigger_event","")=="life.activity_done","moment source is not canonical life event")
     var last: String = g.status()["digest"]
     var tampered: Dictionary = g.session.world.view()
     tampered["events"][-1]["payload"]["effect"]["to_minute"] += 1
@@ -73,6 +77,7 @@ func run() -> void:
     check(loaded.start(SAVE).get("code","")=="RESTORED","game restored")
     check(loaded.status()["digest"]==last and loaded.status()["quiet_count"]==3 and loaded.status()["last_quiet"]=="river_watch","quiet history lost after disk reload")
     check(loaded.quiet_activities().size()==3,"authored activity policy lost on reload")
+    check(loaded.status()["story_opportunities"].size()==1,"river opportunity lost/duplicated on disk reload")
     var live: RefCounted = Kernel.new()
     check(live.restore_snapshot(loaded.session.world.view()),"event replay failed")
     check(JSON.stringify(live.view())==JSON.stringify(loaded.session.world.view()),"replay changed canonical snapshot")
