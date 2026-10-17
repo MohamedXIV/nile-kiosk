@@ -65,14 +65,22 @@ func ready(id: String) -> bool:
     return sessions.has(id) and sessions[id]["ready"]
 
 func begin(id: String, story_id: String, participants: Array, command_id: String) -> Dictionary:
+    return _begin(id, story_id, participants, command_id, "")
+
+func begin_opportunity(id: String, opportunity_id: String, participants: Array, command_id: String) -> Dictionary:
+    # Story and opportunity share the reviewed authored ID in this bounded E4 slice.
+    return _begin(id, opportunity_id, participants, command_id, opportunity_id)
+
+func _begin(id: String, story_id: String, participants: Array, command_id: String, opportunity_id: String) -> Dictionary:
     if not ready(id): return {"ok": false, "code": "INK_NOT_READY"}
     if not kernel.narrative_session(id).is_empty():
         return {"ok": false, "code": "SESSION_EXISTS"}
     var s: Dictionary = sessions[id]
-    var result: Dictionary = _command(command_id, "narrative.session.start", {
-        "session_id": id, "story_id": story_id,
-        "participants": participants, "ink_state": _cursor(s["player"])
-    })
+    var payload: Dictionary = {"session_id": id, "story_id": story_id,
+        "participants": participants, "ink_state": _cursor(s["player"])}
+    if not opportunity_id.is_empty(): payload["opportunity_id"] = opportunity_id
+    var kind: String = "narrative.opportunity.begin" if not opportunity_id.is_empty() else "narrative.session.start"
+    var result: Dictionary = _command(command_id, kind, payload)
     if result.get("ok", false):
         s["story_id"] = story_id
     return result
