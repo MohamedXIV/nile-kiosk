@@ -9,6 +9,7 @@ const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
+const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -16,6 +17,7 @@ const COUNTER_RADIUS = 48.0
 
 var session: RefCounted
 var graph: RefCounted
+var quiet_captions: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -39,6 +41,16 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var configured_life: Dictionary = session.command("game:life:configure", "system:director",
             "life.configure", raw["policy"])
         if not configured_life.get("ok",false): return configured_life
+    if not FileAccess.file_exists(QUIET_POLICY):
+        return {"ok":false,"code":"QUIET_POLICY_NOT_FOUND"}
+    var quiet: Variant = JSON.parse_string(FileAccess.get_file_as_string(QUIET_POLICY))
+    if typeof(quiet) != TYPE_DICTIONARY or quiet.size() != 3 or quiet.get("schema") != 1 or typeof(quiet.get("activities")) != TYPE_ARRAY or typeof(quiet.get("captions")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_QUIET_POLICY"}
+    quiet_captions = quiet["captions"].duplicate(true)
+    if not session.world.view()["life"]["policy"].has("activities"):
+        var configured_quiet: Dictionary = session.command("game:life:quiet:v1","system:director",
+            "life.activities.configure",{"activities":quiet["activities"]})
+        if not configured_quiet.get("ok",false): return configured_quiet
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -102,6 +114,27 @@ func close_kiosk() -> Dictionary:
 func sleep_at_home() -> Dictionary:
     return session.command(_id("sleep"),"player","life.sleep",{})
 
+func quiet_activities() -> Array:
+    return session.world.view()["life"]["policy"].get("activities",[])
+
+func quiet_near() -> Dictionary:
+    var current: Vector2 = position()
+    var chosen: Dictionary = {}
+    var nearest: float = INF
+    for activity in quiet_activities():
+        if activity["room_id"] != room(): continue
+        var d: float = current.distance_to(Vector2(int(activity["x"]),int(activity["y"])))
+        if d <= int(activity["radius"]) and d < nearest:
+            chosen = activity
+            nearest = d
+    if chosen.is_empty(): return {"ok":false,"code":"NO_QUIET_SPOT_NEARBY"}
+    var response: Dictionary = session.command(_id("quiet"),"player","life.activity",
+        {"activity_id":chosen["id"]})
+    if response.get("ok",false):
+        response["activity_id"] = chosen["id"]
+        response["caption"] = quiet_captions.get(chosen["id"],"A quiet moment passes.")
+    return response
+
 func wait_minutes(minutes: int = 5) -> Dictionary:
     if minutes < 1 or minutes > 5:
         return {"ok":false,"code":"INVALID_WAIT"}
@@ -120,6 +153,12 @@ func status() -> Dictionary:
             pending.append(str(key))
     pending.sort()
     var active: Dictionary = orders.get(pending[0], {}) if not pending.is_empty() else {}
+    var last_quiet: String = ""
+    var quiet_count: int = 0
+    for event in v["events"]:
+        if event["kind"] == "life.activity_done":
+            quiet_count += 1
+            last_quiet = str(event["payload"]["request"]["activity_id"])
     return {
         "location": room(),
         "x": int(position().x),
@@ -134,6 +173,8 @@ func status() -> Dictionary:
         "offer_count": orders.size(),
         "kiosk_open": bool(v["life"]["open"]),
         "sleep_count": int(v["life"]["sleep_count"]),
+        "quiet_count": quiet_count,
+        "last_quiet": last_quiet,
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
         "npc_mahmoud": session.world.npc("mahmoud").get("location_id",""),
