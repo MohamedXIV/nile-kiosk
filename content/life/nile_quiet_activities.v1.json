@@ -14,8 +14,8 @@
       "id": "river_watch",
       "room_id": "kiosk",
       "x": 185,
-      "y": 95,
-      "radius": 48,
+      "y": 70,
+      "radius": 50,
       "minutes": 8,
       "requires_closed": false
     }
