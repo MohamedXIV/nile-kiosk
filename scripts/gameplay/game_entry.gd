@@ -11,6 +11,7 @@ const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
 const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
+const BED_POLICY = "res://content/life/nile_bed.v1.json"
 const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
@@ -21,6 +22,7 @@ var session: RefCounted
 var graph: RefCounted
 var quiet_captions: Dictionary = {}
 var radio_pack: Dictionary = {}
+var bed_pack: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -72,6 +74,18 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var radio_activity: Dictionary = session.command("game:radio:activity:v1","system:director",
             "life.activities.extend",{"activities":[radio_pack["activity"]]})
         if not radio_activity.get("ok",false): return radio_activity
+    if not FileAccess.file_exists(BED_POLICY):
+        return {"ok":false,"code":"BED_POLICY_NOT_FOUND"}
+    var bed_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(BED_POLICY))
+    if typeof(bed_raw) != TYPE_DICTIONARY or bed_raw.size() != 6 or bed_raw.get("schema") != 1 or typeof(bed_raw.get("type")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_BED_POLICY"}
+    bed_pack = bed_raw.duplicate(true)
+    if bed_pack["type"].get("type_id") != "bed" or bed_pack.get("unit_id") != "roof" or bed_pack["type"].get("actions") != ["sleep"]:
+        return {"ok":false,"code":"INVALID_BED_POLICY"}
+    if not session.world.housing_view()["types"].has("bed"):
+        var bed_type: Dictionary = session.command("game:bed:type:v1","system:catalog",
+            "home.type.define",bed_pack["type"])
+        if not bed_type.get("ok",false): return bed_type
     if not FileAccess.file_exists(MEAL_POLICY): return {"ok":false,"code":"MISSING_MEAL_POLICY"}
     var meals: Variant = JSON.parse_string(FileAccess.get_file_as_string(MEAL_POLICY))
     if typeof(meals) != TYPE_DICTIONARY or meals.size() != 2 or meals.get("schema") != 1 or typeof(meals.get("recipes")) != TYPE_DICTIONARY:
@@ -233,6 +247,39 @@ func store_radio() -> Dictionary:
     return session.command(_id("radio_store"),"player","home.object.store",
         {"object_id":radio_pack["object_id"]})
 
+# A secondhand bed is bought and placed with the real P5 ledger/ownership.
+# E2 only rewards it on sleep, not on buy/place. The two steps are explicit
+# so store/re-place and rejection paths cannot mint free furniture or energy.
+func buy_bed() -> Dictionary:
+    if room() != bed_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    return session.command(_id("bed_buy"),"player","home.object.acquire",
+        {"object_id":bed_pack["object_id"],"type_id":"bed",
+         "transaction_id":"opening:bed:purchase:1"})
+
+func place_bed() -> Dictionary:
+    if room() != bed_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    return session.command(_id("bed_place"),"player","home.object.place",
+        {"object_id":bed_pack["object_id"],"unit_id":bed_pack["unit_id"],
+         "slot_id":bed_pack["slot_id"]})
+
+func store_bed() -> Dictionary:
+    if room() != bed_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    return session.command(_id("bed_store"),"player","home.object.store",
+        {"object_id":bed_pack["object_id"]})
+
+func bed_near() -> Dictionary:
+    if room() != bed_pack["unit_id"]: return {"ok":false,"code":"NOT_AT_HOME"}
+    var bed: Dictionary = session.world.housing_view()["objects"].get(bed_pack["object_id"],{})
+    if bed.is_empty():
+        var bought: Dictionary = buy_bed()
+        if bought.get("ok",false): bought["caption"] = "You paid for a secondhand bed. Place it in your room."
+        return bought
+    if not str(bed["unit_id"]).is_empty():
+        return {"ok":false,"code":"BED_ALREADY_PLACED"}
+    var placed: Dictionary = place_bed()
+    if placed.get("ok",false): placed["caption"] = "A real place to sleep. You can rest here tonight."
+    return placed
+
 func listen_radio() -> Dictionary:
     var response: Dictionary = session.command(_id("radio_listen"),"player","life.activity",
         {"activity_id":radio_pack["activity"]["id"]})
@@ -260,6 +307,7 @@ func status() -> Dictionary:
     pending.sort()
     var active: Dictionary = orders.get(pending[0], {}) if not pending.is_empty() else {}
     var radio_state: Dictionary = v["housing"]["objects"].get(radio_pack.get("object_id",""),{})
+    var bed_state: Dictionary = v["housing"]["objects"].get(bed_pack.get("object_id",""),{})
     var last_quiet: String = ""
     var quiet_count: int = 0
     for event in v["events"]:
@@ -286,6 +334,9 @@ func status() -> Dictionary:
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
         "radio_uses": int(radio_state.get("use_count",0)),
+        "bed_owned": not bed_state.is_empty(),
+        "bed_placed": not bed_state.is_empty() and bed_state.get("unit_id","") == bed_pack.get("unit_id","") and bed_state.get("slot_id","") == bed_pack.get("slot_id",""),
+        "bed_price": int(v["housing"]["types"].get("bed",{}).get("price_minor",0)),
         "last_quiet": last_quiet,
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),

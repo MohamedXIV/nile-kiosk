@@ -71,6 +71,8 @@ func _act(kind: String) -> void:
         "radio_place": result = game.place_radio()
         "radio_store": result = game.store_radio()
         "radio_listen": result = game.listen_radio()
+        "bed": result = game.bed_near()
+        "bed_store": result = game.store_bed()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
@@ -86,7 +88,9 @@ func _act(kind: String) -> void:
             "radio_buy":"A secondhand radio is yours. Find a corner for it.",
             "radio_place":"The radio now has a place in your room.",
             "radio_store":"Radio put away safely.",
-            "radio_listen":str(result.get("caption","The radio fills the room."))
+            "radio_listen":str(result.get("caption","The radio fills the room.")),
+            "bed":str(result.get("caption","A bed for home.")),
+            "bed_store":"The bed is put away. Sleep will be simpler tonight."
         }.get(kind, "Done")
     else:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
@@ -110,6 +114,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_V: _act("radio_place")
         KEY_X: _act("radio_store")
         KEY_R: _act("radio_listen")
+        KEY_T: _act("bed")
+        KEY_Y: _act("bed_store")
 
 func _iso(point: Vector2) -> Vector2:
     # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
@@ -166,6 +172,11 @@ func _draw() -> void:
         draw_colored_polygon(_floor_polygon(Vector2(45,40),Vector2(72,70)),Color("#e1d4ad"))
         draw_colored_polygon(_floor_polygon(Vector2(90,105),Vector2(112,124)),Color("#80564d"))
         _text(_iso(Vector2(62,30))+Vector2(-10,-18),"Rooftop room",12)
+    if location == "roof" and state["bed_placed"]:
+        draw_colored_polygon(_floor_polygon(Vector2(44,43),Vector2(70,68)),Color("#745e50"))
+        draw_colored_polygon(_floor_polygon(Vector2(47,44),Vector2(67,62)),Color("#c7ac83"))
+        draw_colored_polygon(_floor_polygon(Vector2(47,44),Vector2(67,51)),Color("#ddd1b3"))
+        _text(_iso(Vector2(58,42))+Vector2(-11,-12),"Bed",12)
     if location == "kiosk":
         draw_colored_polygon(_floor_polygon(Vector2(80,55),Vector2(143,115)),Color("#366653"))
         draw_colored_polygon(_floor_polygon(Vector2(94,67),Vector2(134,84)),Color("#bb8a4f"))
@@ -218,7 +229,7 @@ func _draw() -> void:
     _text(Vector2(28,500),"WASD move   E door   F listen   G serve   Q quiet   O open   C close   Z sleep",14,Color("#e2c18b"))
     _text(Vector2(480,526),"J wait   P save   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
     if location == "roof":
-        _text(Vector2(28,526),"B buy radio   V place   R listen   X store",13,Color("#e2c18b"))
+        _text(Vector2(28,526),"B/V/R/X radio    T buy/place bed (%d)    Y store bed" % state["bed_price"],13,Color("#e2c18b"))
     if location == "kiosk":
         _text(Vector2(205,526),"K prepare/eat personal bread",13,Color("#e2c18b"))
     var near: Dictionary = game.nearest_portal()
