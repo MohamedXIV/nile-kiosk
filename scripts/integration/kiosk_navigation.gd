@@ -4,6 +4,7 @@ extends RefCounted
 ## this immutable path rather than maintaining another moving-state clock.
 ## AStarGrid2D is synchronous (even in native headless WorldKernel tests).
 const CELL: float = 5.0
+const ACTOR_RADIUS: float = 4.0
 
 var grid: AStarGrid2D
 var geometry: Dictionary = {}
@@ -40,22 +41,49 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
     candidate.cell_size = Vector2(CELL,CELL)
     candidate.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
     candidate.update()
+    var obstacles: Array[Rect2] = []
     for cell in blocked:
         var x: int = int(cell[0])
         var y: int = int(cell[1])
         var rect: Rect2 = Rect2(Vector2(xs[x],ys[y]),Vector2(xs[x+1]-xs[x],ys[y+1]-ys[y]))
+        obstacles.append(rect)
         for iy in range(candidate.region.size.y):
             for ix in range(candidate.region.size.x):
                 var id: Vector2i = Vector2i(ix,iy)
-                if rect.grow(4.0).has_point(candidate.get_point_position(id)):
+                if rect.grow(ACTOR_RADIUS).has_point(candidate.get_point_position(id)):
                     candidate.set_point_solid(id,true)
     for home in homes:
         for goal in destinations:
-            if _path(candidate,home,goal).size() < 2:
+            # Validate both directions: AStarGrid2D is responsible for routing,
+            # but its grid only marks cell centers. Authored off-grid endpoints
+            # and the return journey must also clear the actor's physical radius.
+            var outward: PackedVector2Array = _path(candidate,home,goal)
+            var returning: PackedVector2Array = _path(candidate,goal,home)
+            if outward.size() < 2 or returning.size() < 2:
                 return {"ok":false,"code":"NAV_ROUTE_UNREACHABLE"}
+            if not _path_has_clearance(outward,obstacles) or not _path_has_clearance(returning,obstacles):
+                return {"ok":false,"code":"NAV_CLEARANCE_BLOCKED"}
     grid = candidate
     geometry = raw.duplicate(true)
     return {"ok":true}
+
+# Uses Godot's native Geometry2D intersections rather than custom pathfinding.
+# Reject the authored navigation atomically if a route clips solid furniture.
+static func _path_has_clearance(path: PackedVector2Array, obstacles: Array[Rect2]) -> bool:
+    for solid in obstacles:
+        var padded: Rect2 = solid.grow(ACTOR_RADIUS)
+        var corners: PackedVector2Array = PackedVector2Array([
+            padded.position,Vector2(padded.end.x,padded.position.y),
+            padded.end,Vector2(padded.position.x,padded.end.y)])
+        for p in path:
+            if padded.has_point(p):
+                return false
+        for i in range(1,path.size()):
+            for corner in range(4):
+                if Geometry2D.segment_intersects_segment(
+                        path[i-1],path[i],corners[corner],corners[(corner+1)%4]) != null:
+                    return false
+    return true
 
 static func _contains(p: Vector2, xs: Array, ys: Array, excluded: Dictionary) -> bool:
     for j in range(ys.size()-1):
