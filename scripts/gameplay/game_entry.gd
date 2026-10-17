@@ -535,6 +535,7 @@ func status() -> Dictionary:
         "ambient_npc":str(aside.get("npc_id","")),
         "ambient_beat":int(aside.get("beat",-1)),
         "npc_mahmoud_mode":str(mahmoud_pose.get("mode","absent")),
+        "npc_mahmoud_waypoints":int(mahmoud_pose.get("route_waypoints",0)),
         "npc_mahmoud_x":roundi(mahmoud_xy.x),
         "npc_mahmoud_y":roundi(mahmoud_xy.y),
         "customer_reaction":str(spoken.get("line","")),

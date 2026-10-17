@@ -47,7 +47,7 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
         for iy in range(candidate.region.size.y):
             for ix in range(candidate.region.size.x):
                 var id: Vector2i = Vector2i(ix,iy)
-                if rect.has_point(candidate.get_point_position(id)):
+                if rect.grow(4.0).has_point(candidate.get_point_position(id)):
                     candidate.set_point_solid(id,true)
     for home in homes:
         for goal in destinations:

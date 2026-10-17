@@ -192,6 +192,7 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
     var current: Vector2 = home
     var mode: String = "standing"
     var order_id: String = ""
+    var route_waypoints: int = 0
     if not visit_spots.is_empty() and room_id == str(visit_spots["room_id"]):
         var orders: Dictionary = session.world.orders_view()["orders"]
         var latest: Dictionary = {}
@@ -209,6 +210,7 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
                     float(minute-int(latest["created_minute"]))/float(duration),0.0,1.0)
                 var route_path: PackedVector2Array = navigation_path(home,destination)
                 if route_path.size() < 2: return {}
+                route_waypoints = route_path.size()
                 current = sample_path(route_path,progress)
                 mode = "approaching" if progress < 1.0 else str(latest["route"])
                 order_id = str(latest["order_id"])
@@ -217,11 +219,12 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
                 if since >= 0 and since < duration:
                     var return_path: PackedVector2Array = navigation_path(destination,home)
                     if return_path.size() < 2: return {}
+                    route_waypoints = return_path.size()
                     current = sample_path(return_path,float(since)/float(duration))
                     mode = "returning"
                     order_id = str(latest["order_id"])
     return {"npc_id":npc_id,"room_id":room_id,"position":current,
-        "mode":mode,"order_id":order_id}
+        "mode":mode,"order_id":order_id,"route_waypoints":route_waypoints}
 
 func nearby_npc(session: RefCounted, current: Vector2) -> Dictionary:
     var loc: String = str(session.world.social_view()["player_location"])

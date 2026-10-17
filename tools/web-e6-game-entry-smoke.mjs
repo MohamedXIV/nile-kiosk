@@ -152,7 +152,8 @@ try {
   // Chromium's J wait advances five full world minutes, so the two-minute
   // approach has already finished when the first polled offer is observed.
   check(afterWait.npc_mahmoud_mode === "counter" && afterWait.npc_mahmoud_x === 145 &&
-    afterWait.npc_mahmoud_y === 85, "real customer didn't reach the service counter");
+    afterWait.npc_mahmoud_y === 85 && afterWait.npc_mahmoud_waypoints >= 3,
+    "real customer didn't take a nontrivial Godot navigation route to the counter");
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");

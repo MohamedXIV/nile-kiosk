@@ -61,9 +61,13 @@ func _run() -> void:
     for k in range(1,path.size()):
         routed += path[k-1].distance_to(path[k])
     check(routed > straight+1.0,"NPC path cut through table instead of detouring")
-    var nav_mid: Vector2 = g.graph.sample_path(path,0.5)
+    # An NPC has radius, not just a mathematical point. Verify the
+    # entire timeline stays outside furniture with physical clearance.
     for blocked in g.graph.navigator.obstacle_rects():
-        check(not blocked.has_point(nav_mid),"NPC navmesh midpoint goes through solid furniture")
+        for t in range(101):
+            var sample: Vector2 = g.graph.sample_path(path,float(t)/100.0)
+            check(not blocked.grow(4.0).has_point(sample),
+                "NPC route clipped a furniture collider/actor clearance at %d" % t)
     var bad_mesh: Dictionary = {"schema":1,"room_id":"kiosk","x_edges":[8,90,139,160,195,232],
         "y_edges":[8,63,86,99,130,152],"blocked_cells":[[1,2],[3,3],[3,3]]}
     check(not g.graph.configure_walkable(bad_mesh).get("ok",false),"invalid duplicate mesh blocker accepted")
