@@ -8,6 +8,7 @@ const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const VISITS = "res://content/navigation/nile_kiosk_visit_spots.v1.json"
+const WALKABLE = "res://content/navigation/nile_kiosk_walkable.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
@@ -49,6 +50,11 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var visit_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(VISITS))
     var configured_visits: Dictionary = graph.configure_visit_spots(visit_data)
     if not configured_visits.get("ok",false): return configured_visits
+    if not FileAccess.file_exists(WALKABLE):
+        return {"ok":false,"code":"NAV_MESH_NOT_FOUND"}
+    var walkable: Variant = JSON.parse_string(FileAccess.get_file_as_string(WALKABLE))
+    var configured_walk: Dictionary = graph.configure_walkable(walkable)
+    if not configured_walk.get("ok",false): return configured_walk
     if session.world.view()["life"]["policy"].is_empty():
         if not FileAccess.file_exists(DAILY_POLICY):
             return {"ok":false,"code":"DAILY_POLICY_NOT_FOUND"}
@@ -188,12 +194,15 @@ func _id(action: String) -> String:
 func move_world(dx: int, dy: int) -> Dictionary:
     return session.command(_id("move"), "player", "spatial.player.move", {"dx": dx, "dy": dy})
 
+static func screen_delta(horizontal: int, vertical: int) -> Vector2i:
+    if horizontal == 0 and vertical == 0: return Vector2i.ZERO
+    var direction: Vector2 = Vector2(horizontal+vertical,vertical-horizontal).normalized()*17.0
+    return Vector2i(roundi(direction.x),roundi(direction.y))
+
 func move_screen(horizontal: int, vertical: int) -> Dictionary:
-    if horizontal == 0 and vertical == 0:
-        return {"ok": true, "code": "NO_OP"}
-    # Screen-relative controls: W is up and D is right in the 2:1 projection.
-    var world_direction: Vector2 = Vector2(horizontal + vertical, vertical - horizontal).normalized() * 17.0
-    return move_world(roundi(world_direction.x), roundi(world_direction.y))
+    var delta: Vector2i = screen_delta(horizontal,vertical)
+    if delta == Vector2i.ZERO: return {"ok":true,"code":"NO_OP"}
+    return move_world(delta.x,delta.y)
 
 func nearest_portal() -> Dictionary:
     var nearest: Dictionary = {}
@@ -526,6 +535,7 @@ func status() -> Dictionary:
         "ambient_npc":str(aside.get("npc_id","")),
         "ambient_beat":int(aside.get("beat",-1)),
         "npc_mahmoud_mode":str(mahmoud_pose.get("mode","absent")),
+        "npc_mahmoud_waypoints":int(mahmoud_pose.get("route_waypoints",0)),
         "npc_mahmoud_x":roundi(mahmoud_xy.x),
         "npc_mahmoud_y":roundi(mahmoud_xy.y),
         "customer_reaction":str(spoken.get("line","")),
@@ -569,5 +579,7 @@ func status() -> Dictionary:
     }
 
 func dispose() -> void:
+    if graph != null:
+        graph.dispose_navigation()
     if session != null:
         session.dispose()
