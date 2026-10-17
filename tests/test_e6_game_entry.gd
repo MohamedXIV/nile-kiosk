@@ -62,6 +62,15 @@ func _run() -> void:
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
     var path: PackedVector2Array = g.graph.navigation_path(Vector2(200,110),Vector2(145,85))
+    var navserver: RID = g.graph.navigator.map_rid
+    print("E4_NAV_DIAGNOSTIC "+JSON.stringify({
+        "regions":NavigationServer2D.map_get_regions(navserver).size(),
+        "active":NavigationServer2D.map_is_active(navserver),
+        "closest_a":str(NavigationServer2D.map_get_closest_point(navserver,Vector2(200,110))),
+        "closest_b":str(NavigationServer2D.map_get_closest_point(navserver,Vector2(145,85))),
+        "short_path":str(g.graph.navigation_path(Vector2(125,70),Vector2(145,85))),
+        "path":str(path)
+    }))
     check(path.size() >= 3,"Godot NavMesh did not create a route around kiosk furniture")
     var straight: float = Vector2(200,110).distance_to(Vector2(145,85))
     var routed: float = 0.0
