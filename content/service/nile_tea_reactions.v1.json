@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "recipe_id": "tea",
+  "npcs": {
+    "mahmoud": {
+      "good": "That's a lovely cup. Thank you.",
+      "okay": "Nice and hot. Thanks for the tea.",
+      "rough": "A bit strong today, but thanks."
+    }
+  }
+}

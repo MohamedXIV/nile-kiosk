@@ -51,6 +51,7 @@ func _run() -> void:
         check(g.wait_minutes().get("ok",false),"real clock waiting")
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
+    check(g.customer_reaction().is_empty(),"customer cannot react before delivery")
     var first: Dictionary = g.service_near()
     check(first.get("ok",false) and first.get("kind","")=="order.accept","accept real order")
     check(g.service_near().get("kind","")=="cook.start","start recipe")
@@ -101,7 +102,17 @@ func _run() -> void:
     check(balanced["score"] > rough["score"],"patient vs delayed tea same quality")
     check(restored.status()["tea_quality"]=="good" and restored.status()["tea_quality_item"]==item_id,
         "real game failed to surface canonical sensory quality")
-    check(restored.service_near().get("kind","")=="order.deliver","deliver paid item")
+    check(restored.customer_reaction().is_empty(),"finished but undelivered cup triggered conversation")
+    var served: Dictionary = restored.service_near()
+    check(served.get("kind","")=="order.deliver","deliver paid item")
+    var reply: Dictionary = restored.customer_reaction()
+    check(reply.get("npc_id","")=="mahmoud" and reply.get("grade","")=="good" and
+        reply.get("line","").contains("cup"),"real delivered tea did not trigger authored good reaction")
+    check(reply.get("order_id","")==restored.status()["active_order"] and
+        reply.get("source_event_id","")==restored.session.world.order(reply["order_id"])["closure_event_id"],
+        "reaction unlinked from real P4 delivery event")
+    check(served.get("customer_reaction",{})==reply and restored.status()["customer_reaction"]==reply["line"],
+        "customer response not visible to production gameplay")
     check(restored.service_near().get("kind","")=="economy.order.quote","quote")
     check(restored.service_near().get("kind","")=="economy.order.settle","settle")
     check(restored.status()["money"]==6200,"no duplicate payment")
@@ -112,6 +123,10 @@ func _run() -> void:
     check(final.status()["digest"]==once and final.status()["money"]==6200,"settled state unchanged after reload")
     check(final.session.world.prepared_quality(item_id)==balanced and final.status()["tea_quality"]=="good",
         "delivered tea lost immutable quality after paid service and disk reload")
+    check(final.customer_reaction()==reply,"delivered response lost after canonical P5 settlement and save")
+    var same: String = final.status()["digest"]
+    check(final.service_near()["code"]=="NO_ACTIVE_ORDER","already served customer can no longer order again")
+    check(final.status()["digest"]==same,"rejected second service changed delivery/reaction")
     var forged: Dictionary = final.session.world.view()
     for record in forged["events"]:
         if record["kind"] == "cook.step_finished" and record["payload"]["request"]["job_id"] == job_id:

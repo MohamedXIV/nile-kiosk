@@ -79,7 +79,7 @@ func _act(kind: String) -> void:
         notice = {
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
-            "serve":"Service: " + str(result.get("kind","updated")),
+            "serve":str(result.get("caption","Service: " + str(result.get("kind","updated")))),
             "tea_heat":str(result.get("caption","Kettle handled.")),
             "tea_pour":str(result.get("caption","Tea poured.")),
             "meal":str(result.get("caption","Bread prepared.")),
@@ -220,6 +220,11 @@ func _draw() -> void:
         var anchor: Dictionary = game.graph.anchors[npc_id]
         if anchor["room_id"] == location and game.session.world.npc(npc_id).get("location_id","") == location:
             _figure(Graph.point(anchor["point"]),Color("#719f90"),str(npc_id))
+            if npc_id == state["customer_reaction_npc"] and not state["customer_reaction"].is_empty():
+                var npc_pos: Vector2 = _iso(Graph.point(anchor["point"]))
+                var left: float = clampf(npc_pos.x - 130.0,16.0,640.0)
+                draw_rect(Rect2(left,npc_pos.y-98.0,300.0,28.0),Color("#263a3d"))
+                _text(Vector2(left+9.0,npc_pos.y-79.0),str(state["customer_reaction"]),14,Color("#f0d6a2"))
     _figure(game.position(),Color("#78a8b8"),"You")
     draw_rect(Rect2(0,0,960,64),Color("#172128"))
     _text(Vector2(24,28),"KIOSK ON THE NILE",22,Color("#efbd73"))

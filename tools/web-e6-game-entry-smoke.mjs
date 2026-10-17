@@ -173,16 +173,25 @@ try {
   check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
+  check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
+  await press("g");
+  const deliveredTea = await until("E6_GAME_SERVE",3);
+  check(deliveredTea.order_status === "delivered" &&
+    deliveredTea.customer_reaction_npc === "mahmoud" &&
+    deliveredTea.customer_reaction.includes("strong") &&
+    deliveredTea.customer_reaction_order === deliveredTea.active_order &&
+    deliveredTea.customer_reaction_event.startsWith("evt:"),
+    "NPC quality response not grounded in delivered real rough tea");
   // Approach the physical riverside quiet spot; spend authored time while
-  // a real NPC has an accepted order. No fake Mood/finance reward.
+  // a real NPC has received his tea. No Mood/finance reward.
   await moveDiagonal(480);
   await press("q");
   const riverMoment = await until("E6_GAME_QUIET");
   check(riverMoment.quiet_count === 2 && riverMoment.last_quiet === "river_watch" &&
-    riverMoment.order_status === "accepted", "quiet moment lost the live customer order");
+    riverMoment.order_status === "delivered", "quiet moment lost the delivered customer order");
   await press("p");
   const saved = await until("E6_GAME_SAVE");
-  check(saved.order_status === "accepted" && saved.location === "kiosk", "save after order acceptance");
+  check(saved.order_status === "delivered" && saved.location === "kiosk", "save after customer delivery");
   // Godot Web syncs user:// into browser storage asynchronously; match established Chromium save gates.
   await page.waitForTimeout(1600);
   await page.reload({ waitUntil: "load" });
@@ -191,8 +200,12 @@ try {
   check(restored.tea_quality === saved.tea_quality && restored.tea_quality_score === saved.tea_quality_score &&
     restored.tea_quality_item === saved.tea_quality_item,
     "E3 prepared cup quality changed after hard Chromium reload");
+  check(restored.customer_reaction === saved.customer_reaction &&
+    restored.customer_reaction_order === saved.customer_reaction_order &&
+    restored.customer_reaction_event === saved.customer_reaction_event,
+    "authored delivery response not reproduced by WorldKernel-backed Chromium reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
-    restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
+    restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
     "browser reload lost game state, pending order or location");
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
@@ -230,6 +243,7 @@ try {
   console.log("E2_HOME_BED_CHROMIUM_PASS: paid P5 bed, real placement/storage, no instant buff, next-day rest and reload");
   console.log("E3_TEA_HANDS_CHROMIUM_PASS: heat/lift/pour/finish real P3 preparation, wrong and early gesture rejected, G blocked, saved Web");
   console.log("E3_TEA_QUALITY_CHROMIUM_PASS: overdue kettle/pour reduces canonical item score, visual quality and hard browser replay");
+  console.log("E3_CUSTOMER_REACTION_CHROMIUM_PASS: delivered rough cup triggers authored Mahmoud line, replays after hard Web reload");
 } finally {
   await context.close();
   await browser.close();
