@@ -14,6 +14,7 @@ const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
 const BED_POLICY = "res://content/life/nile_bed.v1.json"
 const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const TEA_ACTION_POLICY = "res://content/cooking/nile_tea_actions.v1.json"
+const TEA_REACTIONS_POLICY = "res://content/service/nile_tea_reactions.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -25,6 +26,7 @@ var quiet_captions: Dictionary = {}
 var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
 var tea_actions: Dictionary = {}
+var tea_reactions: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -112,6 +114,20 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         return {"ok":false,"code":"INVALID_TEA_ACTION_POLICY"}
     if not session.world.cooking_view()["recipes"].has("tea"):
         return {"ok":false,"code":"TEA_RECIPE_NOT_FOUND"}
+    if not FileAccess.file_exists(TEA_REACTIONS_POLICY):
+        return {"ok":false,"code":"TEA_REACTIONS_NOT_FOUND"}
+    var reactions: Variant = JSON.parse_string(FileAccess.get_file_as_string(TEA_REACTIONS_POLICY))
+    if typeof(reactions) != TYPE_DICTIONARY or reactions.size() != 3 or reactions.get("schema") != 1 or reactions.get("recipe_id") != "tea" or typeof(reactions.get("npcs")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
+    tea_reactions = reactions["npcs"].duplicate(true)
+    if tea_reactions.is_empty(): return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
+    for npc_id in tea_reactions:
+        var lines: Variant = tea_reactions[npc_id]
+        if not session.world.social_view()["npcs"].has(npc_id) or typeof(lines) != TYPE_DICTIONARY or lines.size() != 3:
+            return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
+        for grade in ["good","okay","rough"]:
+            if typeof(lines.get(grade)) != TYPE_STRING or str(lines[grade]).strip_edges().is_empty() or str(lines[grade]).length() > 65:
+                return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -167,7 +183,39 @@ func service_near() -> Dictionary:
     var next: Dictionary = ServicePlay.next_action(session, "kiosk")
     if next.get("ok",false) and _tea_transition(next):
         return {"ok":false,"code":"HAND_ACTION_REQUIRED"}
-    return ServicePlay.perform_next(session, "kiosk")
+    var result: Dictionary = ServicePlay.perform_next(session, "kiosk")
+    if result.get("ok",false) and result.get("kind","") == "order.deliver":
+        var reply: Dictionary = customer_reaction()
+        if not reply.is_empty():
+            result["customer_reaction"] = reply.duplicate(true)
+            result["caption"] = str(reply["npc_id"]).capitalize() + ": " + str(reply["line"])
+    return result
+
+func customer_reaction() -> Dictionary:
+    # A brief authored utterance projected from an actual P4 delivery and
+    # verified P3 item quality. It expires naturally with world time; no
+    # trust score, synthetic memory event, or dialogue-system authority.
+    if room() != "kiosk": return {}
+    var v: Dictionary = session.world.view()
+    var latest: Dictionary = {}
+    for order in v["service"]["orders"].values():
+        if order["status"] != "delivered" or order["recipe_id"] != "tea":
+            continue
+        if latest.is_empty() or int(order["closed_minute"]) > int(latest["closed_minute"]):
+            latest = order
+    if latest.is_empty(): return {}
+    var elapsed: int = int(v["world_minute"]) - int(latest["closed_minute"])
+    if elapsed < 0 or elapsed > 30: return {}
+    var npc_id: String = str(latest["npc_id"])
+    if not tea_reactions.has(npc_id) or session.world.npc(npc_id).get("location_id","") != "kiosk":
+        return {}
+    var quality: Dictionary = session.world.prepared_quality(str(latest["item_id"]))
+    if quality.is_empty() or not tea_reactions[npc_id].has(quality["grade"]):
+        return {}
+    return {"order_id":str(latest["order_id"]),"npc_id":npc_id,
+        "item_id":str(latest["item_id"]),"grade":str(quality["grade"]),
+        "line":str(tea_reactions[npc_id][quality["grade"]]),
+        "source_event_id":str(latest["closure_event_id"])}
 
 func _tea_transition(action: Dictionary) -> bool:
     if str(action.get("kind","")) not in ["cook.step.begin","cook.step.resume","cook.step.finish"]:
@@ -395,6 +443,7 @@ func status() -> Dictionary:
             quiet_count += 1
             last_quiet = str(event["payload"]["request"]["activity_id"])
     var tea_context: Dictionary = active_tea_step()
+    var spoken: Dictionary = customer_reaction()
     var latest_tea: Dictionary = {}
     for item in v["cooking"]["items"].values():
         if str(item["recipe_id"]) != "tea" or not str(item["job_id"]).begins_with("play:c3:prep:"):
@@ -403,6 +452,10 @@ func status() -> Dictionary:
             latest_tea = item
     var quality: Dictionary = session.world.prepared_quality(str(latest_tea.get("item_id",""))) if not latest_tea.is_empty() else {}
     return {
+        "customer_reaction":str(spoken.get("line","")),
+        "customer_reaction_npc":str(spoken.get("npc_id","")),
+        "customer_reaction_order":str(spoken.get("order_id","")),
+        "customer_reaction_event":str(spoken.get("source_event_id","")),
         "tea_quality":str(quality.get("grade","")),
         "tea_quality_score":int(quality.get("score",0)),
         "tea_quality_item":str(quality.get("item_id","")),
