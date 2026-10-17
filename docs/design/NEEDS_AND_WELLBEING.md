@@ -36,6 +36,8 @@ A personal meal may only consume an already **ready** P3 cooked item at an opera
 
 **Evidence:** `tests/test_e2_needs.gd`, [native CI](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39037366128), [Chromium PR checks](https://github.com/MohamedXIV/nile-kiosk/pull/68/checks), historical migration `tests/test_play_c2.gd`. Browser must pass at merge head. Unmet environment and pacing behavior remains E2 work.
 
-## Next practical home context: paid bed in the playable room (2026-10-17)
+## Delivered practical home context: paid bed in the playable room (2026-10-17; [PR #69](https://github.com/MohamedXIV/nile-kiosk/pull/69))
 
 The production entry now offers a secondhand bed through P5 paid ownership, explicit placement and storage (T buy/place, Y store), with a visible room drawing. **No effect at purchase**: existing E2 placed-bed-only Rest improvement occurs when the player actually sleeps via E1 in their owned roof room. Native and Chromium coverage must prove ledger spend, stored-vs-placed contrast, insufficient funds, restricted home actions, sleep and reload. The authored 3400-piastre bed price is a **provisional testing value**, not agreed period economic balance. E2 remains PARTIAL, without invented environment/fan mood curves, and depends on a human playtest for pacing.
+
+**Final exact-head acceptance:** [native suite](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39041517548) succeeded and [full Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39041517429) succeeded (including `E2_HOME_BED_CHROMIUM_PASS`) at PR head `50157cb38a4663b7e54e66150005184b61801a88`; squash merge `18cea54ac3a2929be57098580332b33b45e07a3f`. All broader NEED-02 environmental, social and human-gamefeel gates remain open.
