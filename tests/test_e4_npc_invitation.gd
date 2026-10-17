@@ -93,7 +93,9 @@ func _run() -> void:
     check(g.mahmoud_story_next().get("beat_id","")=="mahmoud_open","real initiated first Ink line")
     check(g.mahmoud_story_next().get("code","")=="WAITING","not at native Ink choice point")
     check(g.status()["mahmoud_story_choices"].size()==2,"Ink response choices not projected")
-    check(g.mahmoud_story_decline().get("code","")=="INVITATION_NOT_NEARBY" or not g.mahmoud_story_session().is_empty(),"decline after begin allowed")
+    check(g.session.command("e4:decline:after-begin","system:narrative",
+        "narrative.opportunity.decline",{"opportunity_id":Game.MAHMOUD_STORY_ID})
+        .get("code","")=="OPPORTUNITY_ALREADY_STARTED","decline after consent bypassed canonical session")
     action(g,g.save_game(),"save mid-choice Ink")
     var halfway: Dictionary = g.session.world.view()
     g.dispose()
