@@ -13,6 +13,7 @@ const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
 const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
 const BED_POLICY = "res://content/life/nile_bed.v1.json"
 const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
+const TEA_ACTION_POLICY = "res://content/cooking/nile_tea_actions.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -23,6 +24,7 @@ var graph: RefCounted
 var quiet_captions: Dictionary = {}
 var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
+var tea_actions: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -94,6 +96,22 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var provision: Dictionary = session.command("game:needs:meals:v1","system:director",
             "needs.meals.configure",{"recipes":meals["recipes"]})
         if not provision.get("ok",false): return provision
+    if not FileAccess.file_exists(TEA_ACTION_POLICY):
+        return {"ok":false,"code":"TEA_ACTION_POLICY_NOT_FOUND"}
+    var tea_pack: Variant = JSON.parse_string(FileAccess.get_file_as_string(TEA_ACTION_POLICY))
+    if typeof(tea_pack) != TYPE_DICTIONARY or tea_pack.size() != 3 or tea_pack.get("schema") != 1 or tea_pack.get("recipe_id") != "tea" or typeof(tea_pack.get("gestures")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_TEA_ACTION_POLICY"}
+    tea_actions = tea_pack["gestures"].duplicate(true)
+    if tea_actions.size() != 2 or not tea_actions.has("heat") or not tea_actions.has("serve"):
+        return {"ok":false,"code":"INVALID_TEA_ACTION_POLICY"}
+    for station_type in tea_actions:
+        var gesture: Variant = tea_actions[station_type]
+        if typeof(gesture) != TYPE_DICTIONARY or gesture.size() != 3 or gesture.get("key") not in ["H","U"] or typeof(gesture.get("start")) != TYPE_STRING or typeof(gesture.get("finish")) != TYPE_STRING:
+            return {"ok":false,"code":"INVALID_TEA_ACTION_POLICY"}
+    if str(tea_actions["heat"]["key"]) == str(tea_actions["serve"]["key"]):
+        return {"ok":false,"code":"INVALID_TEA_ACTION_POLICY"}
+    if not session.world.cooking_view()["recipes"].has("tea"):
+        return {"ok":false,"code":"TEA_RECIPE_NOT_FOUND"}
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -146,7 +164,64 @@ func service_near() -> Dictionary:
         return {"ok":false,"code":"NOT_AT_KIOSK"}
     if position().distance_to(COUNTER) > COUNTER_RADIUS:
         return {"ok":false,"code":"COUNTER_TOO_FAR"}
+    var next: Dictionary = ServicePlay.next_action(session, "kiosk")
+    if next.get("ok",false) and _tea_transition(next):
+        return {"ok":false,"code":"HAND_ACTION_REQUIRED"}
     return ServicePlay.perform_next(session, "kiosk")
+
+func _tea_transition(action: Dictionary) -> bool:
+    if str(action.get("kind","")) not in ["cook.step.begin","cook.step.resume","cook.step.finish"]:
+        return false
+    var job_id: String = str(action.get("payload",{}).get("job_id",""))
+    var prep: Dictionary = session.world.cooking_view()["preparations"].get(job_id,{})
+    return not prep.is_empty() and str(prep["recipe_id"]) == "tea"
+
+func _tea_step(job: Dictionary, cooking: Dictionary) -> Dictionary:
+    if job.is_empty() or str(job.get("recipe_id","")) != "tea":
+        return {}
+    var recipe: Dictionary = cooking["recipes"].get("tea",{})
+    var index: int = int(job.get("step_index",-1))
+    if recipe.is_empty() or index < 0 or index >= recipe["steps"].size():
+        return {}
+    var station_type: String = str(recipe["steps"][index]["station_type"])
+    if not tea_actions.has(station_type):
+        return {}
+    return tea_actions[station_type]
+
+func active_tea_step() -> Dictionary:
+    # UI-only projection; the P3 job remains the sole cooking state machine.
+    var cooking: Dictionary = session.world.cooking_view()
+    var ids: Array = cooking["preparations"].keys()
+    ids.sort()
+    for job_id in ids:
+        var job: Dictionary = cooking["preparations"][job_id]
+        if not str(job_id).begins_with("play:c3:prep:") or str(job["stage"]) not in ["waiting","active","interrupted"]:
+            continue
+        var step: Dictionary = _tea_step(job,cooking)
+        if step.is_empty(): continue
+        return {"job_id":job_id,"stage":job["stage"],"key":step["key"],
+            "caption":step["finish"] if job["stage"] == "active" else step["start"],
+            "ready_in":maxi(0,int(job["ready_minute"])-int(session.world.view()["world_minute"])) if job["stage"] == "active" else 0}
+    return {}
+
+func tea_action_near(key: String) -> Dictionary:
+    if not session.world.view()["life"]["open"]: return {"ok":false,"code":"KIOSK_CLOSED"}
+    if room() != "kiosk": return {"ok":false,"code":"NOT_AT_KIOSK"}
+    if position().distance_to(COUNTER) > COUNTER_RADIUS:
+        return {"ok":false,"code":"COUNTER_TOO_FAR"}
+    if key not in ["H","U"]: return {"ok":false,"code":"UNKNOWN_GESTURE"}
+    var context: Dictionary = active_tea_step()
+    if context.is_empty(): return {"ok":false,"code":"NO_TEA_PREPARATION"}
+    if str(context["key"]) != key: return {"ok":false,"code":"WRONG_GESTURE"}
+    var next: Dictionary = ServicePlay.next_action(session,"kiosk")
+    if not next.get("ok",false): return next
+    if not _tea_transition(next) or str(next["payload"].get("job_id","")) != str(context["job_id"]):
+        return {"ok":false,"code":"NO_TEA_ACTION_READY"}
+    var response: Dictionary = ServicePlay.perform_next(session,"kiosk")
+    if response.get("ok",false):
+        response["caption"] = "Hands on: " + str(context["caption"])
+        response["gesture"] = key
+    return response
 
 func personal_bread_near() -> Dictionary:
     # A modest self-meal is a real P3 recipe, not a free Hunger hotkey.
@@ -314,7 +389,11 @@ func status() -> Dictionary:
         if event["kind"] == "life.activity_done":
             quiet_count += 1
             last_quiet = str(event["payload"]["request"]["activity_id"])
+    var tea_context: Dictionary = active_tea_step()
     return {
+        "tea_stage":str(tea_context.get("stage","")),
+        "tea_action":str(tea_context.get("key","")),
+        "tea_ready_in":int(tea_context.get("ready_in",0)),
         "location": room(),
         "x": int(position().x),
         "y": int(position().y),

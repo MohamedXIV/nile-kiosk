@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "recipe_id": "tea",
+  "gestures": {
+    "heat": {
+      "key": "H",
+      "start": "Set the kettle to heat",
+      "finish": "Lift the warmed kettle"
+    },
+    "serve": {
+      "key": "U",
+      "start": "Pour into a fresh cup",
+      "finish": "Finish the pour"
+    }
+  }
+}
