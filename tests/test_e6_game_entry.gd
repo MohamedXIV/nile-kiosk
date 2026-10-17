@@ -54,6 +54,21 @@ func _run() -> void:
         check(g.wait_minutes().get("ok",false),"real clock waiting")
     check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk","independent NPC visit")
     check(g.status()["order_status"]=="offered","autonomous customer order")
+    var path: PackedVector2Array = g.graph.navigation_path(Vector2(200,110),Vector2(145,85))
+    check(path.size() >= 3,"Godot NavMesh did not create a route around kiosk furniture")
+    var straight: float = Vector2(200,110).distance_to(Vector2(145,85))
+    var routed: float = 0.0
+    for k in range(1,path.size()):
+        routed += path[k-1].distance_to(path[k])
+    check(routed > straight+1.0,"NPC path cut through table instead of detouring")
+    var nav_mid: Vector2 = g.graph.sample_path(path,0.5)
+    for blocked in g.graph.navigator.obstacle_rects():
+        check(not blocked.has_point(nav_mid),"NPC navmesh midpoint goes through solid furniture")
+    var bad_mesh: Dictionary = {"schema":1,"room_id":"kiosk","x_edges":[8,90,139,160,195,232],
+        "y_edges":[8,63,86,99,130,152],"blocked_cells":[[1,2],[3,3],[3,3]]}
+    check(not g.graph.configure_walkable(bad_mesh).get("ok",false),"invalid duplicate mesh blocker accepted")
+    check(g.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
+        "failed nav config altered already active Godot NavMesh")
     var approaching: Dictionary = g.npc_pose("mahmoud")
     check(approaching.get("mode","")=="approaching" and
         approaching.get("position",Vector2.ZERO)==Vector2(200,110),
@@ -112,6 +127,8 @@ func _run() -> void:
         "visitor failed to reach authored counter with canonical time")
     check(restored.graph.nearby_npc(restored.session,restored.position()).get("npc_id","")=="mahmoud",
         "hearing target disagrees with visible counter position")
+    check(restored.graph.navigation_path(Vector2(200,110),Vector2(145,85))==path,
+        "Godot navigation route changed on disk replay")
     check(restored.tea_action_near("H").get("kind","")=="cook.step.finish","player lifts hot kettle")
     check(restored.tea_action_near("U").get("kind","")=="cook.step.begin","player pours tea")
     check(restored.wait_minutes(1).get("ok",false),"wait for serving")

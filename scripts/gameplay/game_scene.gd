@@ -12,6 +12,8 @@ var notice: String = "Opening the kiosk world..."
 var move_elapsed: float = 0.0
 var minute_elapsed: float = 0.0
 var last_marker: String = ""
+var player_body: CharacterBody2D
+var furniture_bodies: Array[StaticBody2D] = []
 
 func _ready() -> void:
     call_deferred("_boot")
@@ -24,6 +26,7 @@ func _boot() -> void:
         push_error("E6_GAME_BOOT_FAILED " + str(result))
         queue_redraw()
         return
+    _setup_physics()
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
@@ -47,12 +50,44 @@ func _process(delta: float) -> void:
         var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
         var dy: int = int(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) - int(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
         if dx != 0 or dy != 0:
-            var moved: Dictionary = game.move_screen(dx, dy)
-            if moved.get("ok", false): queue_redraw()
+            var intended: Vector2i = Game.screen_delta(dx,dy)
+            if _player_move_clear(Vector2(intended)):
+                var moved: Dictionary = game.move_screen(dx, dy)
+                if moved.get("ok", false): queue_redraw()
     if minute_elapsed >= MINUTE_INTERVAL:
         minute_elapsed = fmod(minute_elapsed, MINUTE_INTERVAL)
         var tick: Dictionary = game.wait_minutes(1)
         if tick.get("ok", false): queue_redraw()
+
+func _setup_physics() -> void:
+    # CharacterBody2D is an engine collision probe; canonical P2 still
+    # commits every accepted integer position. We never save a Node position.
+    player_body = CharacterBody2D.new()
+    player_body.collision_layer = 2
+    player_body.collision_mask = 1
+    var player_shape: CollisionShape2D = CollisionShape2D.new()
+    var disk: CircleShape2D = CircleShape2D.new()
+    disk.radius = 4.0
+    player_shape.shape = disk
+    player_body.add_child(player_shape)
+    add_child(player_body)
+    for rect in game.graph.navigator.obstacle_rects():
+        var wall: StaticBody2D = StaticBody2D.new()
+        wall.collision_layer = 1
+        wall.collision_mask = 0
+        var shape: CollisionShape2D = CollisionShape2D.new()
+        var box: RectangleShape2D = RectangleShape2D.new()
+        box.size = rect.size
+        shape.shape = box
+        wall.position = rect.get_center()
+        wall.add_child(shape)
+        add_child(wall)
+        furniture_bodies.append(wall)
+
+func _player_move_clear(delta: Vector2) -> bool:
+    if game.room() != "kiosk" or player_body == null: return true
+    player_body.global_position = game.position()
+    return not player_body.test_move(player_body.global_transform,delta)
 
 func _act(kind: String) -> void:
     var result: Dictionary = {}
@@ -187,7 +222,8 @@ func _draw() -> void:
         draw_colored_polygon(_floor_polygon(Vector2(80,55),Vector2(143,115)),Color("#366653"))
         draw_colored_polygon(_floor_polygon(Vector2(94,67),Vector2(134,84)),Color("#bb8a4f"))
         draw_circle(_iso(Vector2(116,80)),8,Color("#e7bc6d"))
-        draw_colored_polygon(_floor_polygon(Vector2(170,97),Vector2(200,122)),Color("#607d94"))
+        draw_colored_polygon(_floor_polygon(Vector2(94,86),Vector2(135,91)),Color("#a87346"))
+        draw_colored_polygon(_floor_polygon(Vector2(172,102),Vector2(188,121)),Color("#607d94"))
         _text(_iso(Vector2(100,50))+Vector2(-18,-18),"Tea counter",12)
     if location == "flat":
         draw_colored_polygon(_floor_polygon(Vector2(48,48),Vector2(104,100)),Color("#ac9078"))

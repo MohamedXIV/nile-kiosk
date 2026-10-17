@@ -8,7 +8,9 @@ const MAX_SIZE: int = 2000
 var rooms: Dictionary = {}
 var portals: Dictionary = {}
 var anchors: Dictionary = {}
+const KioskNav = preload("res://scripts/integration/kiosk_navigation.gd")
 var visit_spots: Dictionary = {}
+var navigator: RefCounted
 var graph_id: String = ""
 
 static func fail(code: String) -> Dictionary:
@@ -138,6 +140,48 @@ func configure_visit_spots(raw: Variant) -> Dictionary:
     visit_spots = raw.duplicate(true)
     return {"ok":true}
 
+func configure_walkable(raw: Variant) -> Dictionary:
+    if visit_spots.is_empty(): return fail("VISITS_NOT_CONFIGURED")
+    var nav: RefCounted = KioskNav.new()
+    var homes: Array = []
+    var destinations: Array = []
+    for npc in anchors:
+        if anchors[npc]["room_id"] == visit_spots["room_id"]:
+            homes.append(point(anchors[npc]["point"]))
+    for route in ["counter","takeaway","table"]:
+        destinations.append(point(visit_spots["route_points"][route]))
+    var result: Dictionary = nav.configure(raw,rooms[visit_spots["room_id"]],homes,destinations)
+    if not result.get("ok",false): return result
+    if navigator != null: navigator.dispose()
+    navigator = nav
+    return {"ok":true}
+
+func navigation_path(origin: Vector2, target: Vector2) -> PackedVector2Array:
+    if navigator == null: return PackedVector2Array()
+    return navigator.path_between(origin,target)
+
+# Sample distances across Godot's navmesh path, not a straight line.
+# P1 minute and P4 order state alone set temporal progress so reloads
+# restore the same world-derived hearing and rendering position.
+static func sample_path(path: PackedVector2Array, fraction: float) -> Vector2:
+    if path.is_empty(): return Vector2.ZERO
+    if path.size() == 1: return path[0]
+    var total: float = 0.0
+    for i in range(1,path.size()):
+        total += path[i-1].distance_to(path[i])
+    var remaining: float = total * clampf(fraction,0.0,1.0)
+    for i in range(1,path.size()):
+        var length: float = path[i-1].distance_to(path[i])
+        if remaining <= length:
+            return path[i-1].lerp(path[i],remaining/length) if length > 0.00001 else path[i]
+        remaining -= length
+    return path[path.size()-1]
+
+func dispose_navigation() -> void:
+    if navigator != null:
+        navigator.dispose()
+        navigator = null
+
 func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
     if not anchors.has(npc_id): return {}
     var anchor: Dictionary = anchors[npc_id]
@@ -163,13 +207,17 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
             if latest["status"] in ["offered", "accepted"]:
                 var progress: float = clampf(
                     float(minute-int(latest["created_minute"]))/float(duration),0.0,1.0)
-                current = home.lerp(destination,progress)
+                var route_path: PackedVector2Array = navigation_path(home,destination)
+                if route_path.size() < 2: return {}
+                current = sample_path(route_path,progress)
                 mode = "approaching" if progress < 1.0 else str(latest["route"])
                 order_id = str(latest["order_id"])
             elif int(latest["closed_minute"]) >= 0:
                 var since: int = minute-int(latest["closed_minute"])
                 if since >= 0 and since < duration:
-                    current = destination.lerp(home,float(since)/float(duration))
+                    var return_path: PackedVector2Array = navigation_path(destination,home)
+                    if return_path.size() < 2: return {}
+                    current = sample_path(return_path,float(since)/float(duration))
                     mode = "returning"
                     order_id = str(latest["order_id"])
     return {"npc_id":npc_id,"room_id":room_id,"position":current,
