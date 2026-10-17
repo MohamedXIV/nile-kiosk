@@ -12,7 +12,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^(E6_GAME_[A-Z]+) (\{.*\})$/.exec(line);
+  const match = /^(E6_GAME_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -54,6 +54,21 @@ try {
   await page.locator("canvas").first().click({ position: {x:500,y:290} });
   const initial = await until("E6_GAME_READY");
   check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
+  check(initial.radio_owned === false && initial.radio_uses === 0, "radio gifted before purchase");
+  await press("r");
+  const unavailableRadio = await until("E6_GAME_RADIO_LISTEN",0);
+  check(unavailableRadio.radio_uses === 0 && unavailableRadio.minute === initial.minute, "phantom radio play");
+  await press("b");
+  const acquiredRadio = await until("E6_GAME_RADIO_BUY");
+  check(acquiredRadio.money === 4800 && acquiredRadio.radio_owned && !acquiredRadio.radio_placed, "real P5 purchase/ledger");
+  await press("v");
+  const placedRadio = await until("E6_GAME_RADIO_PLACE");
+  check(placedRadio.radio_placed && placedRadio.money === 4800, "radio not placed in home");
+  await press("r");
+  const listenedRadio = await until("E6_GAME_RADIO_LISTEN",1);
+  check(listenedRadio.radio_uses === 1 && listenedRadio.quiet_count === 1 &&
+    listenedRadio.last_quiet === "radio_listen" && listenedRadio.minute === 1032,
+    "radio use did not advance canonical time and housing usage");
   await press("e");
   const landing = await until("E6_GAME_DOOR",0);
   check(landing.location === "landing", "roof/landing portal");
@@ -82,7 +97,7 @@ try {
   await moveDiagonal(480);
   await press("q");
   const riverMoment = await until("E6_GAME_QUIET");
-  check(riverMoment.quiet_count === 1 && riverMoment.last_quiet === "river_watch" &&
+  check(riverMoment.quiet_count === 2 && riverMoment.last_quiet === "river_watch" &&
     riverMoment.order_status === "accepted", "quiet moment lost the live customer order");
   await press("p");
   const saved = await until("E6_GAME_SAVE");
@@ -91,7 +106,7 @@ try {
   await page.waitForTimeout(1600);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
-  check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 1,
+  check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
     "browser reload lost game state, pending order or location");
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
@@ -111,7 +126,7 @@ try {
   check(backHome.location === "roof", "landing-to-home return");
   await press("q");
   const rooftopMoment = await until("E6_GAME_QUIET",1);
-  check(rooftopMoment.quiet_count === 2 && rooftopMoment.last_quiet === "roof_breeze" &&
+  check(rooftopMoment.quiet_count === 3 && rooftopMoment.last_quiet === "roof_breeze" &&
     rooftopMoment.money === saved.money, "roof moment or no-reward boundary failed");
   await press("z");
   const slept = await until("E6_GAME_SLEEP");
@@ -122,13 +137,14 @@ try {
   await page.waitForTimeout(1700);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
-  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 2 &&
+  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
+  console.log("E1_RADIO_CHROMIUM_PASS: purchase, place, listen, real P5 usage, scheduler and reload");
 } finally {
   await context.close();
   await browser.close();
