@@ -35,7 +35,8 @@ func projection() -> Dictionary:
         "minute": view["world_minute"], "npc": view["society"].duplicate(true),
         "cooking": view["cooking"].duplicate(true), "orders": view["service"].duplicate(true),
         "economy": view["economy"].duplicate(true), "housing": view["housing"].duplicate(true),
-        "narrative": view["narrative"].duplicate(true), "spatial": view["spatial"].duplicate(true), "jobs": view["jobs"].duplicate(true)}
+        "narrative": view["narrative"].duplicate(true), "spatial": view["spatial"].duplicate(true),
+        "needs": view["needs"].duplicate(true), "jobs": view["jobs"].duplicate(true)}
 
 func bootstrap_from_content(path: String) -> Dictionary:
     # Deliberately only a fresh world, with no disk slot and no live InkPlayers.

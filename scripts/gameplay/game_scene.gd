@@ -123,6 +123,11 @@ func _floor_polygon(from_point: Vector2, to_point: Vector2) -> PackedVector2Arra
 func _text(p: Vector2, line: String, size: int = 16, color: Color = Color("#eadfc4")) -> void:
     draw_string(ThemeDB.fallback_font,p,line,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
 
+func _need(at: Vector2, name: String, value: int, color: Color) -> void:
+    _text(at,name,13,Color("#d4c9b8"))
+    draw_rect(Rect2(at + Vector2(54,-10),Vector2(62,7)),Color("#3b4449"))
+    draw_rect(Rect2(at + Vector2(54,-10),Vector2(62.0 * float(value) / 100.0,7)),color)
+
 func _figure(at: Vector2, color: Color, label: String) -> void:
     var foot: Vector2 = _iso(at)
     draw_ellipse(foot+Vector2(0,2),13.0,5.0,Color(0,0,0,0.3))
@@ -202,6 +207,9 @@ func _draw() -> void:
     _text(Vector2(765,27),"%d piastres" % state["money"],16)
     _text(Vector2(25,53),"KIOSK OPEN" if state["kiosk_open"] else "KIOSK CLOSED",14,
         Color("#abdb9f") if state["kiosk_open"] else Color("#e1aa91"))
+    _need(Vector2(245,53),"Hunger",state["hunger"],Color("#d4ae78"))
+    _need(Vector2(385,53),"Rest",state["rest"],Color("#8badc6"))
+    _need(Vector2(525,53),"Mood",state["mood"],Color("#96b79a"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     _text(Vector2(28,500),"WASD move   E door   F listen   G serve   Q quiet   O open   C close   Z sleep",14,Color("#e2c18b"))

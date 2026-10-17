@@ -11,6 +11,7 @@ const DEMAND = "res://content/service/nile_opening_demand.v1.json"
 const DAILY_POLICY = "res://content/life/nile_opening.v1.json"
 const QUIET_POLICY = "res://content/life/nile_quiet_activities.v1.json"
 const RADIO_POLICY = "res://content/life/nile_radio.v1.json"
+const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -71,6 +72,14 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var radio_activity: Dictionary = session.command("game:radio:activity:v1","system:director",
             "life.activities.extend",{"activities":[radio_pack["activity"]]})
         if not radio_activity.get("ok",false): return radio_activity
+    if not FileAccess.file_exists(MEAL_POLICY): return {"ok":false,"code":"MISSING_MEAL_POLICY"}
+    var meals: Variant = JSON.parse_string(FileAccess.get_file_as_string(MEAL_POLICY))
+    if typeof(meals) != TYPE_DICTIONARY or meals.size() != 2 or meals.get("schema") != 1 or typeof(meals.get("recipes")) != TYPE_DICTIONARY:
+        return {"ok":false,"code":"INVALID_MEAL_POLICY"}
+    if session.world.needs_view()["meal_values"].is_empty():
+        var provision: Dictionary = session.command("game:needs:meals:v1","system:director",
+            "needs.meals.configure",{"recipes":meals["recipes"]})
+        if not provision.get("ok",false): return provision
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -221,6 +230,8 @@ func status() -> Dictionary:
         "offer_count": orders.size(),
         "kiosk_open": bool(v["life"]["open"]),
         "sleep_count": int(v["life"]["sleep_count"]),
+        "hunger": int(v["needs"]["hunger"]), "rest": int(v["needs"]["rest"]),
+        "mood": int(v["needs"]["mood"]),
         "quiet_count": quiet_count,
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),

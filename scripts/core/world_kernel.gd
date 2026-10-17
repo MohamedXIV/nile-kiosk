@@ -33,6 +33,9 @@ func narrative_session(session_id: String) -> Dictionary:
 func narrative_choices(session_id: String) -> Array[Dictionary]:
     return _state.narrative.available(session_id, _state.society)
 
+func needs_view() -> Dictionary:
+    return _state.needs.snapshot()
+
 func economy_view() -> Dictionary:
     return _state.economy.snapshot()
 
@@ -179,10 +182,11 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not WorldState.integral(data.get("version"), 1):
         return false
     var version: int = int(data["version"])
+    if version == 10 and data.size() != 20: return false
     if version == 9 and data.size() != 19: return false
     if version == 8 and data.size() != 18: return false
     if version == 7 and data.size() != 17: return false
-    if version not in [7, 8, 9]: return false
+    if version not in [7, 8, 9, 10]: return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
@@ -190,6 +194,9 @@ func restore_snapshot(data: Dictionary) -> bool:
         if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
     var expected: Dictionary = candidate.snapshot()
+    if version in [7, 8, 9]:
+        # Older saves replay needs from the event log without trusting an invented projection.
+        expected.erase("needs")
     if version in [7, 8]:
         # Older saves have no canonical daily-life projection.
         expected.erase("life")
@@ -202,7 +209,7 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not _matches(data, expected):
         return false
     _state = candidate
-    last_restore_was_migration = version in [7, 8]
+    last_restore_was_migration = version in [7, 8, 9]
     return true
 
 func save_to_file(path: String) -> bool:

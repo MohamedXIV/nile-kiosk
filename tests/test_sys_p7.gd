@@ -40,7 +40,7 @@ func _run() -> void:
         _done()
         return
     var v: Dictionary=world.world.view()
-    check(v["sequence"]>20 and v["version"]==9,"P0 all-domain replay envelope")
+    check(v["sequence"]>20 and v["version"]==10,"P0 all-domain replay envelope")
     check(v["world_minute"]==12 and v["jobs"].has("housing:due:lease"),"P1/P5 world clock/scheduler")
     check(world.world.npc("visitor")["location_id"]=="kiosk","P2 scheduled presence")
     check(v["cooking"]["preparations"]["batch"]["stage"]=="active","P3 mid-cook")

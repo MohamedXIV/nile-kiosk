@@ -10,7 +10,8 @@ const HousingWorld = preload("res://scripts/core/housing_world.gd")
 const NarrativeWorld = preload("res://scripts/core/narrative_world.gd")
 const SpatialWorld = preload("res://scripts/core/spatial_world.gd")
 const DailyLife = preload("res://scripts/core/daily_life_world.gd")
-const VERSION: int = 9
+const Needs = preload("res://scripts/core/needs_world.gd")
+const VERSION: int = 10
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -28,6 +29,7 @@ var housing: RefCounted = HousingWorld.new()
 var narrative: RefCounted = NarrativeWorld.new()
 var spatial: RefCounted = SpatialWorld.new()
 var life: RefCounted = DailyLife.new()
+var needs: RefCounted = Needs.new()
 var facts: Dictionary = {}
 var receipts: Dictionary = {}
 var events: Array[Dictionary] = []
@@ -129,6 +131,7 @@ static func _exact_keys(value: Dictionary, expected: Array) -> bool:
     return true
 
 static func _event_kind(command_kind: String) -> String:
+    if Needs.owns(command_kind): return Needs.event_kind(command_kind)
     if DailyLife.owns(command_kind): return DailyLife.event_kind(command_kind)
     if SpatialWorld.owns(command_kind): return SpatialWorld.event_kind(command_kind)
     if NarrativeWorld.owns(command_kind):
@@ -156,6 +159,8 @@ static func _event_kind(command_kind: String) -> String:
     return ""
 
 static func _command_kind(event_kind: String) -> String:
+    var needs_command: String = Needs.command_kind(event_kind)
+    if not needs_command.is_empty(): return needs_command
     var life_command: String = DailyLife.command_kind(event_kind)
     if not life_command.is_empty(): return life_command
     var spatial_command: String = SpatialWorld.command_kind(event_kind)
@@ -208,6 +213,8 @@ func _plan_time_effect(target_minute: int) -> Dictionary:
     }}
 
 func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
+    if Needs.owns(kind):
+        return needs.plan(kind,payload,actor_id,cooking,service,society,jobs,world_minute)
     if DailyLife.owns(kind):
         var step: Dictionary = life.plan(kind, payload, actor_id, society, spatial, service, housing, world_minute)
         if not step.get("ok", false): return step
@@ -380,6 +387,9 @@ func _apply_event(raw: Dictionary) -> bool:
     if not matching_json(raw, expected):
         return false
     sequence = int(next_seq)
+    if Needs.owns(kind):
+        needs.apply_command(kind,planned["effect"],cooking,jobs,world_minute,
+            expected["event_id"],sequence,actor_id,command_id)
     if DailyLife.owns(kind):
         life.apply_command(kind, planned["effect"])
         if kind == "life.activity" and planned["effect"].has("object_use"):
@@ -445,7 +455,11 @@ func _apply_event(raw: Dictionary) -> bool:
             society.apply_firings(planned["effect"]["fires"])
             cooking.apply_firings(planned["effect"]["fires"], jobs)
             housing.apply_firings(planned["effect"]["fires"])
+            var home_room: String = str(life.policy.get("home_room_id",""))
+            needs.on_elapsed(world_minute,int(planned["effect"]["to_minute"]),kind,housing,home_room)
             world_minute = int(planned["effect"]["to_minute"])
+            if kind == "life.activity":
+                needs.on_activity(str(planned["effect"]["activity_id"]),world_minute)
     events.append(expected)
     receipts[command_id] = {
         "signature": command_signature(kind, actor_id, request),
@@ -461,7 +475,7 @@ func snapshot() -> Dictionary:
         "society": society.snapshot(), "cooking": cooking.snapshot(), "service": service.snapshot(),
         "economy": economy.snapshot(), "housing": housing.snapshot(),
         "narrative": narrative.snapshot(), "spatial": spatial.snapshot(),
-        "life": life.snapshot(),
+        "life": life.snapshot(), "needs": needs.snapshot(),
         "facts": facts.duplicate(true), "receipts": receipts.duplicate(true),
         "events": events.duplicate(true)
     }
