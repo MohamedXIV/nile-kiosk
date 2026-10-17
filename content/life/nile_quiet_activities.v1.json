@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "activities": [
+    {
+      "id": "roof_breeze",
+      "room_id": "roof",
+      "x": 175,
+      "y": 70,
+      "radius": 36,
+      "minutes": 10,
+      "requires_closed": true
+    },
+    {
+      "id": "river_watch",
+      "room_id": "kiosk",
+      "x": 185,
+      "y": 95,
+      "radius": 48,
+      "minutes": 8,
+      "requires_closed": false
+    }
+  ],
+  "captions": {
+    "roof_breeze": "You sit for a while and listen to the Cairo rooftop sounds.",
+    "river_watch": "You watch the Nile for a few quiet minutes. The city keeps moving."
+  }
+}
