@@ -270,7 +270,18 @@ try {
     const latest = (traces.E4_STORY_REJECTED || []).at(-1);
     check(latest && Math.hypot(latest.x-125,latest.y-70) > 38,
       "Ink begin rejected when player was already near Salma");
-    await walkBack(185);
+    // NPC dialogue changes the elapsed world/play timing, so correct the
+    // *actual* 2D pose towards Salma (125,70), not a repeated diagonal
+    // wall-clock hold that can overshoot her at y=10.
+    const dx = 125 - latest.x;
+    const dy = 70 - latest.y;
+    if (Math.abs(dy) > 12) await nudgeY(dy > 0);
+    else if (Math.abs(dx) > 10) {
+      if (dx < 0) await walkBack(155);
+      else await moveDiagonal(155);
+    } else {
+      await nudgeY(dy > 0);
+    }
   }
   check(conversationStarted, "player could not start real unlocked Salma Ink conversation");
   await press("Enter");
