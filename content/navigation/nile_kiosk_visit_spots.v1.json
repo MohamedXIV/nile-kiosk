@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "venue_id": "kiosk",
+  "room_id": "kiosk",
+  "move_minutes": 2,
+  "route_points": {
+    "counter": [
+      145,
+      85
+    ],
+    "takeaway": [
+      62,
+      80
+    ],
+    "table": [
+      185,
+      110
+    ]
+  }
+}
