@@ -1,6 +1,7 @@
 extends SceneTree
 ## E6/P0 acceptance: separate gameplay catalog, real portals, demand, service and disk replay.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
+const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
 
@@ -65,11 +66,41 @@ func _run() -> void:
     check(restored.start(SAVE).get("code","")=="RESTORED","restore existing opening game")
     check(JSON.stringify(restored.session.world.view())==JSON.stringify(before_load),"entire world state preserved")
     check(restored.room()=="kiosk" and restored.position()==g.position(),"canonical world pose retained")
+    var job_id: String = "play:c3:prep:" + str(g.status()["active_order"])
+    var item_id: String = "item:" + job_id
+    # A counterfactual world from the exact same persisted mid-heat snapshot:
+    # intentionally late hands produce a different real item-quality outcome.
+    var slow: RefCounted = Kernel.new()
+    check(slow.restore_snapshot(before_load),"counterfactual replay baseline")
+    check(slow.prepared_quality(item_id).is_empty(),"no quality for food not yet prepared")
+    check(slow.prepared_quality("item:forged").is_empty(),"forged item quality rejected")
+    check(slow.advance_time(9,"e3:slow:heat").get("ok",false),"deliberate slow heating")
+    check(slow.dispatch({"id":"e3:slow:lift","actor_id":"player","kind":"cook.step.finish",
+        "payload":{"job_id":job_id}}).get("ok",false),"slow lift P3 step")
+    check(slow.dispatch({"id":"e3:slow:pour","actor_id":"player","kind":"cook.step.begin",
+        "payload":{"job_id":job_id,"station_id":"counter"}}).get("ok",false),"slow pour P3 step")
+    check(slow.advance_time(7,"e3:slow:pour:time").get("ok",false),"deliberate slow pour")
+    check(slow.dispatch({"id":"e3:slow:finish","actor_id":"player","kind":"cook.step.finish",
+        "payload":{"job_id":job_id}}).get("ok",false),"slow tea made a real cup")
+    var rough: Dictionary = slow.prepared_quality(item_id)
+    check(rough.get("grade","")=="rough" and int(rough.get("score",0)) < 60,
+        "late tea did not receive worse world-owned quality")
+    check(rough.get("source_event_id","") == slow.prepared_item(item_id).get("event_id",""),
+        "quality lacks physical item provenance")
+    var slow_again: RefCounted = Kernel.new()
+    check(slow_again.restore_snapshot(slow.view()) and slow_again.prepared_quality(item_id)==rough,
+        "late cup quality changed across canonical replay")
     check(restored.wait_minutes(2).get("ok",false),"wait for heat")
     check(restored.tea_action_near("H").get("kind","")=="cook.step.finish","player lifts hot kettle")
     check(restored.tea_action_near("U").get("kind","")=="cook.step.begin","player pours tea")
     check(restored.wait_minutes(1).get("ok",false),"wait for serving")
     check(restored.tea_action_near("U").get("kind","")=="cook.step.finish","finish physical pour")
+    var balanced: Dictionary = restored.session.world.prepared_quality(item_id)
+    check(balanced.get("grade","")=="good" and int(balanced.get("score",0))==100,
+        "on-time hand actions didn't produce a good cup")
+    check(balanced["score"] > rough["score"],"patient vs delayed tea same quality")
+    check(restored.status()["tea_quality"]=="good" and restored.status()["tea_quality_item"]==item_id,
+        "real game failed to surface canonical sensory quality")
     check(restored.service_near().get("kind","")=="order.deliver","deliver paid item")
     check(restored.service_near().get("kind","")=="economy.order.quote","quote")
     check(restored.service_near().get("kind","")=="economy.order.settle","settle")
@@ -79,6 +110,15 @@ func _run() -> void:
     var final: RefCounted=Game.new()
     check(final.start(SAVE).get("code","")=="RESTORED","second game boot")
     check(final.status()["digest"]==once and final.status()["money"]==6200,"settled state unchanged after reload")
+    check(final.session.world.prepared_quality(item_id)==balanced and final.status()["tea_quality"]=="good",
+        "delivered tea lost immutable quality after paid service and disk reload")
+    var forged: Dictionary = final.session.world.view()
+    for record in forged["events"]:
+        if record["kind"] == "cook.step_finished" and record["payload"]["request"]["job_id"] == job_id:
+            record["world_minute"] = int(record["world_minute"]) + 1
+            break
+    check(not final.session.world.restore_snapshot(forged),"changed cooking timing bypassed event replay")
+    check(final.status()["digest"]==once,"failed event replay changed live world")
     check(final.service_near()["code"]=="NO_ACTIVE_ORDER","no duplicate order service")
     check(final.status()["digest"]==once,"rejected service mutated settled state")
     for obj in [g,restored,final]: obj.dispose()
