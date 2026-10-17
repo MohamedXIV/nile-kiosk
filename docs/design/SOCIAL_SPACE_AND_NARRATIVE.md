@@ -27,3 +27,7 @@ The complete game must work with **authored offline dialogue**. Optional `Expand
 ## Acceptance contract (pending)
 
 Two NPCs converse while player cooks/ignores; moving close at an authored boundary provides an allowed interjection with quick return; staying far or encountering private talk does not leak knowledge; silence is a valid non-quest outcome; a repeat visitor visibly recognizes a prior real event; a verified social fact leads to an actual deterministic, authored opportunity. Save/load a pending choice without duplicate grants. Arabic/RTL final localization is beyond English-only D001 fixtures and must be separately reviewed.
+
+## E4 P0 — bounded visitor-to-service-point position (2026-10-17)
+
+**Presentation-only, grounded in real P2/P4 events:** an independently present visitor with an actual `offered/accepted` order moves over two provisional **world** minutes from the existing NPC anchor to the authored counter/takeaway/table point in `content/navigation/nile_kiosk_visit_spots.v1.json`. After P4 delivery/cancel/abandon, he returns; absent NPCs disappear. `RoomTraversal.npc_pose` supplies **both** the scene's drawn position and the F-key's proximity hearing target. No second NPC location, pathfinding system, movement events, economics or save migration. Exact validation rejects invalid positions without replacing the map. Positions and two-minute transition are PROPOSED UX tests, not approved NPC locomotion; free roaming, non-buying visit modes and nonblocking NPC-to-NPC conversation still require E4 work.

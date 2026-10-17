@@ -217,11 +217,14 @@ func _draw() -> void:
         draw_circle(target,10,Color("#be7472") if locked else Color("#eec47b"))
         _text(target+Vector2(-24,-18),str(door["to"]),12)
     for npc_id in game.graph.anchors:
-        var anchor: Dictionary = game.graph.anchors[npc_id]
-        if anchor["room_id"] == location and game.session.world.npc(npc_id).get("location_id","") == location:
-            _figure(Graph.point(anchor["point"]),Color("#719f90"),str(npc_id))
+        var pose: Dictionary = game.npc_pose(str(npc_id))
+        if not pose.is_empty() and pose["room_id"] == location:
+            _figure(pose["position"],Color("#719f90"),str(npc_id))
+            if pose["mode"] in ["approaching","counter","takeaway","table"]:
+                _text(_iso(pose["position"])+Vector2(-26,-57),
+                    "Ordering" if pose["mode"] == "approaching" else str(pose["mode"]).capitalize(),11,Color("#e8d0a3"))
             if npc_id == state["customer_reaction_npc"] and not state["customer_reaction"].is_empty():
-                var npc_pos: Vector2 = _iso(Graph.point(anchor["point"]))
+                var npc_pos: Vector2 = _iso(pose["position"])
                 var left: float = clampf(npc_pos.x - 130.0,16.0,640.0)
                 draw_rect(Rect2(left,npc_pos.y-98.0,300.0,28.0),Color("#263a3d"))
                 _text(Vector2(left+9.0,npc_pos.y-79.0),str(state["customer_reaction"]),14,Color("#f0d6a2"))

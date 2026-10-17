@@ -8,6 +8,7 @@ const MAX_SIZE: int = 2000
 var rooms: Dictionary = {}
 var portals: Dictionary = {}
 var anchors: Dictionary = {}
+var visit_spots: Dictionary = {}
 var graph_id: String = ""
 
 static func fail(code: String) -> Dictionary:
@@ -118,17 +119,70 @@ func travel(session: RefCounted, portal_id: String, physical_position: Vector2, 
     return {"ok": true, "code": "TRAVELLED", "receipt": applied,
         "location_id": door["to"], "position": point(door["arrival"])}
 
+# P4's authentic order route determines only the NPC's presentation pose,
+# not a second location authority or mutable simulated walking state.
+func configure_visit_spots(raw: Variant) -> Dictionary:
+    if typeof(raw) != TYPE_DICTIONARY or not exact(raw,
+            ["schema", "venue_id", "room_id", "move_minutes", "route_points"]):
+        return fail("INVALID_VISIT_SPOTS")
+    if raw["schema"] != 1 or raw["venue_id"] != "kiosk" or not rooms.has(raw["room_id"]):
+        return fail("INVALID_VISIT_SPOTS")
+    if not WorldState.integral(raw["move_minutes"], 1, 10) or typeof(raw["route_points"]) != TYPE_DICTIONARY:
+        return fail("INVALID_VISIT_SPOTS")
+    var routes: Dictionary = raw["route_points"]
+    if routes.size() != 3: return fail("INVALID_VISIT_SPOTS")
+    var room: Dictionary = rooms[raw["room_id"]]
+    for route in ["counter", "takeaway", "table"]:
+        if not routes.has(route) or not pos(routes[route],int(room["width"]),int(room["height"])):
+            return fail("INVALID_VISIT_SPOTS")
+    visit_spots = raw.duplicate(true)
+    return {"ok":true}
+
+func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
+    if not anchors.has(npc_id): return {}
+    var anchor: Dictionary = anchors[npc_id]
+    var room_id: String = str(anchor["room_id"])
+    if session.world.npc(npc_id).get("location_id","") != room_id:
+        return {}
+    var home: Vector2 = point(anchor["point"])
+    var current: Vector2 = home
+    var mode: String = "standing"
+    var order_id: String = ""
+    if not visit_spots.is_empty() and room_id == str(visit_spots["room_id"]):
+        var orders: Dictionary = session.world.orders_view()["orders"]
+        var latest: Dictionary = {}
+        for o in orders.values():
+            if o["npc_id"] != npc_id or o["venue_id"] != visit_spots["venue_id"]:
+                continue
+            if latest.is_empty() or int(o["offer_sequence"]) > int(latest["offer_sequence"]):
+                latest = o
+        if not latest.is_empty() and visit_spots["route_points"].has(latest["route"]):
+            var destination: Vector2 = point(visit_spots["route_points"][latest["route"]])
+            var duration: int = int(visit_spots["move_minutes"])
+            var minute: int = int(session.world.view()["world_minute"])
+            if latest["status"] in ["offered", "accepted"]:
+                var progress: float = clampf(
+                    float(minute-int(latest["created_minute"]))/float(duration),0.0,1.0)
+                current = home.lerp(destination,progress)
+                mode = "approaching" if progress < 1.0 else str(latest["route"])
+                order_id = str(latest["order_id"])
+            elif int(latest["closed_minute"]) >= 0:
+                var since: int = minute-int(latest["closed_minute"])
+                if since >= 0 and since < duration:
+                    current = destination.lerp(home,float(since)/float(duration))
+                    mode = "returning"
+                    order_id = str(latest["order_id"])
+    return {"npc_id":npc_id,"room_id":room_id,"position":current,
+        "mode":mode,"order_id":order_id}
+
 func nearby_npc(session: RefCounted, current: Vector2) -> Dictionary:
     var loc: String = str(session.world.social_view()["player_location"])
     var ids: Array = anchors.keys()
     ids.sort()
     for id in ids:
-        var a: Dictionary = anchors[id]
-        if a["room_id"] != loc or current.distance_to(point(a["point"])) > RADIUS:
-            continue
-        var npc: Dictionary = session.world.npc(id)
-        if not npc.is_empty() and npc["location_id"] == loc:
-            return {"ok": true, "npc_id": id}
+        var pose: Dictionary = npc_pose(session,str(id))
+        if not pose.is_empty() and pose["room_id"] == loc and current.distance_to(pose["position"]) <= RADIUS:
+            return {"ok":true,"npc_id":id}
     return fail("NO_NEARBY_NPC")
 
 func overhear(session: RefCounted, current: Vector2, command_id: String) -> Dictionary:
