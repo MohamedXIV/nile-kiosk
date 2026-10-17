@@ -12,7 +12,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^(E6_GAME_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E4_STORY)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -212,6 +212,46 @@ try {
     riverMoment.order_status === "delivered", "quiet moment lost the delivered customer order");
   check(riverMoment.npc_mahmoud_mode === "standing" && riverMoment.npc_mahmoud_x === 200 &&
     riverMoment.npc_mahmoud_y === 110, "NPC couldn't return home as player enjoyed quiet moment");
+  check(riverMoment.story_opportunities?.river_watch_reflection &&
+    riverMoment.river_story_phase === "", "canonical Nile opportunity didn't unlock before the real conversation");
+  // Walk back towards Salma only as needed. The authored opportunity cannot
+  // be started remotely from the riverside railing, even though it is unlocked.
+  let conversationStarted = false;
+  for (let attempt=0; attempt<9; attempt++) {
+    const began = (traces.E4_STORY_STARTED || []).length;
+    const loading = (traces.E4_STORY_LOADING || []).length;
+    const rejected = (traces.E4_STORY_REJECTED || []).length;
+    await press("n");
+    for (let i=0; i<30; i++) {
+      if ((traces.E4_STORY_STARTED || []).length > began) {
+        conversationStarted = true;
+        break;
+      }
+      if ((traces.E4_STORY_LOADING || []).length > loading) {
+        await until("E4_STORY_STARTED", began);
+        conversationStarted = true;
+        break;
+      }
+      if ((traces.E4_STORY_REJECTED || []).length > rejected) break;
+      await page.waitForTimeout(75);
+    }
+    if (conversationStarted) break;
+    const latest = (traces.E4_STORY_REJECTED || []).at(-1);
+    check(latest && Math.hypot(latest.x-125,latest.y-70) > 38,
+      "Ink begin rejected when player was already near Salma");
+    await walkBack(185);
+  }
+  check(conversationStarted, "player could not start real unlocked Salma Ink conversation");
+  await press("Enter");
+  const openingLine = await until("E4_STORY_LINE");
+  check(openingLine.river_story_phase === "running", "Ink opening wasn't a canonical running session");
+  await press("Enter");
+  const pendingChoice = await until("E4_STORY_WAITING");
+  check(pendingChoice.river_story_phase === "choice" &&
+    pendingChoice.river_story_choices?.length === 2,
+    "real Ink choices were not exposed to the player");
+  // The existing save/reload below now proves a genuine **mid-choice**
+  // InkPlayer cursor survives hard Chromium reload in the production scene.
   await press("p");
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "delivered" && saved.location === "kiosk", "save after customer delivery");
@@ -231,8 +271,28 @@ try {
     restored.npc_mahmoud_x === saved.npc_mahmoud_x && restored.npc_mahmoud_y === saved.npc_mahmoud_y,
     "NPC position changed on Chromium hard reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
-    restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
-    "browser reload lost game state, pending order or location");
+    restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed &&
+    restored.river_story_phase === "choice", "browser reload lost game state or real Ink pending choice");
+  await press("n");
+  const resumedStory = await until("E4_STORY_RESUMED");
+  check(resumedStory.river_story_phase === "choice" && resumedStory.river_story_choices?.length === 2,
+    "restored InkPlayer didn't recover canonical player choices");
+  await press("1"); // Sorted authored option IDs: city then rest.
+  const selected = await until("E4_STORY_CHOICE");
+  check(selected.river_story_phase === "running", "player decision didn't commit to WorldKernel");
+  await press("Enter");
+  await until("E4_STORY_LINE",1);
+  await press("Enter");
+  await until("E4_STORY_LINE",2);
+  await press("Enter");
+  const finishedStory = await until("E4_STORY_FINISHED");
+  check(finishedStory.river_story_phase === "finished" &&
+    finishedStory.story_opportunities?.river_watch_reflection,
+    "Ink narrative didn't complete from one-shot canonical opportunity");
+  const deniedIndex = (traces.E4_STORY_REJECTED || []).length;
+  await press("n");
+  const deniedRepeat = await until("E4_STORY_REJECTED",deniedIndex);
+  check(deniedRepeat.river_story_phase === "finished", "finished dialogue repeated");
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
   check(closed.kiosk_open === false && closed.location === "kiosk", "early voluntary close failed");
@@ -261,6 +321,7 @@ try {
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
+  console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
