@@ -66,6 +66,10 @@ func _act(kind: String) -> void:
         "close": result = game.close_kiosk()
         "sleep": result = game.sleep_at_home()
         "quiet": result = game.quiet_near()
+        "radio_buy": result = game.buy_radio()
+        "radio_place": result = game.place_radio()
+        "radio_store": result = game.store_radio()
+        "radio_listen": result = game.listen_radio()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
@@ -76,7 +80,11 @@ func _act(kind: String) -> void:
             "open":"Kiosk open. Take your time.",
             "close":"Closed for now. Your evening is yours.",
             "sleep":"Another morning begins.",
-            "quiet":str(result.get("caption","A quiet moment passes."))
+            "quiet":str(result.get("caption","A quiet moment passes.")),
+            "radio_buy":"A secondhand radio is yours. Find a corner for it.",
+            "radio_place":"The radio now has a place in your room.",
+            "radio_store":"Radio put away safely.",
+            "radio_listen":str(result.get("caption","The radio fills the room."))
         }.get(kind, "Done")
     else:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
@@ -95,6 +103,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_C: _act("close")
         KEY_Z: _act("sleep")
         KEY_Q: _act("quiet")
+        KEY_B: _act("radio_buy")
+        KEY_V: _act("radio_place")
+        KEY_X: _act("radio_store")
+        KEY_R: _act("radio_listen")
 
 func _iso(point: Vector2) -> Vector2:
     # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
@@ -163,6 +175,17 @@ func _draw() -> void:
         draw_circle(center,7,Color("#f0cb7f") if reachable else Color("#8b8c79"))
         _text(center + Vector2(-32,-17),"Q: " + str(activity["id"]).replace("_"," "),12,
             Color("#f3e1bb") if reachable else Color("#b8a89a"))
+    if location == "roof":
+        var radio_spot: Dictionary = game.radio_pack.get("activity",{})
+        if not radio_spot.is_empty():
+            var radio_pos: Vector2 = _iso(Vector2(int(radio_spot["x"]),int(radio_spot["y"])))
+            if state["radio_placed"]:
+                draw_rect(Rect2(radio_pos + Vector2(-10,-17),Vector2(20,16)),Color("#bb9a69"))
+                draw_circle(radio_pos + Vector2(-4,-9),4,Color("#343d3c"))
+                draw_rect(Rect2(radio_pos + Vector2(4,-14),Vector2(5,10)),Color("#3d4e50"))
+                _text(radio_pos+Vector2(-20,-24),"R: Radio",12)
+            else:
+                _text(radio_pos+Vector2(-26,-18),"Radio nook",12,Color("#b2a391"))
     for door in game.graph.visible_exits(location):
         var target: Vector2 = _iso(Graph.point(door["entry"]))
         var locked: bool = not door["unit_id"].is_empty() and not game.session.world.can_access_unit(door["unit_id"])
@@ -182,7 +205,9 @@ func _draw() -> void:
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     _text(Vector2(28,500),"WASD move   E door   F listen   G serve   Q quiet   O open   C close   Z sleep",14,Color("#e2c18b"))
-    _text(Vector2(480,526),"J wait   P save   Quiet moments: %d" % state["quiet_count"],13,Color("#e2c18b"))
+    _text(Vector2(480,526),"J wait   P save   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
+    if location == "roof":
+        _text(Vector2(28,526),"B buy radio   V place   R listen   X store",13,Color("#e2c18b"))
     var near: Dictionary = game.nearest_portal()
     if not near.is_empty():
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))

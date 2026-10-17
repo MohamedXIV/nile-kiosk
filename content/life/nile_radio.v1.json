@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "type": {
+    "type_id": "portable_radio",
+    "price_minor": 1200,
+    "actions": [
+      "listen"
+    ]
+  },
+  "activity": {
+    "id": "radio_listen",
+    "room_id": "roof",
+    "x": 158,
+    "y": 82,
+    "radius": 36,
+    "minutes": 12,
+    "requires_closed": true,
+    "requires_object_type": "portable_radio",
+    "requires_slot_id": "roof_radio_nook"
+  },
+  "object_id": "player_radio_1",
+  "slot_id": "roof_radio_nook",
+  "unit_id": "roof",
+  "caption": "A familiar song fades in beneath the sounds of the neighborhood."
+}
