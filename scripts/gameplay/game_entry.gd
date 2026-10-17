@@ -15,6 +15,7 @@ const BED_POLICY = "res://content/life/nile_bed.v1.json"
 const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const TEA_ACTION_POLICY = "res://content/cooking/nile_tea_actions.v1.json"
 const TEA_REACTIONS_POLICY = "res://content/service/nile_tea_reactions.v1.json"
+const EXCHANGE_POLICY = "res://content/social/nile_kiosk_exchange.v1.json"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
 const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
 const COUNTER = Vector2(115, 80)
@@ -27,6 +28,7 @@ var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
 var tea_actions: Dictionary = {}
 var tea_reactions: Dictionary = {}
+var exchange_pack: Dictionary = {}
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -128,6 +130,32 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         for grade in ["good","okay","rough"]:
             if typeof(lines.get(grade)) != TYPE_STRING or str(lines[grade]).strip_edges().is_empty() or str(lines[grade]).length() > 65:
                 return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
+    # Lightweight E4 ambient dialogue. Presentation only; P2 still owns
+    # physical presence, P1 owns time and no fact/memory is created.
+    if not FileAccess.file_exists(EXCHANGE_POLICY):
+        return {"ok":false,"code":"EXCHANGE_NOT_FOUND"}
+    var exchange: Variant = JSON.parse_string(FileAccess.get_file_as_string(EXCHANGE_POLICY))
+    if typeof(exchange) != TYPE_DICTIONARY or exchange.size() != 6 or exchange.get("schema") != 1 or exchange.get("room_id") != "kiosk" or typeof(exchange.get("lines")) != TYPE_ARRAY:
+        return {"ok":false,"code":"INVALID_EXCHANGE"}
+    if exchange["lines"].size() != 2 or not exchange.has("first_minute") or not exchange.has("beat_minutes") or not exchange.has("visible_minutes"):
+        return {"ok":false,"code":"INVALID_EXCHANGE"}
+    for field in ["first_minute","beat_minutes","visible_minutes"]:
+        if typeof(exchange[field]) != TYPE_INT:
+            return {"ok":false,"code":"INVALID_EXCHANGE"}
+    if int(exchange["first_minute"]) < 0 or int(exchange["beat_minutes"]) < 4 or int(exchange["visible_minutes"]) < 1 or int(exchange["visible_minutes"]) >= int(exchange["beat_minutes"]):
+        return {"ok":false,"code":"INVALID_EXCHANGE"}
+    var seen_speakers: Dictionary = {}
+    for line in exchange["lines"]:
+        if typeof(line) != TYPE_DICTIONARY or line.size() != 2 or typeof(line.get("speaker_id")) != TYPE_STRING or typeof(line.get("text")) != TYPE_STRING:
+            return {"ok":false,"code":"INVALID_EXCHANGE"}
+        var npc_id: String = str(line["speaker_id"])
+        var anchor: Dictionary = graph.anchors.get(npc_id,{})
+        if seen_speakers.has(npc_id) or anchor.is_empty() or anchor["room_id"] != "kiosk" or session.world.npc(npc_id).is_empty():
+            return {"ok":false,"code":"INVALID_EXCHANGE"}
+        if str(line["text"]).strip_edges().is_empty() or str(line["text"]).length() > 48:
+            return {"ok":false,"code":"INVALID_EXCHANGE"}
+        seen_speakers[npc_id] = true
+    exchange_pack = exchange.duplicate(true)
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -216,6 +244,31 @@ func customer_reaction() -> Dictionary:
         "item_id":str(latest["item_id"]),"grade":str(quality["grade"]),
         "line":str(tea_reactions[npc_id][quality["grade"]]),
         "source_event_id":str(latest["closure_event_id"])}
+
+func ambient_exchange() -> Dictionary:
+    # Two short, authored NPC-to-NPC remarks at P1 clock beats. No pause,
+    # invented NPC travel, side-effecting story fact or persistent chatter
+    # state. This is an incidental exchange, NOT an Ink conversation.
+    if room() != str(exchange_pack.get("room_id","")) or not customer_reaction().is_empty():
+        return {}
+    var now: int = int(session.world.view()["world_minute"])
+    var elapsed: int = now - int(exchange_pack["first_minute"])
+    if elapsed < 0: return {}
+    var beat_minutes: int = int(exchange_pack["beat_minutes"])
+    if elapsed % beat_minutes >= int(exchange_pack["visible_minutes"]):
+        return {}
+    var lines: Array = exchange_pack["lines"]
+    # Don't invent a conversation when either participant is absent.
+    for line in lines:
+        if str(session.world.npc(str(line["speaker_id"])).get("location_id","")) != room():
+            return {}
+    var beat: int = int(elapsed / beat_minutes)
+    var chosen: Dictionary = lines[beat % lines.size()]
+    var npc_id: String = str(chosen["speaker_id"])
+    var anchor: Dictionary = graph.anchors[npc_id]
+    if position().distance_to(Graph.point(anchor["point"])) > 110.0:
+        return {}
+    return {"npc_id":npc_id,"line":str(chosen["text"]),"beat":beat}
 
 func _tea_transition(action: Dictionary) -> bool:
     if str(action.get("kind","")) not in ["cook.step.begin","cook.step.resume","cook.step.finish"]:
@@ -443,6 +496,7 @@ func status() -> Dictionary:
             quiet_count += 1
             last_quiet = str(event["payload"]["request"]["activity_id"])
     var tea_context: Dictionary = active_tea_step()
+    var aside: Dictionary = ambient_exchange()
     var spoken: Dictionary = customer_reaction()
     var latest_tea: Dictionary = {}
     for item in v["cooking"]["items"].values():
@@ -452,6 +506,9 @@ func status() -> Dictionary:
             latest_tea = item
     var quality: Dictionary = session.world.prepared_quality(str(latest_tea.get("item_id",""))) if not latest_tea.is_empty() else {}
     return {
+        "ambient_line":str(aside.get("line","")),
+        "ambient_npc":str(aside.get("npc_id","")),
+        "ambient_beat":int(aside.get("beat",-1)),
         "customer_reaction":str(spoken.get("line","")),
         "customer_reaction_npc":str(spoken.get("npc_id","")),
         "customer_reaction_order":str(spoken.get("order_id","")),

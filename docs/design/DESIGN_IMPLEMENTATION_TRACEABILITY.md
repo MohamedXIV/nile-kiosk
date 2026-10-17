@@ -52,3 +52,5 @@ E6 production entry and E1 day loop can start by wiring existing domains and con
 
 ### E2 P0 source and acceptance (2026-10-17)
 [PR #68](https://github.com/MohamedXIV/nile-kiosk/pull/68) owns the first production NEED-01/02 subset: canonical `scripts/core/needs_world.gd`, K-key personal bread at kiosk counter with P3 prepared items, P1 time, E1 leisure, placed P5 bed, v10 replay and restrained HUD. Proof: [native CI](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39037366128), and mandatory exact-head [Chromium PR checks](https://github.com/MohamedXIV/nile-kiosk/pull/68/checks) before merge. This is **PARTIAL**, not E2 closed: heat/environment, varied food and home preparation, long-session recovery and contextual feedback, social moments and human pacing review remain.
+
+**E4 incidental-exchange trial (2026-10-17):** a brief P1/P2-authoritative Salma–Mahmoud ambient line exchange is being added to the real game as a PROPOSED scripted presentation. It is neither P6/Ink participation nor complete E4 spatial conversation. Native/Chromium pending; keep SOC-02/03 PARTIAL and E4 #59 OPEN.

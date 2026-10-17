@@ -139,6 +139,9 @@ try {
   await press("j");
   const afterWait = await until("E6_GAME_WAIT",2);
   check(afterWait.minute >= 1035 && afterWait.npc_mahmoud === "kiosk" && afterWait.order_status === "offered", "autonomous order did not appear");
+  check(afterWait.ambient_npc === "salma" && afterWait.ambient_beat === 0 &&
+    afterWait.ambient_line.includes("river") && !afterWait.customer_reaction,
+    "two physically present neighbors did not start an independent ambient exchange");
   await press("g");
   const accepted = await until("E6_GAME_SERVE",0);
   check(accepted.order_status === "accepted", "canonical customer order not accepted");
@@ -162,6 +165,7 @@ try {
   await press("h");
   const lifted = await until("E6_GAME_TEA_HEAT",2);
   check(lifted.tea_stage === "waiting" && lifted.tea_action === "U", "lifting kettle didn't advance canonical recipe");
+  check(lifted.ambient_line === "", "NPC chatter filled an authored silence beat");
   await press("u");
   const poured = await until("E6_GAME_TEA_POUR",1);
   check(poured.tea_stage === "active", "pour action didn't begin P3 serving step");
@@ -170,13 +174,15 @@ try {
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
     "finished tea wasn't authentic prepared item for pending order");
+  check(finishedTea.ambient_npc === "mahmoud" && finishedTea.ambient_beat === 1 &&
+    finishedTea.ambient_line.includes("still"), "Mahmoud did not answer Salma while player cooked");
   check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
   check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
   await press("g");
   const deliveredTea = await until("E6_GAME_SERVE",3);
-  check(deliveredTea.order_status === "delivered" &&
+  check(deliveredTea.order_status === "delivered" && deliveredTea.ambient_line === "" &&
     deliveredTea.customer_reaction_npc === "mahmoud" &&
     deliveredTea.customer_reaction.includes("strong") &&
     deliveredTea.customer_reaction_order === deliveredTea.active_order &&
@@ -244,6 +250,7 @@ try {
   console.log("E3_TEA_HANDS_CHROMIUM_PASS: heat/lift/pour/finish real P3 preparation, wrong and early gesture rejected, G blocked, saved Web");
   console.log("E3_TEA_QUALITY_CHROMIUM_PASS: overdue kettle/pour reduces canonical item score, visual quality and hard browser replay");
   console.log("E3_CUSTOMER_REACTION_CHROMIUM_PASS: delivered rough cup triggers authored Mahmoud line, replays after hard Web reload");
+  console.log("E4_AMBIENT_EXCHANGE_CHROMIUM_PASS: Salma and Mahmoud trade short authored lines during real player cooking, with silence and delivery precedence");
 } finally {
   await context.close();
   await browser.close();
