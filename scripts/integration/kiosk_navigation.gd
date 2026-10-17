@@ -55,9 +55,13 @@ func configure(raw: Variant, room: Dictionary, homes: Array, destinations: Array
     NavigationServer2D.map_force_update(map_rid)
     for home in homes:
         for goal in destinations:
-            if NavigationServer2D.map_get_path(map_rid,home,goal,true).size() < 2:
+            var route: PackedVector2Array = NavigationServer2D.map_get_path(map_rid,home,goal,true)
+            if route.size() < 2:
+                var diagnostic: Dictionary = {"ok":false,"code":"NAV_ROUTE_UNREACHABLE","from":str(home),
+                    "to":str(goal),"waypoints":route.size(),"polygons":poly.get_polygon_count(),
+                    "map_active":NavigationServer2D.map_is_active(map_rid)}
                 dispose()
-                return {"ok":false,"code":"NAV_ROUTE_UNREACHABLE"}
+                return diagnostic
     geometry = raw.duplicate(true)
     return {"ok":true}
 
