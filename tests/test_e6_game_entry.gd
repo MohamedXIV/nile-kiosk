@@ -24,7 +24,7 @@ func _run() -> void:
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
     var g: RefCounted = Game.new()
     var started: Dictionary = g.start(SAVE)
-    check(started.get("ok",false) and started.get("code","")=="NEW_WORLD","new session")
+    check(started.get("ok",false) and started.get("code","")=="NEW_WORLD","new session "+JSON.stringify(started))
     if not started.get("ok",false): return
     check(g.room()=="roof" and g.status()["minute"]==1020,"initial roof at authored opening time")
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
