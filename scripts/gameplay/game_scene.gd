@@ -60,6 +60,7 @@ func _act(kind: String) -> void:
         "door": result = game.travel_near()
         "talk": result = game.listen_near()
         "serve": result = game.service_near()
+        "meal": result = game.personal_bread_near()
         "wait": result = game.wait_minutes()
         "save": result = game.save_game()
         "open": result = game.open_kiosk()
@@ -75,6 +76,7 @@ func _act(kind: String) -> void:
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
             "serve":"Service: " + str(result.get("kind","updated")),
+            "meal":str(result.get("caption","Bread prepared.")),
             "wait":"Five quiet minutes pass.",
             "save":"Your evening has been saved.",
             "open":"Kiosk open. Take your time.",
@@ -97,6 +99,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_E: _act("door")
         KEY_F: _act("talk")
         KEY_G: _act("serve")
+        KEY_K: _act("meal")
         KEY_J: _act("wait")
         KEY_P: _act("save")
         KEY_O: _act("open")
@@ -216,6 +219,8 @@ func _draw() -> void:
     _text(Vector2(480,526),"J wait   P save   Radio listens: %d" % state["radio_uses"],13,Color("#e2c18b"))
     if location == "roof":
         _text(Vector2(28,526),"B buy radio   V place   R listen   X store",13,Color("#e2c18b"))
+    if location == "kiosk":
+        _text(Vector2(205,526),"K prepare/eat personal bread",13,Color("#e2c18b"))
     var near: Dictionary = game.nearest_portal()
     if not near.is_empty():
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
