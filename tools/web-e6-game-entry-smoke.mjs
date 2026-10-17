@@ -103,6 +103,22 @@ try {
     listenedRadio.last_quiet === "radio_listen" && listenedRadio.minute === 1032,
     "radio use did not advance canonical time and housing usage");
   check(listenedRadio.mood > placedRadio.mood, "actual radio use has no contextual E2 effect");
+  check(!listenedRadio.bed_owned && !listenedRadio.bed_placed, "bed gifted at boot");
+  await press("t");
+  const boughtBed = await until("E6_GAME_BED",0);
+  check(boughtBed.bed_owned && !boughtBed.bed_placed && boughtBed.money === listenedRadio.money - boughtBed.bed_price,
+    "secondhand bed did not debit P5 ledger");
+  check(boughtBed.mood === listenedRadio.mood && boughtBed.rest === listenedRadio.rest,
+    "purchasing a bed gave free Mood/Rest");
+  await press("t");
+  const placedBed = await until("E6_GAME_BED",1);
+  check(placedBed.bed_placed && placedBed.money === boughtBed.money, "bed placement failed or double-charged");
+  await press("y");
+  const storedBed = await until("E6_GAME_BED_STORE");
+  check(!storedBed.bed_placed && storedBed.bed_owned, "stored bed still treated as placed");
+  await press("t");
+  const replacedBed = await until("E6_GAME_BED",2);
+  check(replacedBed.bed_placed && replacedBed.money === boughtBed.money, "bed restore charged again");
   await press("e");
   const landing = await until("E6_GAME_DOOR",0);
   check(landing.location === "landing", "roof/landing portal");
@@ -141,7 +157,8 @@ try {
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   check(restored.hunger === saved.hunger && restored.rest === saved.rest && restored.mood === saved.mood, "E2 needs lost on browser reload");
-  check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
+  check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
+    restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
     "browser reload lost game state, pending order or location");
   await press("c");
   const closed = await until("E6_GAME_CLOSE");
@@ -160,14 +177,14 @@ try {
     rooftopMoment.money === saved.money, "roof moment or no-reward boundary failed");
   await press("z");
   const slept = await until("E6_GAME_SLEEP");
-  check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open,
+  check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open && slept.bed_placed && slept.rest >= rooftopMoment.rest,
     "player did not reach canonical next-day morning");
   await press("p");
   const morningSaved = await until("E6_GAME_SAVE",1);
   await page.waitForTimeout(1700);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
-  check(morningRestored.digest === morningSaved.digest && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
+  check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
@@ -176,6 +193,7 @@ try {
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
   console.log("E1_RADIO_CHROMIUM_PASS: purchase, place, listen, real P5 usage, scheduler and reload");
   console.log("E2_NEEDS_CHROMIUM_PASS: clock needs, no purchase buff, real leisure and hard reload");
+  console.log("E2_HOME_BED_CHROMIUM_PASS: paid P5 bed, real placement/storage, no instant buff, next-day rest and reload");
 } finally {
   await context.close();
   await browser.close();

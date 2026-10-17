@@ -46,13 +46,31 @@ func run() -> void:
     for i in range(6):
         check(b.advance_time(100,"e2:step:%d" % i).get("ok",false),"chunked clock %d" % i)
     check(a.needs_view()==b.needs_view(),"time chunk invariance")
-    check(cmd(b,"e2:bed:type","system:catalog","home.type.define",{"type_id":"bed","price_minor":0,"actions":["sleep"]}).get("ok",false),"bed catalog")
+    check(b.housing_view()["types"].has("bed"),"authored purchasable bed type on production boot")
     check(cmd(b,"e2:bed:grant","system:bootstrap","home.object.grant",{"object_id":"e2_bed","type_id":"bed"}).get("ok",false),"bed grant")
     check(cmd(b,"e2:bed:place","player","home.object.place",{"object_id":"e2_bed","unit_id":"roof","slot_id":"e2_bed_corner"}).get("ok",false),"bed placed in owned home")
     check(a.needs_view()["mood"]==b.needs_view()["mood"],"bed purchase alone has no benefit")
     check(cmd(a,"e2:sleep:plain","player","life.sleep",{}).get("ok",false),"plain sleep")
     check(cmd(b,"e2:sleep:bed","player","life.sleep",{}).get("ok",false),"placed bed sleep")
     check(b.needs_view()["rest"] > a.needs_view()["rest"],"placed bed improves sleep only when used")
+    # Player-facing E2/E5: secondhand comfort is a P5 paid choice and only
+    # affects sleep when owned/placed, not when purchased or put in storage.
+    check(not g.status()["bed_owned"] and not g.status()["bed_placed"],"no gifted bed")
+    check(g.place_bed().get("code")=="UNKNOWN_OBJECT","cannot place unowned bed")
+    var before_bed: Dictionary = g.status()
+    check(g.bed_near().get("ok",false),"player buys a bed")
+    check(g.status()["money"] == before_bed["money"] - g.status()["bed_price"],"bed debits actual P5 ledger")
+    check(g.status()["rest"] == before_bed["rest"] and g.status()["mood"] == before_bed["mood"],"bed purchase grants no immediate needs")
+    var paid_digest: String = g.status()["digest"]
+    check(g.buy_bed().get("code")=="OBJECT_EXISTS","duplicate furniture rejected")
+    check(g.status()["digest"] == paid_digest,"duplicate did not debit again")
+    check(g.session.command("e2:bed:extra","player","home.object.acquire",
+        {"object_id":"extra_bed","type_id":"bed","transaction_id":"e2:extra:bed"}).get("code")=="INSUFFICIENT_FUNDS","cannot buy bed without funds")
+    check(g.status()["digest"] == paid_digest,"insufficient funds changed world")
+    check(g.bed_near().get("ok",false) and g.status()["bed_placed"],"player places bed")
+    check(g.bed_near().get("code")=="BED_ALREADY_PLACED","no repeat placement")
+    check(g.store_bed().get("ok",false) and not g.status()["bed_placed"],"stored bed does not count")
+    check(g.bed_near().get("ok",false) and g.status()["bed_placed"],"bed replaced")
     # Prepared food must be a real P3 item; no free self-feeding or remote eating.
     check(g.session.command("e2:meal:start","player","cook.start",{"job_id":"e2_personal","recipe_id":"plain_bread","deadline_minute":g.status()["minute"]+100}).get("ok",false),"prepare personal bread")
     check(g.session.command("e2:meal:begin","player","cook.step.begin",{"job_id":"e2_personal","station_id":"counter"}).get("ok",false),"use actual station")
@@ -81,6 +99,8 @@ func run() -> void:
     check(g.session.command("e2:meal:again","player","needs.eat",{"item_id":item_id}).get("code")=="ITEM_NOT_READY","second item consumption rejected")
     # Real player-facing self-meal interaction, using the same stock/stations
     # and prepared items as P3 rather than a second hunger inventory.
+    check(g.buy_bed().get("code")=="NOT_AT_HOME" and g.store_bed().get("code")=="NOT_AT_HOME",
+        "bed actions cannot be invoked away from the home room")
     check(g.personal_bread_near().get("code","")=="COUNTER_TOO_FAR","personal food proximity")
     for i in range(4): check(g.move_world(18,0).get("ok",false),"approach counter")
     check(g.personal_bread_near().get("phase","")=="start","personal recipe starts")
@@ -95,7 +115,7 @@ func run() -> void:
     check(g.save_game().get("ok",false),"disk and replay")
     var loaded: RefCounted = Game.new()
     check(loaded.start(SAVE).get("code")=="RESTORED","disk reload")
-    check(loaded.status()["digest"]==eaten,"needs save/reload differs")
+    check(loaded.status()["digest"]==eaten and loaded.status()["bed_placed"],"needs and household ownership save/reload differs")
     var tampered: Dictionary = loaded.session.world.view()
     tampered["needs"]["mood"] = 100
     check(not loaded.session.world.restore_snapshot(tampered),"forged mood accepted")

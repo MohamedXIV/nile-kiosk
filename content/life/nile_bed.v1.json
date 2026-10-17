@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "type": {
+    "type_id": "bed",
+    "price_minor": 3400,
+    "actions": [
+      "sleep"
+    ]
+  },
+  "object_id": "player_bed_1",
+  "slot_id": "roof_bed_corner",
+  "unit_id": "roof",
+  "caption": "A secondhand bed makes the next morning a little easier."
+}
