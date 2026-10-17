@@ -58,3 +58,6 @@ After SYS P0–P7 and PLAY C1–C6, the next missing work is **player-facing sim
 - Production art-resolution dialogue inspection, Arabic/RTL, realistic NPC density/performance, and release build pipeline remain future work.
 - **Art work can pause without blocking system development.** V001 PR #20 remains open for independent visual review; don't merge it into gameplay kernel as a dependency. [Visual bible](design/VISUAL_WORLD_BIBLE.md), [asset pipeline](art/3D_AUTHORED_2D_PRODUCTION.md), [design register](DECISION_REGISTER.md).
 - **Completion means full contract and tests for the declared system**, including rejected transitions, mid-operation save/replay, deterministic results and immediate cross-system boundaries. See [system board](systems/SYSTEM_DELIVERY_BOARD.md).
+
+### Active E2 work (2026-10-17; not yet merged)
+`feat/e2-p0-canonical-needs`: canonical Hunger/Rest/Mood, hidden slow wellbeing baseline, time/sleep/leisure and P3 prepared personal food, bounded P5 placed-bed rest, v10 replay and restrained E6 HUD. CI and Chromium evidence required before any verified-scope claim. E2 remains OPEN with further context, balance and human acceptance still outstanding.

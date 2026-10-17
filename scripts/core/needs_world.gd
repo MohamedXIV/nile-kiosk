@@ -91,7 +91,7 @@ func on_elapsed(from_minute: int, to_minute: int, kind: String,
     hunger = maxi(0, hunger - (int(to_minute / 45) - int(from_minute / 45)))
     if kind == "life.sleep":
         var sleep_minutes: int = to_minute - from_minute
-        var recovery: int = mini(55, int(sleep_minutes / 18))
+        var recovery: int = mini(42, int(sleep_minutes / 30))
         if _placed_bed(housing, home_room):
             recovery += 12
         rest = mini(100, rest + recovery)

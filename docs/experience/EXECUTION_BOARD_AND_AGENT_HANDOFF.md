@@ -125,3 +125,6 @@ These are **playable acceptance checkpoints**, *not replacements for production-
 6. **On handoff:** report last verified main SHA, PRs and active branches, which gate passed/failed/not run, next dependency-ready batches, and known unresolved design questions. An incoming agent should be able to proceed without conversation transcript.
 
 **No work on this documentation board alone constitutes implementation, additional test proof, final art signoff, or a change to E1–E6 issue closure status.**
+
+## Active E2 branch note (2026-10-17, unmerged)
+A dependency-ready E2 P0 branch (`feat/e2-p0-canonical-needs`) is implementing a bounded canonical Hunger/Rest/Mood + hidden baseline domain, authored meal nourishment linked to real P3 cooked items, real P5 placed-bed sleep benefit, authored E1 activity saturation, schema v10 migration, and restrained production visual state. Acceptance is **pending exact-head native and Chromium CI**. Do not mark E2 DONE or collapse the remaining environmental/food/social/balance work. PR and merged commit must be filled in from live GitHub after checks, never inferred from this note.

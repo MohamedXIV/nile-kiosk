@@ -55,12 +55,14 @@ try {
   const initial = await until("E6_GAME_READY");
   check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
   check(initial.radio_owned === false && initial.radio_uses === 0, "radio gifted before purchase");
+  check(initial.hunger < 75 && initial.rest < 80 && initial.mood >= 25, "E2 needs not driven by actual opening clock");
   await press("r");
   const unavailableRadio = await until("E6_GAME_RADIO_LISTEN",0);
   check(unavailableRadio.radio_uses === 0 && unavailableRadio.minute === initial.minute, "phantom radio play");
   await press("b");
   const acquiredRadio = await until("E6_GAME_RADIO_BUY");
   check(acquiredRadio.money === 4800 && acquiredRadio.radio_owned && !acquiredRadio.radio_placed, "real P5 purchase/ledger");
+  check(acquiredRadio.mood === initial.mood, "radio purchase granted free E2 mood");
   await press("v");
   const placedRadio = await until("E6_GAME_RADIO_PLACE");
   check(placedRadio.radio_placed && placedRadio.money === 4800, "radio not placed in home");
@@ -69,6 +71,7 @@ try {
   check(listenedRadio.radio_uses === 1 && listenedRadio.quiet_count === 1 &&
     listenedRadio.last_quiet === "radio_listen" && listenedRadio.minute === 1032,
     "radio use did not advance canonical time and housing usage");
+  check(listenedRadio.mood > placedRadio.mood, "actual radio use has no contextual E2 effect");
   await press("e");
   const landing = await until("E6_GAME_DOOR",0);
   check(landing.location === "landing", "roof/landing portal");
@@ -106,6 +109,7 @@ try {
   await page.waitForTimeout(1600);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
+  check(restored.hunger === saved.hunger && restored.rest === saved.rest && restored.mood === saved.mood, "E2 needs lost on browser reload");
   check(restored.digest === saved.digest && restored.location === "kiosk" && restored.order_status === "accepted" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed,
     "browser reload lost game state, pending order or location");
   await press("c");
@@ -145,6 +149,7 @@ try {
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
   console.log("E1_RADIO_CHROMIUM_PASS: purchase, place, listen, real P5 usage, scheduler and reload");
+  console.log("E2_NEEDS_CHROMIUM_PASS: clock needs, no purchase buff, real leisure and hard reload");
 } finally {
   await context.close();
   await browser.close();

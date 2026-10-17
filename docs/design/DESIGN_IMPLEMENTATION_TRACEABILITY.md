@@ -49,3 +49,6 @@ The `verified scope` for SYS P0–P7, CONTENT C0 and PLAY C1–C6 remains real a
 The live next-batch candidates, user-approved vs proposed ideas, and agent-safe handoff/update protocol are maintained in [Experience Execution Board](../experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md). **Do not collapse this factual gap ledger into a speculative percent or silently treat proposed work as approved.**
 
 E6 production entry and E1 day loop can start by wiring existing domains and content **without** waiting for final V001 art. E2 wellbeing can then make E1 activities and E5 home objects meaningful. E3/E4 evolve in parallel over P3/P4/P6; E5 adds genuine market/referral effects after shared canonical interface contracts are clear. Select the smallest high-value missing behavior first; preserve independence of visual-art approval. Update this document as source and evidence change.
+
+### E2 implementation branch (pending verified merge, 2026-10-17)
+`feat/e2-p0-canonical-needs` proposes first canonical NEED-01/02 subset in `scripts/core/needs_world.gd`, wired through WorldKernel P1/P3/P5/E1, schema v10 replay and game HUD. Treat the table's current status as unchanged until exact native and Web CI prove it and PR merges. Remaining E2: more authentic nutrition/household/environment context, long-session tuning, player meal preparation, human UX.
