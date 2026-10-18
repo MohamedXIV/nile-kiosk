@@ -19,7 +19,7 @@ func step(g: RefCounted, id: String, station: String, minutes: int) -> void:
     var started: Dictionary = g.session.command("learn:"+id+":"+station+":begin","player",
         "cook.step.begin",{"job_id":id,"station_id":station})
     check(started.get("ok",false), "real P3 "+station+" start")
-    check(g.wait_minutes(minutes).get("ok",false), "canonical wait for "+station)
+    for i in range(minutes): check(g.wait_minutes(1).get("ok",false), "canonical wait for "+station)
     var finished: Dictionary = g.session.command("learn:"+id+":"+station+":finish","player",
         "cook.step.finish",{"job_id":id})
     check(finished.get("ok",false), "real P3 "+station+" finish")
