@@ -1,5 +1,6 @@
 extends SceneTree
 ## E2 P0: canonical needs, contextual leisure, verified P3 food and P5 sleep.
+const ClosureCases = preload("res://tests/e2_closure_cases.gd")
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e2-needs.json"
@@ -7,6 +8,7 @@ var failures: Array[String] = []
 
 func _initialize() -> void:
     run()
+    failures.append_array(ClosureCases.new().run())
     for error in failures: push_error(error)
     print("E2 NEEDS: PASS (clock chunks, leisure saturation, real food, bed sleep, replay)" if failures.is_empty() else "E2 NEEDS: FAIL (%d)" % failures.size())
     quit(0 if failures.is_empty() else 1)
