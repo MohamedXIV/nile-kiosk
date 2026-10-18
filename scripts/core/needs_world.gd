@@ -57,7 +57,7 @@ func plan(kind: String, payload: Dictionary, actor: String,
                 return {"ok":false,"code":"INVALID_NOURISHMENT"}
         var effect: Dictionary = {"recipes":values.duplicate(true)}
         if modern: effect["policy_version"] = 2
-        return {"ok":true,"effect":effect
+        return {"ok":true,"effect":effect}
     if actor != "player": return {"ok":false,"code":"INVALID_PLAYER_ACTION"}
     if payload.size() != 1 or typeof(payload.get("item_id")) != TYPE_STRING:
         return {"ok":false,"code":"INVALID_MEAL"}
