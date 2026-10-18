@@ -1,0 +1,15 @@
+# Procurement alternatives — Batch B design
+
+Independent delivery batch based on verified Batch A (stacked branch `feat/procurement-alternatives`, PR base `feat/living-conversations` until A merges). Issues #60/#55 remain OPEN/PARTIAL; art #20 untouched.
+
+## Bounded actual choice
+The existing Hoda delivery remains knowledge gated: 30g/550 minor/15 minutes, 120-minute expiry from actual learning. Public market collection is an honestly labeled elapsed activity from the kiosk counter, not a fabricated walkable room: 30g/450 minor/40 minutes. **PROPOSED** price/travel/stock/window: opens17:00–19:00, single30g allotment. It explicitly leaves the unattended kiosk running: P1 fires deadlines/arrivals, needs change and ingredients arrive only at completion. No fake market geometry/transport system. Availability requires enough time to collect before closing. The learned referral measurably saves25minutes and permits convenient delivery after the market window, for100minor fee.
+
+## Authority
+Extend the existing strict P5 supply contract with optional `availability` metadata: `opens_minute`, `closes_minute`, `lot_id`, `stock_quantity`. Empty required_fact is allowed only for such an explicit public channel. Existing fact-gated offers retain their exact semantics and old event shape. The public offer's availability follows P1 day minute; no second clock. Stock remaining derives from completed P5 supply resolutions for that authored lot, including other offers sharing it; registering conflicting terms for a lot is rejected. No extra mutable vendor-stock projection/schema. Supply purchase rejects unavailable/expired/stock-short before effects, plans actual P5 transfer and P3 stock, and composes P1 scheduler/needs atomically. Receipts identify public catalog vs heard fact; rejected commands mutate nothing. Each offer remains one-shot, decline/ignore valid.
+
+## Production
+A cohesive `ProcurementPlay` registers public content, projects terms/remaining/status, and invokes existing supply purchase/decline commands at the actual kiosk counter. F5 collect/F6 decline; existing F3/F4 delivery retained. Show both money/time/access terms together. Completion honestly reports40minutes away and real goods. No synchronous scene-owned travel animation or invented map.
+
+## Acceptance
+Compare both routes from equivalent real earned-referral starting snapshot; native controls learn actual P6 contact first. Public collection without fact, outside hours, too late to finish, empty/short lot, conflicting shared lot, insufficient funds, pause, wrong location, extra fields, decline/ignore, repeated/new command IDs, ledger/stock/time/needs/firings+ACK, save/replay/forgedprovenance. Browser default controls prove public no-knowledge collection and expiry/decline, and actual earned referral chooses delivery versus collection on equal starts through separate persisted browser contexts (read-only save observation, no injected world). Full native+Web exact-head batch validation; no new heavy hosted jobs.

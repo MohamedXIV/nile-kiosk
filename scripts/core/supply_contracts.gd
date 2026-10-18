@@ -14,19 +14,55 @@ static func command_kind(kind: String) -> String:
 
 static func fail(code: String) -> Dictionary: return {"ok":false,"code":code}
 
+static func remaining(offers: Dictionary, resolutions: Dictionary, offer: Dictionary) -> int:
+    if not offer.has("availability"): return int(offer["quantity"])
+    var lot: Dictionary = offer["availability"]
+    var stock: int = int(lot["stock_quantity"])
+    for id in resolutions:
+        var receipt: Dictionary = resolutions[id]
+        var terms: Dictionary = offers[id]
+        if receipt["status"]=="purchased" and terms.get("availability",{}).get("lot_id","")==lot["lot_id"]:
+            stock-=int(receipt["quantity"])
+    return stock
+
+static func availability(offer: Dictionary, minute: int, purchase: bool) -> String:
+    if not offer.has("availability"): return ""
+    var a: Dictionary = offer["availability"]
+    var today: int = minute%1440
+    if today<int(a["opens_minute"]): return "OFFER_NOT_OPEN"
+    if today>=int(a["closes_minute"]): return "OFFER_EXPIRED"
+    if purchase and int(offer["minutes"])>int(a["closes_minute"])-today: return "COLLECTION_TOO_LATE"
+    return ""
+
 static func plan(kind: String, p: Dictionary, actor: String, world: RefCounted) -> Dictionary:
     var economy: RefCounted = world.economy
     if kind == "supply.offer.register":
         if actor != "system:catalog": return fail("UNAUTHORIZED")
-        if not economy.exact(p,["offer_id","supplier_id","required_fact","ingredient_id","quantity","goods_minor","delivery_minor","minutes","location_id","valid_minutes"]):
+        var keys: Array = ["offer_id","supplier_id","required_fact","ingredient_id","quantity","goods_minor","delivery_minor","minutes","location_id","valid_minutes"]
+        if p.has("availability"): keys.append("availability")
+        if not economy.exact(p,keys):
             return fail("INVALID_PAYLOAD")
-        for field in ["offer_id","supplier_id","required_fact","ingredient_id","location_id"]:
+        for field in ["offer_id","supplier_id","ingredient_id","location_id"]:
             if not economy.identity(p[field]): return fail("INVALID_OFFER")
+        if typeof(p["required_fact"])!=TYPE_STRING or (not p["required_fact"].is_empty() and not economy.identity(p["required_fact"])) or (p["required_fact"].is_empty() and not p.has("availability")):
+            return fail("INVALID_OFFER")
+        if p.has("availability"):
+            var a: Variant = p["availability"]
+            if typeof(a)!=TYPE_DICTIONARY or not economy.exact(a,["opens_minute","closes_minute","lot_id","stock_quantity"]) or not economy.identity(a.get("lot_id")):
+                return fail("INVALID_AVAILABILITY")
+            for field in ["opens_minute","closes_minute","stock_quantity"]:
+                if not economy.minor(a[field]): return fail("INVALID_AVAILABILITY")
+            if int(a["opens_minute"])>=int(a["closes_minute"]) or int(a["closes_minute"])>1440:
+                return fail("INVALID_AVAILABILITY")
+            for existing in economy.supply_offers.values():
+                var lot: Dictionary=existing.get("availability",{})
+                if lot.get("lot_id","")==a["lot_id"] and (lot["stock_quantity"]!=a["stock_quantity"] or existing["ingredient_id"]!=p["ingredient_id"]):
+                    return fail("SUPPLY_LOT_CONFLICT")
         for field in ["quantity","goods_minor","minutes","valid_minutes"]:
             if not economy.minor(p[field],1): return fail("INVALID_OFFER")
         if not economy.minor(p["delivery_minor"]) or int(p["goods_minor"]) > LIMIT-int(p["delivery_minor"]) or int(p["minutes"]) > 1440 or int(p["valid_minutes"]) > 1440:
             return fail("INVALID_OFFER")
-        if not world.cooking.ingredients.has(p["ingredient_id"]) or not world.society.social_facts.has(p["required_fact"]):
+        if not world.cooking.ingredients.has(p["ingredient_id"]) or (not p["required_fact"].is_empty() and not world.society.social_facts.has(p["required_fact"])):
             return fail("UNKNOWN_OFFER_DEPENDENCY")
         if economy.supply_offers.has(p["offer_id"]): return fail("OFFER_EXISTS")
         if economy.supply_offers.size() >= 64: return fail("OFFER_LIMIT")
@@ -37,12 +73,15 @@ static func plan(kind: String, p: Dictionary, actor: String, world: RefCounted) 
     var offer: Dictionary = economy.supply_offers[p["offer_id"]]
     if economy.supply_resolutions.has(p["offer_id"]): return fail("OFFER_RESOLVED")
     var known: Dictionary = world.society.knowledge.get("player",{}).get(offer["required_fact"],{})
-    if known.is_empty(): return fail("FACT_NOT_KNOWN")
+    if not offer["required_fact"].is_empty() and known.is_empty(): return fail("FACT_NOT_KNOWN")
     if world.society.player_location != offer["location_id"]: return fail("WRONG_LOCATION")
-    if world.world_minute-int(known["heard_minute"]) >= int(offer["valid_minutes"]): return fail("OFFER_EXPIRED")
-    var effect: Dictionary = {"offer_id":p["offer_id"],"knowledge_event_id":known["event_id"],
+    if not known.is_empty() and world.world_minute-int(known["heard_minute"]) >= int(offer["valid_minutes"]): return fail("OFFER_EXPIRED")
+    var unavailable: String = availability(offer,world.world_minute,kind=="supply.purchase")
+    if not unavailable.is_empty(): return fail(unavailable)
+    var effect: Dictionary = {"offer_id":p["offer_id"],"knowledge_event_id":known.get("event_id",""),
         "supplier_id":offer["supplier_id"],"status":"declined" if kind == "supply.decline" else "purchased"}
     if kind == "supply.decline": return {"ok":true,"effect":effect}
+    if remaining(economy.supply_offers,economy.supply_resolutions,offer)<int(offer["quantity"]): return fail("SUPPLY_OUT_OF_STOCK")
     if world.paused: return fail("PAUSED")
     if int(offer["minutes"]) > LIMIT-world.world_minute: return fail("TIME_OVERFLOW")
     var transfer: Dictionary = economy.plan_transfer({"transaction_id":"supply:"+str(p["offer_id"]),

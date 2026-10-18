@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "terms_status": "PROPOSED",
+  "offer": {
+    "offer_id": "market:tea-collection",
+    "supplier_id": "street-market",
+    "required_fact": "",
+    "ingredient_id": "leaves",
+    "quantity": 30,
+    "goods_minor": 450,
+    "delivery_minor": 0,
+    "minutes": 40,
+    "location_id": "kiosk",
+    "valid_minutes": 120,
+    "availability": {
+      "opens_minute": 1020,
+      "closes_minute": 1140,
+      "lot_id": "market:opening-tea-lot",
+      "stock_quantity": 30
+    }
+  }
+}

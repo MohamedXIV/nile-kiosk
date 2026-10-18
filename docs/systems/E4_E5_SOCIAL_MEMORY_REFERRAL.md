@@ -38,3 +38,8 @@ Schema **12** adds the P5 supply projections. Supported schemas **7–11** are v
 - Existing full Native and Web/Chromium/Ink workflows run these checks alongside previous systems and E4/E6 journeys. Consult actual run conclusions; this document does not imply unexecuted or unavailable CI passed.
 
 Broader SOC-03/SOC-04/ECON-02/ATM-02 acceptance remains incomplete. Exact numbers and dialogue need human content/balance review; no final art decision is made.
+
+
+## Follow-up procurement branch
+
+The independently reviewable [procurement alternatives](E5_PROCUREMENT_ALTERNATIVES.md) branch adds one bounded public elapsed collection option with finite stock and daily availability beside this learned delivery. The original delivery terms and knowledge gate remain. This is a branch implementation statement, not a merge or full E5 completion claim.
