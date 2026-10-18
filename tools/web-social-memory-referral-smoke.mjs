@@ -69,13 +69,13 @@ try {
       await page.waitForTimeout(ms);
       for(const key of [...keys].reverse())await page.keyboard.up(key);
     }
-    async function goX(target) {
+    async function goX(target,targetY=70) {
       let s=await snapshot();
-      for(let i=0;i<45 && (Math.abs(s.x-target)>13 || Math.abs(s.y-70)>13);i++) {
-        const keys=Math.abs(s.y-70)>13 ? (s.y<70?['s','a']:['w','d']) : (s.x<target?['s','d']:['w','a']);
+      for(let i=0;i<45 && (Math.abs(s.x-target)>13 || Math.abs(s.y-targetY)>13);i++) {
+        const keys=Math.abs(s.y-targetY)>13 ? (s.y<targetY?['s','a']:['w','d']) : (s.x<target?['s','d']:['w','a']);
         await pulse(keys);s=await snapshot();
       }
-      check(Math.abs(s.x-target)<=18 && Math.abs(s.y-70)<=18,'could not walk to target',s);return s;
+      check(Math.abs(s.x-target)<=18 && Math.abs(s.y-targetY)<=18,'could not walk to target',s);return s;
     }
     async function waitTo(minute) {
       let s=last;
@@ -115,6 +115,7 @@ try {
     console.log(outcome+' earlier service complete at '+last.minute);
     s=await waitTo(2479);
     console.log(outcome+' returned at '+s.minute);
+    await goX(s.npc_mahmoud_x,s.npc_mahmoud_y);s=await snapshot();
     check(s.customer_memory.branch===outcome && s.memory_near && s.active_order===s.customer_memory.return_order_id && s.order_status==='offered' && s.customer_memory.order_id!==s.customer_memory.return_order_id,'later visit did not recover earlier real history',s);
     const priorOrder=s.customer_memory.order_id;
     const start=count('E4_MEMORY_STARTED');await page.keyboard.press('F2');await until('E4_MEMORY_STARTED',start);
