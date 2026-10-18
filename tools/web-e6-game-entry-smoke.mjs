@@ -1,6 +1,9 @@
 import { chromium } from "playwright-core";
 import { readFileSync } from "node:fs";
 const monaMeeting = JSON.parse(readFileSync(new URL("../content/social/nile_mona_visit.v1.json", import.meta.url), "utf8")).meeting_point;
+const sceneRooms = Object.fromEntries(JSON.parse(readFileSync(
+  new URL("../content/navigation/nile_opening_routes.v1.json", import.meta.url),
+  "utf8")).rooms.map(room => [room.id, room]));
 
 // E6/P0: launch the real default scene (not D001 or QA), navigate, and reload.
 const browser = await chromium.launch({
@@ -34,6 +37,27 @@ async function until(marker, index=0) {
     await page.waitForTimeout(75);
   }
   throw new Error("Missing "+marker+" #"+index+"; "+JSON.stringify(errors));
+}
+// Read-only presentation acceptance at real 960×540 Godot resolution.
+function checkRoomFrame(state, label) {
+  const room = sceneRooms[state.location];
+  check(room && Number.isFinite(state.view_zoom) && state.view_zoom > 0 &&
+    Number.isFinite(state.view_origin_x) && Number.isFinite(state.view_origin_y),
+    label + " has no valid view frame");
+  const projected = ([x,y]) => ({
+    x: state.view_origin_x + (x-y)*1.36*state.view_zoom,
+    y: state.view_origin_y + (x+y)*0.68*state.view_zoom
+  });
+  for (const point of [[0,0],[room.width,0],[room.width,room.height],[0,room.height]]) {
+    const pixel = projected(point);
+    check(pixel.x >= 99.8 && pixel.x <= 860.2 &&
+      pixel.y >= 113.8 && pixel.y <= 352.2,
+      label + " room corner hidden behind interface");
+  }
+  const actor = projected([state.x,state.y]);
+  check(Math.abs(actor.x-state.view_actor_x) < 0.2 &&
+    Math.abs(actor.y-state.view_actor_y) < 0.2,
+    label + " avatar projection disagrees with canonical player position");
 }
 async function moveDiagonal(ms) {
   await page.keyboard.down("s");
@@ -87,6 +111,7 @@ try {
   await page.locator("canvas").first().click({ position: {x:500,y:290} });
   const initial = await until("E6_GAME_READY");
   check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
+  checkRoomFrame(initial,"fresh rooftop");
   check(initial.sound_enabled === true && initial.sound_room === "roof" && !initial.sound_kettle,
     "roof ambience not initialized in real playable scene");
   await press("0");
@@ -132,15 +157,18 @@ try {
   await press("e");
   const landing = await until("E6_GAME_DOOR",0);
   check(landing.location === "landing", "roof/landing portal");
+  checkRoomFrame(landing,"roof-to-landing");
   await moveDiagonal(1260);
   await press("e");
   const street = await until("E6_GAME_DOOR",1);
   check(street.location === "street", "landing/street portal");
+  checkRoomFrame(street,"landing-to-street");
   await moveDiagonal(1230);
   await press("e");
   const kiosk = await until("E6_GAME_DOOR",2);
   check(kiosk.location === "kiosk" && kiosk.sound_room === "kiosk",
     "street/kiosk portal or location-based ambient transition missing");
+  checkRoomFrame(kiosk,"street-to-kiosk");
   await moveDiagonal(520);
   await press("o");
   const opened = await until("E6_GAME_OPEN");
@@ -391,6 +419,7 @@ try {
   await page.waitForTimeout(1600);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
+  checkRoomFrame(restored,"browser hard reload");
   check(restored.hunger === saved.hunger && restored.rest === saved.rest && restored.mood === saved.mood, "E2 needs lost on browser reload");
   check(!restored.sound_enabled && restored.sound_room === "kiosk",
     "sound-off preference/location was not restored after actual Chromium reload");

@@ -8,6 +8,9 @@ const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
 const PLAYER_TWEEN_SECONDS = 0.11 # Read-only visual easing; P2 owns the actual position.
+const ISO_X = 1.36 # Current schematic 2:1 basis, not the unapproved V001 art projection.
+const ISO_Y = 0.68
+const PLAYFIELD = Rect2(100.0,114.0,760.0,238.0) # Reserve HUD, guidance and notices.
 
 var game: RefCounted
 var initialized: bool = false
@@ -18,6 +21,7 @@ var last_marker: String = ""
 var soundscape: Node
 var player_body: CharacterBody2D
 var player_visual_position: Vector2 = Vector2.ZERO
+var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
 var player_move_tween: Tween
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var furniture_bodies: Array[StaticBody2D] = []
@@ -38,6 +42,7 @@ func _boot() -> void:
         queue_redraw()
         return
     _setup_physics()
+    _frame_current_room()
     _snap_player_visual()
     soundscape = Ambient.new()
     add_child(soundscape)
@@ -55,6 +60,13 @@ func report(marker: String) -> void:
     diagnostic["dialogue_text"] = story_line
     diagnostic["dialogue_id"] = story_id
     diagnostic["help_visible"] = controls_open
+    if not visual_frame.is_empty():
+        diagnostic["view_zoom"] = visual_frame["zoom"]
+        diagnostic["view_origin_x"] = visual_frame["origin"].x
+        diagnostic["view_origin_y"] = visual_frame["origin"].y
+        var avatar: Vector2 = _iso(game.position())
+        diagnostic["view_actor_x"] = avatar.x
+        diagnostic["view_actor_y"] = avatar.y
     diagnostic["sound_enabled"] = soundscape.enabled if soundscape != null else false
     if soundscape != null:
         soundscape.set_context(str(diagnostic["location"]),not str(diagnostic["tea_stage"]).is_empty(),int(diagnostic["hour"]) >= 18 or int(diagnostic["hour"]) < 6)
@@ -185,7 +197,9 @@ func _act(kind: String) -> void:
         "supply_buy": result = game.referral_purchase()
         "supply_decline": result = game.referral_decline()
     if result.get("ok", false):
-        if kind == "door": _snap_player_visual()
+        if kind == "door":
+            _frame_current_room()
+            _snap_player_visual()
         notice = {
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
@@ -401,9 +415,30 @@ static func context_hint(state: Dictionary, exit_name: String,
             return "J · Let a little time pass"
     return "WASD · Explore    F1 · Controls"
 
+# Current schematic renderer: one authored projection, sized to the space
+# *between* the HUD and interaction notices. No room-specific magic offsets,
+# player-follow game state or migration of V001 sprite anchors is involved.
+static func frame_for_room(room_size: Vector2) -> Dictionary:
+    if not room_size.is_finite() or room_size.x <= 0.0 or room_size.y <= 0.0:
+        return {}
+    var ground_span: float = room_size.x + room_size.y
+    var zoom: float = minf(1.0,minf(PLAYFIELD.size.x / (ground_span * ISO_X),
+        PLAYFIELD.size.y / (ground_span * ISO_Y)))
+    var middle: Vector2 = room_size / 2.0
+    var projected_middle := Vector2((middle.x-middle.y)*ISO_X,
+        (middle.x+middle.y)*ISO_Y)
+    return {"zoom":zoom,"origin":PLAYFIELD.get_center() - projected_middle*zoom}
+
+static func project_in_frame(point: Vector2, frame: Dictionary) -> Vector2:
+    return frame["origin"] + Vector2((point.x-point.y)*ISO_X,
+        (point.x+point.y)*ISO_Y) * float(frame["zoom"])
+
+func _frame_current_room() -> void:
+    var dimensions: Dictionary = game.graph.rooms[game.room()]
+    visual_frame = frame_for_room(Vector2(dimensions["width"],dimensions["height"]))
+
 func _iso(point: Vector2) -> Vector2:
-    # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
-    return Vector2(480.0 + (point.x-point.y)*1.36, 126.0 + (point.x+point.y)*0.68)
+    return project_in_frame(point, visual_frame)
 
 func _floor_polygon(from_point: Vector2, to_point: Vector2) -> PackedVector2Array:
     return PackedVector2Array([

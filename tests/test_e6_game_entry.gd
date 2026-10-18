@@ -20,6 +20,33 @@ func check(value: bool, label: String) -> void:
     if not value: failures.append(label)
 
 func _run() -> void:
+    # Every authored floor corner must remain inside the visible playfield,
+    # not beneath the header, tea strip or bottom action text. This camera
+    # math is view-only and independent of the saved P2 actor location.
+    for shape in [Vector2(240,160),Vector2(120,90),Vector2(420,250)]:
+        var frame: Dictionary = GameScene.frame_for_room(shape)
+        check(not frame.is_empty(),"missing room camera frame")
+        if frame.is_empty(): continue
+        for corner in [Vector2.ZERO,Vector2(shape.x,0),shape,Vector2(0,shape.y)]:
+            var pixel: Vector2 = GameScene.project_in_frame(corner,frame)
+            check(pixel.x >= GameScene.PLAYFIELD.position.x-0.1 and
+                pixel.x <= GameScene.PLAYFIELD.end.x+0.1 and
+                pixel.y >= GameScene.PLAYFIELD.position.y-0.1 and
+                pixel.y <= GameScene.PLAYFIELD.end.y+0.1,
+                "room corner under a HUD overlay %s -> %s" % [shape,pixel])
+        var reference: Vector2 = GameScene.project_in_frame(Vector2.ZERO,frame)
+        var x_axis: Vector2 = GameScene.project_in_frame(Vector2(18,0),frame)-reference
+        var y_axis: Vector2 = GameScene.project_in_frame(Vector2(0,18),frame)-reference
+        check(is_equal_approx(x_axis.x,-y_axis.x) and
+            is_equal_approx(x_axis.y,y_axis.y) and
+            is_equal_approx(x_axis.x,2.0*x_axis.y),
+            "fixed 2:1 orientation changed during visual framing")
+        var center: Vector2 = GameScene.project_in_frame(shape/2.0,frame)
+        check(center.distance_to(GameScene.PLAYFIELD.get_center()) < 0.01,
+            "room auto-frame failed to center floor within safe playfield")
+    check(GameScene.frame_for_room(Vector2.ZERO).is_empty() and
+        GameScene.frame_for_room(Vector2(-10,160)).is_empty(),
+        "invalid room extents acquired a camera frame")
     # Game-first prompts are pure presentation of canonical facts; they do
     # not invent actions, move actors or alter the world to display guidance.
     check(GameScene.context_hint({"location":"kiosk","tea_stage":"active",
