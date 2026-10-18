@@ -316,6 +316,66 @@
           ]
         }
       }
+    },
+    {
+      "id": "npc:mona",
+      "kind": "npc.register",
+      "actor_id": "system:director",
+      "payload": {
+        "npc_id": "mona",
+        "location_id": "street"
+      }
+    },
+    {
+      "id": "routine:mona:visit-salma",
+      "kind": "npc.routine.create",
+      "actor_id": "system:director",
+      "payload": {
+        "routine_id": "mona_salma_visit",
+        "npc_id": "mona",
+        "location_id": "kiosk",
+        "start_minute": 1064,
+        "end_minute": 1100,
+        "period_minutes": 1440
+      }
+    },
+    {
+      "id": "fact:mona:visiting-salma",
+      "kind": "social.fact.register",
+      "actor_id": "system:director",
+      "payload": {
+        "fact_id": "mona:visiting-salma",
+        "source_npc_id": "mona",
+        "visibility": "public"
+      }
+    },
+    {
+      "id": "moment:mona:visiting-salma",
+      "kind": "narrative.opportunity.register",
+      "actor_id": "system:narrative",
+      "payload": {
+        "opportunity_id": "mona_visits_salma",
+        "trigger_event": "time.advanced",
+        "when": {
+          "all": [
+            {
+              "player_at": "kiosk"
+            },
+            {
+              "npc_at": {
+                "npc_id": "mona",
+                "location_id": "kiosk"
+              }
+            },
+            {
+              "kiosk_open": true
+            },
+            {
+              "time_at_least": 1064
+            }
+          ]
+        }
+      }
     }
   ]
 }
