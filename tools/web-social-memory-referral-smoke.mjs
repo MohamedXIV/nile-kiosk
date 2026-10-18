@@ -115,7 +115,7 @@ try {
     console.log(outcome+' earlier service complete at '+last.minute);
     s=await waitTo(2479);
     console.log(outcome+' returned at '+s.minute);
-    check(s.customer_memory.branch===outcome && s.memory_near && s.customer_memory.order_id!==s.customer_memory.return_order_id,'later visit did not recover earlier real history',s);
+    check(s.customer_memory.branch===outcome && s.memory_near && s.active_order===s.customer_memory.return_order_id && s.order_status==='offered' && s.customer_memory.order_id!==s.customer_memory.return_order_id,'later visit did not recover earlier real history',s);
     const priorOrder=s.customer_memory.order_id;
     const start=count('E4_MEMORY_STARTED');await page.keyboard.press('F2');await until('E4_MEMORY_STARTED',start);
     s=await action('Enter','E4_MEMORY_LINE');
@@ -123,12 +123,18 @@ try {
     if(outcome==='rough')check(s.dialogue_text.includes('rough'),'rough tea got positive memory line',s);
     if(outcome==='good')check(s.dialogue_text.includes('timing right'),'good tea not recognized',s);
     if(outcome==='abandoned')check(s.dialogue_text.includes('had to leave'),'missed order not recognized',s);
+    if(outcome==='good') {
+      await persisted(await snapshot());
+      const rn=count('E6_GAME_RESTORED');await page.reload({waitUntil:'load'});s=await until('E6_GAME_RESTORED',rn);
+      check(s.memory_story_phase==='running','line-to-choice boundary was not saved',s);
+      const resume=count('E4_MEMORY_RESUMED');await page.keyboard.press('F2');s=await until('E4_MEMORY_RESUMED',resume);
+    }
     s=await action('Enter','E4_MEMORY_WAITING');
     check(s.memory_story_phase==='choice' && s.memory_story_choices.length===2 && !s.supplier_known,'choice/knowledge incorrect',s);
     await persisted(await snapshot());
     const restore=count('E6_GAME_RESTORED');await page.reload({waitUntil:'load'});s=await until('E6_GAME_RESTORED',restore);
     check(s.memory_story_phase==='choice' && s.customer_memory.order_id===priorOrder && !s.supplier_known,'pending conversation changed on hard reload',s);
-    const resume=count('E4_MEMORY_RESUMED');await page.keyboard.press('F2');await until('E4_MEMORY_RESUMED',resume);
+    const resume=count('E4_MEMORY_RESUMED');await page.keyboard.press('F2');s=await until('E4_MEMORY_RESUMED',resume);
     const choice=outcome==='abandoned'?'leave':'supplier';
     const optionIndex=s.memory_story_choices.findIndex(o=>o.option_id===choice);
     check(optionIndex>=0,'restored authored option missing',s);

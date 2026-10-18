@@ -73,6 +73,7 @@ func _run() -> void:
         var memory: Dictionary = g.session.world.customer_memory("mahmoud","kiosk")
         check(memory.get("order_id","")==first_id and memory.get("branch","")==outcome,"wrong authoritative history "+str(memory))
         check(memory.get("return_order_id","")!=first_id,"did not require a new order")
+        check(g.status()["active_order"]==memory.get("return_order_id","") and g.status()["order_status"]=="offered","HUD still prioritizes previous settled order")
         check(g.npc_pose("mahmoud").get("order_id","")==memory.get("return_order_id",""),"returning visitor pose used previous day order")
         var attachment: Dictionary = g.memory_story_begin()
         check(attachment.get("code","")=="INK_LOADING","attach real Ink "+str(attachment)+" orders="+str(g.session.world.orders_view()["orders"])+" pos="+str(g.position())+" npc="+str(g.npc_pose("mahmoud")))
@@ -81,13 +82,19 @@ func _run() -> void:
         var line: Dictionary = g.memory_story_next()
         check(line.get("beat_id","")=="memory_"+outcome,"authored history branch wrong "+str(line))
         check(str(line.get("text","")).contains("last time"),"returning customer does not recognize earlier visit")
+        if outcome == "good":
+            ok(g.save_game(),"save directly after recognition line before choice wait")
+            g.dispose()
+            g = Game.new(); ok(g.start(SAVE),"restore line-to-choice handoff")
+            g.memory_story_begin(); check(await ready(g),"attach line-boundary cursor")
+            ok(g.memory_story_begin(),"resume line boundary")
         var s: Dictionary = g.memory_story_session()
         check(s.get("customer_memory",{})==memory,"P6 did not pin authoritative provenance")
         var wrong: Dictionary = g.session.command("memory:wrong:"+outcome,"system:narrative","narrative.line.commit",{
             "session_id":s["session_id"],"beat_id":"memory_rough" if outcome!="rough" else "memory_good",
             "mode":"broadcast","audience_ids":[],"ink_state":s["ink_state"]})
         check(wrong.get("code","")=="MEMORY_BRANCH_MISMATCH","forged memory line accepted")
-        check(g.memory_story_next().get("code","")=="WAITING","pending authored choice missing")
+        check(g.memory_story_next().get("code","")=="WAITING","line-boundary reload lost pending Ink choice point" if outcome=="good" else "pending authored choice missing")
         check(not g.status()["supplier_known"],"contact granted before hearing")
         for i in range(4): ok(g.move_world(-18,0),"leave hearing range")
         var far: String = g.status()["digest"]

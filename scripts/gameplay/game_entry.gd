@@ -676,7 +676,13 @@ func status() -> Dictionary:
     for key in orders:
         if orders[key]["status"] in ["offered","accepted","delivered"]:
             pending.append(str(key))
-    pending.sort()
+    pending.sort_custom(func(a: String,b: String) -> bool:
+        var a_done: bool = orders[a]["status"] == "delivered" and orders[a]["payment_status"] == "settled"
+        var b_done: bool = orders[b]["status"] == "delivered" and orders[b]["payment_status"] == "settled"
+        if a_done != b_done: return not a_done
+        if a_done and int(orders[a]["created_minute"]) != int(orders[b]["created_minute"]):
+            return int(orders[a]["created_minute"]) > int(orders[b]["created_minute"])
+        return a < b)
     var active: Dictionary = orders.get(pending[0], {}) if not pending.is_empty() else {}
     var radio_state: Dictionary = v["housing"]["objects"].get(radio_pack.get("object_id",""),{})
     var bed_state: Dictionary = v["housing"]["objects"].get(bed_pack.get("object_id",""),{})

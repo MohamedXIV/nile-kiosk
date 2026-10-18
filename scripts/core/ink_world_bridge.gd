@@ -57,6 +57,12 @@ func _on_loaded(success: bool, id: String) -> void:
         _restore_cursor(s["player"], previous["ink_state"])
         s["story_id"] = previous["story_id"]
         s["point_id"] = previous["point_id"]
+        # A save can fall after Continue emitted the tagged line but before
+        # choice.wait committed. Ink's saved output stream retains that tag.
+        if previous["phase"] == "running" and s["player"].has_choices:
+            var restored_tags: Dictionary = _tags(s["player"])
+            if not restored_tags["point_id"].is_empty():
+                s["point_id"] = restored_tags["point_id"]
     else:
         s["player"].choose_path("start")
     s["ready"] = true
