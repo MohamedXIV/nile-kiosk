@@ -14,7 +14,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E6_AUDIO|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -87,6 +87,14 @@ try {
   await page.locator("canvas").first().click({ position: {x:500,y:290} });
   const initial = await until("E6_GAME_READY");
   check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
+  check(initial.sound_enabled === true && initial.sound_room === "roof" && !initial.sound_kettle,
+    "roof ambience not initialized in real playable scene");
+  await press("0");
+  const audioOff = await until("E6_AUDIO_TOGGLE",0);
+  check(audioOff.sound_enabled === false && audioOff.sound_room === "roof", "mute did not affect ambient engine");
+  await press("0");
+  const audioOn = await until("E6_AUDIO_TOGGLE",1);
+  check(audioOn.sound_enabled === true, "sound-on did not resume ambient engine");
   check(initial.radio_owned === false && initial.radio_uses === 0, "radio gifted before purchase");
   check(initial.hunger < 75 && initial.rest < 80 && initial.mood >= 25, "E2 needs not driven by actual opening clock");
   await press("r");
@@ -131,7 +139,8 @@ try {
   await moveDiagonal(1230);
   await press("e");
   const kiosk = await until("E6_GAME_DOOR",2);
-  check(kiosk.location === "kiosk", "street/kiosk portal");
+  check(kiosk.location === "kiosk" && kiosk.sound_room === "kiosk",
+    "street/kiosk portal or location-based ambient transition missing");
   await moveDiagonal(520);
   await press("o");
   const opened = await until("E6_GAME_OPEN");
@@ -178,7 +187,8 @@ try {
     "incorrect first gesture changed cooking or resources");
   await press("h");
   const heated = await until("E6_GAME_TEA_HEAT",0);
-  check(heated.tea_stage === "active" && heated.tea_ready_in > 0, "kettle not heating in canonical P3");
+  check(heated.tea_stage === "active" && heated.tea_ready_in > 0 && heated.sound_kettle,
+    "real kettle heating did not activate contextual audio");
   // Godot Native asserts an immediate early H rejects without mutation.
   // The real browser advances world minutes while waiting for key/log updates,
   // so a second H isn't guaranteed to be premature by the time it is pressed.
@@ -195,7 +205,7 @@ try {
   await press("j"); await until("E6_GAME_WAIT",4);
   await press("u");
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
-  check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
+  check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted" && !finishedTea.sound_kettle,
     "finished tea wasn't authentic prepared item for pending order");
   // Batch A adds an authored reconvergence beat at 17:39–17:44. It must
   // progress while cooking, then return to silence outside that exact window.
@@ -371,6 +381,10 @@ try {
   // The existing save/reload below now proves a genuine **mid-choice**
   // InkPlayer cursor survives hard Chromium reload in the production scene.
   await press("p");
+  const audioOffBeforeSave = (traces.E6_AUDIO_TOGGLE || []).length;
+  await press("0");
+  const disabledBeforeSave = await until("E6_AUDIO_TOGGLE",audioOffBeforeSave);
+  check(!disabledBeforeSave.sound_enabled, "mute could not be selected before reload");
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "delivered" && saved.location === "kiosk", "save after customer delivery");
   // Godot Web syncs user:// into browser storage asynchronously; match established Chromium save gates.
@@ -378,6 +392,8 @@ try {
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   check(restored.hunger === saved.hunger && restored.rest === saved.rest && restored.mood === saved.mood, "E2 needs lost on browser reload");
+  check(!restored.sound_enabled && restored.sound_room === "kiosk",
+    "sound-off preference/location was not restored after actual Chromium reload");
   check(restored.tea_quality === saved.tea_quality && restored.tea_quality_score === saved.tea_quality_score &&
     restored.tea_quality_item === saved.tea_quality_item,
     "E3 prepared cup quality changed after hard Chromium reload");
@@ -443,6 +459,7 @@ try {
   console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: real delivered tea triggered Mahmoud invite; player consent, native Ink choice and no repeat persisted after hard reload");
   console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
+  console.log("E6_AMBIENCE_CHROMIUM_PASS: live roof/kiosk/kettle audio context, persistent mute and hard browser reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
   console.log("E1_RADIO_CHROMIUM_PASS: purchase, place, listen, real P5 usage, scheduler and reload");

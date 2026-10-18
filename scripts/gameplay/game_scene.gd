@@ -3,6 +3,7 @@ extends Node2D
 ## No D001 fixture, QA HUD, V001 art import, or scene-owned simulation state.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
@@ -13,6 +14,7 @@ var notice: String = "Opening the kiosk world..."
 var move_elapsed: float = 0.0
 var minute_elapsed: float = 0.0
 var last_marker: String = ""
+var soundscape: Node
 var player_body: CharacterBody2D
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
@@ -32,6 +34,8 @@ func _boot() -> void:
         queue_redraw()
         return
     _setup_physics()
+    soundscape = Ambient.new()
+    add_child(soundscape)
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
@@ -45,6 +49,11 @@ func report(marker: String) -> void:
     var diagnostic: Dictionary = game.status()
     diagnostic["dialogue_text"] = story_line
     diagnostic["dialogue_id"] = story_id
+    diagnostic["sound_enabled"] = soundscape.enabled if soundscape != null else false
+    if soundscape != null:
+        soundscape.set_context(str(diagnostic["location"]),not str(diagnostic["tea_stage"]).is_empty(),int(diagnostic["hour"]) >= 18 or int(diagnostic["hour"]) < 6)
+        diagnostic["sound_room"] = soundscape.room_id
+        diagnostic["sound_kettle"] = soundscape.kitchen_active
     print(marker + " " + JSON.stringify(diagnostic))
     queue_redraw()
 
@@ -82,7 +91,11 @@ func _process_clock() -> void:
     if minute_elapsed >= MINUTE_INTERVAL:
         minute_elapsed = fmod(minute_elapsed, MINUTE_INTERVAL)
         var tick: Dictionary = game.wait_minutes(1)
-        if tick.get("ok", false): queue_redraw()
+        if tick.get("ok", false):
+            if soundscape != null:
+                var state: Dictionary = game.status()
+                soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
+            queue_redraw()
 
 func _setup_physics() -> void:
     # CharacterBody2D is an engine collision probe; canonical P2 still
@@ -240,6 +253,11 @@ func _story_choices(state: Dictionary) -> Array:
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
+        return
+    if event.keycode == KEY_0:
+        var sound_on: bool = soundscape.toggle_sound() if soundscape != null else false
+        notice = "Ambient sound on." if sound_on else "Ambient sound off."
+        report("E6_AUDIO_TOGGLE")
         return
     if story_open or story_pending:
         if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_ESCAPE,KEY_P]:
@@ -432,6 +450,9 @@ func _draw() -> void:
     _need(Vector2(245,53),"Hunger",state["hunger"],Color("#d4ae78"))
     _need(Vector2(385,53),"Rest",state["rest"],Color("#8badc6"))
     _need(Vector2(525,53),"Mood",state["mood"],Color("#96b79a"))
+    _text(Vector2(768,53),"0 Sound: " + ("On" if soundscape != null and soundscape.enabled else "Off"),13,Color("#d2b98c"))
+    var counter_near: bool = location == "kiosk" and game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
+    var portal_near: Dictionary = game.nearest_portal()
     if location == "kiosk" and not state["tea_stage"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
         var guidance: String = "Tea · %s: %s" % [state["tea_action"],
@@ -443,15 +464,21 @@ func _draw() -> void:
         _text(Vector2(28,431),"Last tea: " + str(state["tea_quality"]) + " · timing stays with the prepared cup",17,Color("#f0d6a2"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
-    _text(Vector2(28,500),"WASD move   E door   F listen   G orders   H heat   U pour   Q quiet   O/C open/close",14,Color("#e2c18b"))
-    _text(Vector2(480,526),"J wait   P save   N Salma   M/I Mahmoud   L Mona   Radio: %d" % state["radio_uses"],13,Color("#e2c18b"))
-    if location == "roof":
-        _text(Vector2(28,526),"B/V/R/X radio    T buy/place bed (%d)    Y store bed" % state["bed_price"],13,Color("#e2c18b"))
+    var hints: PackedStringArray = PackedStringArray(["WASD Move", "J Wait", "P Save", "0 Sound"])
+    if not portal_near.is_empty(): hints.append("E " + str(portal_near["to"]))
     if location == "kiosk":
-        _text(Vector2(205,526),"K prepare/eat personal bread",13,Color("#e2c18b"))
-    var near: Dictionary = game.nearest_portal()
-    if not near.is_empty():
-        _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
+        hints.append("O/C Open/Close")
+        if counter_near:
+            hints.append("G Service")
+            hints.append("K Eat")
+            if not str(state["tea_stage"]).is_empty(): hints.append(str(state["tea_action"]) + " Tea")
+            elif not state["active_order"].is_empty(): hints.append("H/U Tea")
+        if state["conversation_near"]: hints.append("T Join conversation")
+    elif location == "roof":
+        hints.append("T Bed")
+        if state["radio_placed"]: hints.append("R Listen")
+        else: hints.append("B/V Radio")
+    _text(Vector2(28,500),"   ".join(hints),13,Color("#e2c18b"))
     if not state["active_order"].is_empty():
         _text(Vector2(585,526),"Order: " + str(state["order_status"]),14,Color("#d2b98c"))
     if state["conversation_near"] and not story_open:
@@ -467,11 +494,12 @@ func _draw() -> void:
     if state["memory_near"] and not story_open:
         _text(Vector2(665,326),"F2 · Catch up with Mahmoud",14,Color("#f1ca80"))
     var market: Dictionary = state["market_offer"]
-    if location=="kiosk" and not story_open and not state["conversation_near"] and not market.is_empty():
-        _text(Vector2(28,266),"Market collection · %dg / %d / %d min away · F5 collect / F6 decline" % [market["quantity"],market["goods_minor"],market["minutes"]],14,Color("#f1ca80"))
+    if counter_near and not story_open and not state["conversation_near"] and state["tea_stage"].is_empty() and not market.is_empty():
+        var buyable: bool = market["status"] == "available"
+        _text(Vector2(28,266),("F5 Buy / F6 Decline · " if buyable else "Market unavailable · ") + "%dg / %d / %d min" % [market["quantity"],market["goods_minor"],market["minutes"]],14,Color("#f1ca80"))
         _text(Vector2(28,284),"PROPOSED · 17:00–19:00 · one 30g lot · " + str(market["status"]),13,Color("#d2b98c"))
     var referral: Dictionary = state["referral_offer"]
-    if location == "kiosk" and referral.get("status","") == "available" and not story_open:
+    if counter_near and referral.get("status","") == "available" and not story_open and state["tea_stage"].is_empty():
         _text(Vector2(28,300),"Hoda: 30g leaves · 450 + 100 delivery · 15 min · F3 buy / F4 decline",14,Color("#f1ca80"))
         _text(Vector2(28,320),"Call from the counter; offer lasts %d more world minutes." % int(referral["remaining_minutes"]),13,Color("#d2b98c"))
     if story_open or story_pending:
