@@ -104,7 +104,7 @@ try {
     s=await waitTo(1049);
     check(s.ambient_npc==='mahmoud' && s.ambient_beat===1 && s.conversation_near,'actual exchange boundary missing',s);
     if(outcome!=='ignore') {
-      const n=count('E4_CONVERSATION_STARTED');await page.keyboard.press('t');s=await until('E4_CONVERSATION_STARTED',n);
+      const startedCount=count('E4_CONVERSATION_STARTED');await page.keyboard.press('t');s=await until('E4_CONVERSATION_STARTED',startedCount);
       s=await action('Enter','E4_CONVERSATION_LINE');
       check(s.dialogue_text.includes('river ever rests'),'unrelated Ink scene',s);
       // Heat/lift while the real dialogue is open: cooking remains an actual P3 action.
