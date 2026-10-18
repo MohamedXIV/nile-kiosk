@@ -60,6 +60,10 @@ func service_queue(venue_id: String, route: String) -> Array[Dictionary]:
 func order(order_id: String) -> Dictionary:
     return _state.service.orders.get(order_id, {}).duplicate(true)
 
+func customer_memory(npc_id: String, venue_id: String) -> Dictionary:
+    return preload("res://scripts/core/customer_experience.gd").returning(
+        _state.service.orders,_state.cooking,_state.events,npc_id,venue_id).duplicate(true)
+
 func cooking_view() -> Dictionary:
     return _state.cooking.snapshot()
 

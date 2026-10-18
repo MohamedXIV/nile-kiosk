@@ -235,7 +235,7 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
     if kind == "social.player.place" and spatial.initialized():
         return {"ok": false, "code": "SPATIAL_TRAVEL_REQUIRED"}
     if NarrativeWorld.owns(kind):
-        return narrative.plan(kind, payload, actor_id, society, jobs, world_minute)
+        return narrative.plan(kind, payload, actor_id, society, jobs, world_minute, self)
     if EconomyWorld.owns(kind):
         return economy.plan(kind, payload, actor_id, service, cooking)
     if HousingWorld.owns(kind):

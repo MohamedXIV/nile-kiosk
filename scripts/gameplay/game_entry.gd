@@ -3,6 +3,7 @@ extends RefCounted
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const CustomerMemory = preload("res://scripts/gameplay/customer_memory_play.gd")
 const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
 const Demand = preload("res://scripts/integration/customer_demand_config.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
@@ -38,6 +39,7 @@ var tea_reactions: Dictionary = {}
 var exchange_pack: Dictionary = {}
 var river_story_pack: Dictionary = {}
 var mahmoud_story_pack: Dictionary = {}
+var customer_memory: RefCounted = CustomerMemory.new()
 var social_visitor: RefCounted = SocialVisitor.new()
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
@@ -208,6 +210,8 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var registered_mahmoud: Dictionary = session.command("game:e4:mahmoud:story:v1", "system:narrative",
             "narrative.story.register", mahmoud_story_pack["story"])
         if not registered_mahmoud.get("ok", false): return registered_mahmoud
+    var memory_config: Dictionary = customer_memory.configure(session)
+    if not memory_config.get("ok",false): return memory_config
     if existing["code"] == "NEW_WORLD":
         var configured: Dictionary = Demand.configure(session, DEMAND)
         if not configured.get("ok", false): return configured
@@ -640,6 +644,21 @@ func mona_visit_near() -> bool:
 func mona_story_session() -> Dictionary:
     return social_visitor.session_state(session)
 
+func memory_story_begin() -> Dictionary:
+    return customer_memory.begin(session,graph,_id("memory_begin"))
+
+func memory_story_next() -> Dictionary:
+    return customer_memory.next(session,graph,_id("memory_next"))
+
+func memory_story_choose(option_id: String) -> Dictionary:
+    return customer_memory.choose(session,graph,option_id,_id("memory_choose"))
+
+func memory_story_session() -> Dictionary:
+    return customer_memory.state(session)
+
+func memory_story_ready() -> bool:
+    return session.ink_ready(customer_memory.session_id(session))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -674,6 +693,12 @@ func status() -> Dictionary:
             latest_tea = item
     var quality: Dictionary = session.world.prepared_quality(str(latest_tea.get("item_id",""))) if not latest_tea.is_empty() else {}
     return {
+        "customer_memory":customer_memory.memory(session),
+        "memory_near":customer_memory.available(session,graph),
+        "memory_story_id":customer_memory.session_id(session),
+        "memory_story_phase":str(memory_story_session().get("phase","")),
+        "memory_story_choices":session.ink_choices(customer_memory.session_id(session)) if memory_story_ready() else [],
+        "supplier_known":session.world.player_knows(CustomerMemory.FACT),
         "ambient_line":str(aside.get("line","")),
         "ambient_npc":str(aside.get("npc_id","")),
         "ambient_beat":int(aside.get("beat",-1)),

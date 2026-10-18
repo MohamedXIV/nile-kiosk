@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "ink_path": "res://content/ink/nile_returning_customer.ink.json",
+  "npc_id": "mahmoud",
+  "venue_id": "kiosk",
+  "story": {
+    "story_id": "returning_customer",
+    "customer_memory": {
+      "npc_id": "mahmoud",
+      "venue_id": "kiosk"
+    },
+    "beats": {
+      "memory_good": {
+        "speaker_id": "mahmoud",
+        "fact_id": "",
+        "requires_memory": "good"
+      },
+      "memory_okay": {
+        "speaker_id": "mahmoud",
+        "fact_id": "",
+        "requires_memory": "okay"
+      },
+      "memory_rough": {
+        "speaker_id": "mahmoud",
+        "fact_id": "",
+        "requires_memory": "rough"
+      },
+      "memory_settled": {
+        "speaker_id": "mahmoud",
+        "fact_id": "",
+        "requires_memory": "settled"
+      },
+      "memory_abandoned": {
+        "speaker_id": "mahmoud",
+        "fact_id": "",
+        "requires_memory": "abandoned"
+      },
+      "memory_supplier": {
+        "speaker_id": "mahmoud",
+        "fact_id": "mahmoud:tea-supplier"
+      },
+      "memory_leave": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "memory_end": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      }
+    },
+    "choice_points": {
+      "memory_reply": {
+        "supplier": {
+          "text": "Do you know where I can buy fresh tea leaves?",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        },
+        "leave": {
+          "text": "I'll leave you to your evening.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        }
+      }
+    }
+  }
+}

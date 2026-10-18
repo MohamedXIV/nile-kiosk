@@ -50,3 +50,22 @@ static func evidence(orders: Dictionary, data: Dictionary, at_minute: int, chanc
         "adjustment_bp":delta,
         "chance_bp":clampi(chance + delta, 0, 10000)
     }
+
+# A later, actual P4 request is evidence of a returning encounter. This is a
+# projection, not mutable sentiment or knowledge granted to unrelated actors.
+static func returning(orders: Dictionary, cooking: RefCounted, events: Array, npc_id: String, venue_id: String) -> Dictionary:
+    var current: Dictionary = {}
+    for order in orders.values():
+        if order["npc_id"] != npc_id or order["venue_id"] != venue_id or order["status"] not in ["offered","accepted"]:
+            continue
+        if current.is_empty() or int(order["offer_sequence"]) > int(current["offer_sequence"]): current = order
+    if current.is_empty(): return {}
+    var previous: Dictionary = prior(orders,npc_id,venue_id,int(current["created_minute"]))
+    if previous.is_empty(): return {}
+    var order: Dictionary = orders[previous["order_id"]]
+    var quality: Dictionary = cooking.item_quality(str(order["item_id"]),events) if previous["outcome"] == "settled" else {}
+    var branch: String = str(quality.get("grade","settled")) if previous["outcome"] == "settled" else "abandoned"
+    return {"npc_id":npc_id,"venue_id":venue_id,"order_id":previous["order_id"],
+        "return_order_id":current["order_id"],"minute":previous["minute"],
+        "closure_event_id":order["closure_event_id"],"outcome":previous["outcome"],
+        "quality":quality.get("grade",""),"branch":branch}

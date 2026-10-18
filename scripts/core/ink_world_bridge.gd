@@ -76,6 +76,12 @@ func _begin(id: String, story_id: String, participants: Array, command_id: Strin
     if not kernel.narrative_session(id).is_empty():
         return {"ok": false, "code": "SESSION_EXISTS"}
     var s: Dictionary = sessions[id]
+    var story: Dictionary = kernel.narrative_view()["stories"].get(story_id,{})
+    if story.has("customer_memory"):
+        var guard: Dictionary = story["customer_memory"]
+        var memory: Dictionary = kernel.customer_memory(guard["npc_id"],guard["venue_id"])
+        if memory.is_empty(): return {"ok":false,"code":"NO_CUSTOMER_MEMORY"}
+        s["player"].set_variable("last_service",str(memory["branch"]))
     var payload: Dictionary = {"session_id": id, "story_id": story_id,
         "participants": participants, "ink_state": _cursor(s["player"])}
     if not opportunity_id.is_empty(): payload["opportunity_id"] = opportunity_id
