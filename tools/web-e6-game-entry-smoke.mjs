@@ -411,11 +411,17 @@ try {
   const resumedStory = await until("E4_STORY_RESUMED");
   check(resumedStory.river_story_phase === "choice" && resumedStory.river_story_choices?.length === 2,
     "restored InkPlayer didn't recover canonical player choices");
-  await press("1"); // Sorted authored option IDs: city then rest.
+  await press("2"); // Hear Salma’s authored kettle-timing advice.
   const selected = await until("E4_STORY_CHOICE");
   check(selected.river_story_phase === "running", "player decision didn't commit to WorldKernel");
+  check(!selected.tea_technique_known && selected.tea_technique.phase === "unheard",
+    "choosing an Ink response forged unheard recipe knowledge");
   await press("Enter");
-  await until("E4_STORY_LINE",1);
+  const tipLine = await until("E4_STORY_LINE",1);
+  check(tipLine.tea_technique_known && tipLine.tea_technique.phase === "heard" &&
+    tipLine.tea_technique.heard_event_id.startsWith("evt:") &&
+    tipLine.tea_technique.item_id === "",
+    "authored P6 line did not legitimately teach the P2 fact, or prematurely granted mastery");
   await press("Enter");
   await until("E4_STORY_LINE",2);
   await press("Enter");
@@ -453,12 +459,15 @@ try {
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
+  check(morningRestored.tea_technique_known && morningRestored.tea_technique.phase === "heard",
+    "actually heard teaching lost across second Web reload");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E4_NONBUYER_CHROMIUM_PASS: Mona independently visits without order, optional Ink speech learns P2 fact, choices and hard reload persist");
   console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: real delivered tea triggered Mahmoud invite; player consent, native Ink choice and no repeat persisted after hard reload");
   console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
+  console.log("E3_TEA_ADVICE_CHROMIUM_PASS: real Salma Ink hearing only; no retroactive P3 mastery; second-day reload");
   console.log("E6_AMBIENCE_CHROMIUM_PASS: live roof/kiosk/kettle audio context, persistent mute and hard browser reload");
   console.log("E1_GAME_CHROMIUM_PASS: voluntary close, return home, canonical sleep, next day and hard Web reload");
   console.log("E1_QUIET_CHROMIUM_PASS: riverside and rooftop quiet moments, uninterrupted customer state and hard reload");
