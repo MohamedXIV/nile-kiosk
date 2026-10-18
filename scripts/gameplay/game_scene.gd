@@ -398,7 +398,7 @@ static func context_hint(state: Dictionary, exit_name: String,
         if not state.get("kiosk_open",false):
             return "O · Open the kiosk when ready"
         if counter_near:
-            return "G · Check the service counter"
+            return "J · Let a little time pass"
     return "WASD · Explore    F1 · Controls"
 
 func _iso(point: Vector2) -> Vector2:
@@ -478,6 +478,8 @@ func _draw() -> void:
         if activity["room_id"] != location: continue
         var center: Vector2 = _iso(Vector2(int(activity["x"]),int(activity["y"])))
         var reachable: bool = game.position().distance_to(Vector2(int(activity["x"]),int(activity["y"]))) <= int(activity["radius"])
+        if activity.get("requires_closed",false) and state["kiosk_open"]:
+            reachable = false
         if reachable: quiet_near = true
         draw_circle(center,7,Color("#f0cb7f") if reachable else Color("#8b8c79"))
         _text(center + Vector2(-32,-17),"Q: " + str(activity["id"]).replace("_"," "),12,
@@ -560,7 +562,7 @@ func _draw() -> void:
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     var hints: PackedStringArray = PackedStringArray(["WASD Move", "J Wait", "P Save", "0 Sound"])
-    if not portal_near.is_empty(): hints.append("E " + str(portal_near["to"]))
+    if not exit_name.is_empty(): hints.append("E " + exit_name)
     if location == "kiosk":
         hints.append("O/C Open/Close")
         if counter_near:
