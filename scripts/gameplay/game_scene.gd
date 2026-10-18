@@ -52,12 +52,18 @@ func _process(delta: float) -> void:
     if not initialized: return
     if story_pending and (game.memory_story_ready() if story_id.begins_with("memory:") else game.session.ink_ready(story_id)):
         _story_action("begin")
+    if story_open and story_id.begins_with("river_neighbors:") and not game.conversation.near(game.session,game.graph):
+        story_open=false
+        story_pending=false
+        story_line=""
+        notice="Their voices fade. Your response can wait."
+        report("E4_CONVERSATION_LEFT")
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
     minute_elapsed += minf(delta, 0.25)
     if move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
-        if story_open or story_pending:
+        if (story_open or story_pending) and not story_id.begins_with("river_neighbors:"):
             move_elapsed = 0.0
         else:
             _process_movement()
@@ -160,7 +166,12 @@ func _act(kind: String) -> void:
 
 func _story_action(kind: String, option_id: String = "") -> void:
     var result: Dictionary = {}
-    if story_id.begins_with("memory:"):
+    if story_id.begins_with("river_neighbors:"):
+        match kind:
+            "begin": result = game.conversation_begin()
+            "next": result = game.conversation_next()
+            "choose": result = game.conversation_choose(option_id)
+    elif story_id.begins_with("memory:"):
         match kind:
             "begin": result = game.memory_story_begin()
             "next": result = game.memory_story_next()
@@ -194,7 +205,7 @@ func _story_action(kind: String, option_id: String = "") -> void:
     match code:
         "STARTED", "RESUMED":
             story_open = true
-            story_line = ("Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Press Enter to listen."
+            story_line = ("Salma and Mahmoud turn toward you." if story_id.begins_with("river_neighbors:") else "Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Press Enter to listen."
             notice = "A moment beside the Nile."
         "LINE":
             story_open = true
@@ -214,10 +225,12 @@ func _story_action(kind: String, option_id: String = "") -> void:
     report(_story_prefix() + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
 
 func _story_prefix() -> String:
+    if story_id.begins_with("river_neighbors:"): return "E4_CONVERSATION_"
     if story_id.begins_with("memory:"): return "E4_MEMORY_"
     return "E4_VISITOR_" if story_id == MONA_STORY_ID else ("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_")
 
 func _story_choices(state: Dictionary) -> Array:
+    if story_id.begins_with("river_neighbors:"): return state["conversation_choices"]
     if story_id.begins_with("memory:"): return state["memory_story_choices"]
     return state["mona_story_choices"] if story_id == MONA_STORY_ID else (state["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else state["river_story_choices"])
 
@@ -225,6 +238,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
     if story_open or story_pending:
+        if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_ESCAPE,KEY_P]:
+            # Keep the actual cooking/movement controls usable while listening.
+            if event.keycode == KEY_H: _act("tea_heat")
+            elif event.keycode == KEY_U: _act("tea_pour")
+            elif event.keycode == KEY_G: _act("serve")
+            elif event.keycode == KEY_J: _act("wait")
+            elif event.keycode == KEY_E: _act("door")
+            return
         match event.keycode:
             KEY_ENTER, KEY_KP_ENTER:
                 if story_open: _story_action("next")
@@ -242,6 +263,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_P: _act("save")
         return
     match event.keycode:
+        KEY_T:
+            if game.room()=="roof": _act("bed")
+            else:
+                story_id = game.conversation_id()
+                _story_action("begin")
         KEY_F3: _act("supply_buy")
         KEY_F4: _act("supply_decline")
         KEY_F2:
@@ -277,7 +303,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_V: _act("radio_place")
         KEY_X: _act("radio_store")
         KEY_R: _act("radio_listen")
-        KEY_T: _act("bed")
         KEY_Y: _act("bed_store")
 
 func _iso(point: Vector2) -> Vector2:
@@ -423,6 +448,8 @@ func _draw() -> void:
         _text(Vector2(28,526),"E: " + str(near["to"]),14,Color("#d2b98c"))
     if not state["active_order"].is_empty():
         _text(Vector2(585,526),"Order: " + str(state["order_status"]),14,Color("#d2b98c"))
+    if state["conversation_near"] and not story_open:
+        _text(Vector2(50,245),"T · Join Salma and Mahmoud (or keep working)",16,Color("#f0d8a8"))
     if game.river_story_available() and state["river_story_phase"] != "finished" and location == "kiosk":
         var salma: Dictionary = game.npc_pose("salma")
         if not salma.is_empty() and game.position().distance_to(salma["position"]) <= Graph.RADIUS:
@@ -440,7 +467,7 @@ func _draw() -> void:
     if story_open or story_pending:
         draw_rect(Rect2(60,242,840,192),Color("#162d31"))
         draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))
-        _text(Vector2(84,280),"Mahmoud · A familiar customer" if story_id.begins_with("memory:") else ("Mona · Here to see Salma" if story_id == MONA_STORY_ID else ("Mahmoud · A word after tea" if story_id == Game.MAHMOUD_STORY_ID else "By the Nile · Salma")),20,Color("#f0d8a8"))
+        _text(Vector2(84,280),"Salma & Mahmoud · By the river" if story_id.begins_with("river_neighbors:") else "Mahmoud · A familiar customer" if story_id.begins_with("memory:") else ("Mona · Here to see Salma" if story_id == MONA_STORY_ID else ("Mahmoud · A word after tea" if story_id == Game.MAHMOUD_STORY_ID else "By the Nile · Salma")),20,Color("#f0d8a8"))
         _text(Vector2(84,315),story_line if not story_pending else "Opening conversation...",17)
         var choices: Array = _story_choices(state)
         if choices.is_empty():

@@ -322,11 +322,21 @@ func overhear(session: RefCounted, current: Vector2, command_id: String) -> Dict
     if not target.get("ok", false): return target
     var speaker: String = target["npc_id"]
     var facts: Dictionary = session.world.social_view()["social_facts"]
+    # Facts attached to an authored narrative beat/answer must be heard in
+    # that context. Generic F listening cannot skip an Ink branch, remembered
+    # encounter, spatial guard or source answer (including earned referrals).
+    var scripted: Dictionary = {}
+    for story in session.world.narrative_view()["stories"].values():
+        for beat in story["beats"].values():
+            if not str(beat["fact_id"]).is_empty(): scripted[beat["fact_id"]]=true
+        for options in story["choice_points"].values():
+            for option in options.values():
+                if not str(option["disclose_fact_id"]).is_empty(): scripted[option["disclose_fact_id"]]=true
     var keys: Array = facts.keys()
     keys.sort()
     for fact_id in keys:
         var fact: Dictionary = facts[fact_id]
-        if fact["source_npc_id"] != speaker or fact["visibility"] != "public" or session.world.player_knows(fact_id):
+        if scripted.has(fact_id) or fact["source_npc_id"] != speaker or fact["visibility"] != "public" or session.world.player_knows(fact_id):
             continue
         var utterance: Dictionary = session.command(command_id, speaker, "social.speak",
             {"speaker_id": speaker, "fact_id": fact_id, "mode": "broadcast", "audience_ids": []})

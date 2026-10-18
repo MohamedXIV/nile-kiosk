@@ -3,6 +3,7 @@ extends RefCounted
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const LivingConversation = preload("res://scripts/gameplay/living_conversation_play.gd")
 const CustomerMemory = preload("res://scripts/gameplay/customer_memory_play.gd")
 const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
 const Demand = preload("res://scripts/integration/customer_demand_config.gd")
@@ -19,7 +20,6 @@ const BED_POLICY = "res://content/life/nile_bed.v1.json"
 const MEAL_POLICY = "res://content/life/nile_meals.v1.json"
 const TEA_ACTION_POLICY = "res://content/cooking/nile_tea_actions.v1.json"
 const TEA_REACTIONS_POLICY = "res://content/service/nile_tea_reactions.v1.json"
-const EXCHANGE_POLICY = "res://content/social/nile_kiosk_exchange.v1.json"
 const RIVER_STORY_POLICY = "res://content/social/nile_river_reflection.v1.json"
 const RIVER_STORY_ID = "river_watch_reflection"
 const MAHMOUD_STORY_POLICY = "res://content/social/nile_mahmoud_after_tea.v1.json"
@@ -29,6 +29,7 @@ const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedu
 const COUNTER = Vector2(115, 80)
 const COUNTER_RADIUS = 48.0
 
+var conversation: RefCounted = LivingConversation.new()
 var session: RefCounted
 var graph: RefCounted
 var quiet_captions: Dictionary = {}
@@ -36,7 +37,6 @@ var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
 var tea_actions: Dictionary = {}
 var tea_reactions: Dictionary = {}
-var exchange_pack: Dictionary = {}
 var river_story_pack: Dictionary = {}
 var mahmoud_story_pack: Dictionary = {}
 var customer_memory: RefCounted = CustomerMemory.new()
@@ -154,35 +154,6 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         for grade in ["good","okay","rough"]:
             if typeof(lines.get(grade)) != TYPE_STRING or str(lines[grade]).strip_edges().is_empty() or str(lines[grade]).length() > 65:
                 return {"ok":false,"code":"INVALID_TEA_REACTIONS"}
-    # Lightweight E4 ambient dialogue. Presentation only; P2 still owns
-    # physical presence, P1 owns time and no fact/memory is created.
-    if not FileAccess.file_exists(EXCHANGE_POLICY):
-        return {"ok":false,"code":"EXCHANGE_NOT_FOUND"}
-    var exchange: Variant = JSON.parse_string(FileAccess.get_file_as_string(EXCHANGE_POLICY))
-    if typeof(exchange) != TYPE_DICTIONARY or exchange.size() != 6 or exchange.get("schema") != 1 or exchange.get("room_id") != "kiosk" or typeof(exchange.get("lines")) != TYPE_ARRAY:
-        return {"ok":false,"code":"INVALID_EXCHANGE"}
-    if exchange["lines"].size() != 2 or not exchange.has("first_minute") or not exchange.has("beat_minutes") or not exchange.has("visible_minutes"):
-        return {"ok":false,"code":"INVALID_EXCHANGE"}
-    for field in ["first_minute","beat_minutes","visible_minutes"]:
-        # Godot JSON.parse_string may represent integer literals as floats.
-        # Accept only exact, finite integer values, like existing world policy.
-        var number: Variant = exchange[field]
-        if typeof(number) not in [TYPE_INT,TYPE_FLOAT] or not is_finite(float(number)) or float(number) != float(int(number)):
-            return {"ok":false,"code":"INVALID_EXCHANGE"}
-    if int(exchange["first_minute"]) < 0 or int(exchange["beat_minutes"]) < 4 or int(exchange["visible_minutes"]) < 1 or int(exchange["visible_minutes"]) >= int(exchange["beat_minutes"]):
-        return {"ok":false,"code":"INVALID_EXCHANGE"}
-    var seen_speakers: Dictionary = {}
-    for line in exchange["lines"]:
-        if typeof(line) != TYPE_DICTIONARY or line.size() != 2 or typeof(line.get("speaker_id")) != TYPE_STRING or typeof(line.get("text")) != TYPE_STRING:
-            return {"ok":false,"code":"INVALID_EXCHANGE"}
-        var npc_id: String = str(line["speaker_id"])
-        var anchor: Dictionary = graph.anchors.get(npc_id,{})
-        if seen_speakers.has(npc_id) or anchor.is_empty() or anchor["room_id"] != "kiosk" or session.world.npc(npc_id).is_empty():
-            return {"ok":false,"code":"INVALID_EXCHANGE"}
-        if str(line["text"]).strip_edges().is_empty() or str(line["text"]).length() > 48:
-            return {"ok":false,"code":"INVALID_EXCHANGE"}
-        seen_speakers[npc_id] = true
-    exchange_pack = exchange.duplicate(true)
     # P6 owns the story contract, and the packaged Ink asset owns only prose.
     if not FileAccess.file_exists(RIVER_STORY_POLICY):
         return {"ok":false,"code":"RIVER_STORY_MANIFEST_NOT_FOUND"}
@@ -210,6 +181,8 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         var registered_mahmoud: Dictionary = session.command("game:e4:mahmoud:story:v1", "system:narrative",
             "narrative.story.register", mahmoud_story_pack["story"])
         if not registered_mahmoud.get("ok", false): return registered_mahmoud
+    var conversation_config: Dictionary = conversation.configure(session)
+    if not conversation_config.get("ok",false): return conversation_config
     var memory_config: Dictionary = customer_memory.configure(session)
     if not memory_config.get("ok",false): return memory_config
     if existing["code"] == "NEW_WORLD":
@@ -308,36 +281,13 @@ func customer_reaction() -> Dictionary:
         "source_event_id":str(latest["closure_event_id"])}
 
 func ambient_exchange() -> Dictionary:
-    # Two short, authored NPC-to-NPC remarks at P1 clock beats. No pause,
-    # invented NPC travel, side-effecting story fact or persistent chatter
-    # state. This is an incidental exchange, NOT an Ink conversation.
-    if room() != str(exchange_pack.get("room_id","")) or not customer_reaction().is_empty():
-        return {}
-    var now: int = int(session.world.view()["world_minute"])
-    var elapsed: int = now - int(exchange_pack["first_minute"])
-    if elapsed < 0: return {}
-    # Only one authored exchange per day, not an endless chatter loop.
-    elapsed = elapsed % 1440
-    var beat_minutes: int = int(exchange_pack["beat_minutes"])
-    var lines: Array = exchange_pack["lines"]
-    if int(elapsed / beat_minutes) >= lines.size() or elapsed % beat_minutes >= int(exchange_pack["visible_minutes"]):
-        return {}
-    # Don't invent a conversation when either participant is absent.
-    for line in lines:
-        if str(session.world.npc(str(line["speaker_id"])).get("location_id","")) != room():
-            return {}
-    # Both participants have to be mutually visible at their ACTUAL P1/P4
-    # poses. P2 presence alone must not cause through-furniture conversation.
-    if not graph.npcs_have_visual_contact(session,
-            str(lines[0]["speaker_id"]),str(lines[1]["speaker_id"])):
-        return {}
-    var beat: int = int(elapsed / beat_minutes)
-    var chosen: Dictionary = lines[beat % lines.size()]
-    var npc_id: String = str(chosen["speaker_id"])
-    var pose: Dictionary = npc_pose(npc_id)
-    if pose.is_empty() or position().distance_to(pose["position"]) > 110.0:
-        return {}
-    return {"npc_id":npc_id,"line":str(chosen["text"]),"beat":beat}
+    if not customer_reaction().is_empty(): return {}
+    return conversation.ambient(session,graph)
+
+func conversation_id() -> String: return conversation.id(session)
+func conversation_begin() -> Dictionary: return conversation.begin(session,graph,_id("conversation_begin"))
+func conversation_next() -> Dictionary: return conversation.next(session,graph,_id("conversation_next"))
+func conversation_choose(option: String) -> Dictionary: return conversation.choose(session,graph,option,_id("conversation_choose"))
 
 func _tea_transition(action: Dictionary) -> bool:
     if str(action.get("kind","")) not in ["cook.step.begin","cook.step.resume","cook.step.finish"]:
@@ -714,6 +664,11 @@ func status() -> Dictionary:
         "leaves_stock":int(v["cooking"]["stock"].get("leaves",0)),
         "supply_resolutions":v["economy"]["supply_resolutions"],
         "supplier_known":session.world.player_knows(CustomerMemory.FACT),
+        "conversation_fact_known":session.world.player_knows("salma:evening-boats"),
+        "conversation_id":conversation_id(),
+        "conversation_near":conversation.available(session,graph),
+        "conversation_choices":session.ink_choices(conversation_id()) if conversation.near(session,graph) and session.ink_ready(conversation_id()) else [],
+        "conversation_phase":conversation.state(session).get("phase",""),
         "ambient_line":str(aside.get("line","")),
         "ambient_npc":str(aside.get("npc_id","")),
         "ambient_beat":int(aside.get("beat",-1)),

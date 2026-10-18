@@ -24,6 +24,9 @@ func npc_routines() -> Dictionary:
 func player_knows(fact_id: String) -> bool:
     return _state.society.knowledge.get("player", {}).has(fact_id)
 
+func conversation_view(story_id: String) -> Dictionary:
+    return _state.narrative.Conversation.timeline(story_id,_state.narrative,_state.society,_state.world_minute)
+
 func narrative_view() -> Dictionary:
     return _state.narrative.snapshot()
 

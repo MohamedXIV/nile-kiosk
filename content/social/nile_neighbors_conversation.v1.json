@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "ink_path": "res://content/ink/nile_neighbors_conversation.ink.json",
+  "fact": {
+    "fact_id": "salma:evening-boats",
+    "source_npc_id": "salma",
+    "visibility": "public"
+  },
+  "story": {
+    "story_id": "river_neighbors",
+    "conversation": {
+      "room_id": "kiosk",
+      "participants": [
+        "salma",
+        "mahmoud"
+      ],
+      "first_minute": 1039,
+      "beat_minutes": 10,
+      "visible_minutes": 5,
+      "join_beat": 1,
+      "join_minutes": 10,
+      "public": true,
+      "requires_known": [],
+      "requires_trusted": "",
+      "lines": [
+        {
+          "speaker_id": "salma",
+          "text": "The river is quiet this evening."
+        },
+        {
+          "speaker_id": "mahmoud",
+          "text": "It never stays still for long."
+        },
+        {
+          "speaker_id": "salma",
+          "text": "Quiet or busy, we still have this bit of river."
+        }
+      ],
+      "joined_endings": {
+        "boats": "Then we will watch the boats another evening.",
+        "work": "We will keep you company while the kettle works."
+      }
+    },
+    "beats": {
+      "join": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "boats": {
+        "speaker_id": "salma",
+        "fact_id": "salma:evening-boats"
+      },
+      "work": {
+        "speaker_id": "mahmoud",
+        "fact_id": ""
+      },
+      "end": {
+        "speaker_id": "salma",
+        "fact_id": ""
+      }
+    },
+    "choice_points": {
+      "reply": {
+        "boats": {
+          "text": "Do the boats pass here in the evening?",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        },
+        "work": {
+          "text": "Keep talking. I am listening while I work.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        }
+      }
+    }
+  }
+}

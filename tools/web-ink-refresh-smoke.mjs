@@ -42,6 +42,29 @@ async function until(predicate,why,timeout=15000){
   }
   throw new Error("Timeout waiting for "+why+" | traces="+JSON.stringify(traces)+" | errors="+JSON.stringify(errors));
 }
+// FileAccess completion precedes Godot's asynchronous IndexedDB flush.
+// Observe the actual persisted save read-only; a fixed delay can reload an
+// older valid revision under CPU/IO load and misdiagnose a lost Ink cursor.
+async function persisted(expected){
+  for(let attempt=0;attempt<100;attempt++){
+    const saved=await page.evaluate(async()=>{
+      for(const info of await indexedDB.databases()){
+        const db=await new Promise((resolve,reject)=>{const q=indexedDB.open(info.name);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);});
+        try{
+          if(!db.objectStoreNames.contains('FILE_DATA'))continue;
+          const entries=await new Promise((resolve,reject)=>{const values=[];const q=db.transaction('FILE_DATA','readonly').objectStore('FILE_DATA').openCursor();q.onsuccess=()=>{const c=q.result;if(!c){resolve(values);return;}values.push({key:c.key,value:c.value});c.continue();};q.onerror=()=>reject(q.error);});
+          for(const e of entries)if(String(e.key).endsWith('/nile-kiosk-d001-ink.json')){
+            try{return JSON.parse(new TextDecoder().decode(e.value.contents));}catch{}
+          }
+        }finally{db.close();}
+      }
+      return null;
+    });
+    if(saved?.events?.length===expected.events && saved?.tick_number===expected.tick && saved?.sessions?.football?.phase===expected.football)return;
+    await page.waitForTimeout(150);
+  }
+  throw new Error('Godot IndexedDB save did not become durable at expected tick/events '+JSON.stringify(expected));
+}
 try{
   await page.goto(origin+"/ink-persist/index.html",{waitUntil:"load",timeout:30000});
   await until(()=>traces.fresh.length,"new browser session");
@@ -52,7 +75,7 @@ try{
   await page.keyboard.press("p");
   const saved=await until(()=>traces.saved.at(-1),"Godot browser save");
   check(saved.football==="choice","Did not save pending choice");
-  await page.waitForTimeout(1100); // give IndexedDB auto-flush time
+  await persisted(saved);
   await page.reload({waitUntil:"load",timeout:30000});
   const restored=await until(()=>traces.restored.at(-1),"persistent Web reload",20000);
   check(restored.football==="choice" && restored.match,"Pending choice or knowledge lost after browser reload");
@@ -64,7 +87,7 @@ try{
   await page.waitForTimeout(3100);
   await page.keyboard.press("p");
   const savedEnd=await until(()=>traces.saved.length>=2 && traces.saved.at(-1),"post-rejoin save");
-  await page.waitForTimeout(1100);
+  await persisted(savedEnd);
   await page.reload({waitUntil:"load",timeout:30000});
   const finished=await until(()=>traces.restored.length>=2 && traces.restored.at(-1),"finished reload",20000);
   check(finished.football==="finished","Finished Ink conversation replayed after second reload");

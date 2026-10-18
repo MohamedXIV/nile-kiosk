@@ -1,5 +1,6 @@
 extends RefCounted
 ## SYS P6: deterministic authored narrative sessions. Ink owns prose/cursor, not world truth.
+const Conversation = preload("res://scripts/core/conversation_rules.gd")
 const Experience = preload("res://scripts/core/customer_experience.gd")
 const MAX_INT: int = 2147483647
 const OpportunityRules = preload("res://scripts/core/story_opportunity_rules.gd")
@@ -109,10 +110,12 @@ func available(session_id: String, society: RefCounted) -> Array[Dictionary]:
 
 func _validate_story(p: Dictionary) -> Dictionary:
     var story_keys: Array = ["story_id", "beats", "choice_points", "customer_memory"] if p.has("customer_memory") else ["story_id", "beats", "choice_points"]
+    if p.has("conversation"): story_keys.append("conversation")
     if not exact(p, story_keys) or not id(p.get("story_id")) or typeof(p.get("beats")) != TYPE_DICTIONARY or typeof(p.get("choice_points")) != TYPE_DICTIONARY:
         return fail("INVALID_PAYLOAD")
     if p["beats"].is_empty() or p["beats"].size() > 128 or p["choice_points"].size() > 32:
         return fail("INVALID_STORY")
+    if p.has("conversation") and not Conversation.valid(p["conversation"]): return fail("INVALID_CONVERSATION")
     if p.has("customer_memory"):
         var guard: Variant = p["customer_memory"]
         if typeof(guard) != TYPE_DICTIONARY or not exact(guard,["npc_id","venue_id"]) or not id(guard.get("npc_id")) or not id(guard.get("venue_id")):
@@ -217,6 +220,17 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         if not present["ok"]: return present
         var effect: Dictionary = {"location_id":present["location_id"]}
         var story: Dictionary = stories[p["story_id"]]
+        if story.has("conversation"):
+            var c: Dictionary = story["conversation"]
+            var expected: Array = c["participants"].duplicate()
+            expected.append("player")
+            if p["participants"].size()!=expected.size(): return fail("INVALID_CONVERSATION_PARTICIPANTS")
+            for person in expected:
+                if not p["participants"].has(person): return fail("INVALID_CONVERSATION_PARTICIPANTS")
+            var conversation: Dictionary = Conversation.timeline(p["story_id"],self,society,minute)
+            if not conversation.get("joinable",false) or p["session_id"]!=conversation["session_id"]: return fail("CONVERSATION_UNAVAILABLE")
+            if not Conversation.guarded(c,world): return fail("CONVERSATION_TOO_FAR")
+            effect["conversation_day"] = conversation["day"]
         if story.has("customer_memory"):
             var guard: Dictionary = story["customer_memory"]
             if world == null or not p["participants"].has("player") or not p["participants"].has(guard["npc_id"]):
@@ -233,6 +247,9 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
     var s: Dictionary = sessions[p["session_id"]]
     if not _valid_cursor(p.get("ink_state")):
         return fail("INVALID_CURSOR")
+    var conversation_contract: Dictionary = stories[s["story_id"]].get("conversation",{})
+    if not conversation_contract.is_empty() and not Conversation.guarded(conversation_contract,world):
+        return fail("CONVERSATION_TOO_FAR")
     if kind == "narrative.line.commit":
         if not exact(p, ["session_id", "beat_id", "mode", "audience_ids", "ink_state"]) or not id(p.get("beat_id")) or typeof(p.get("audience_ids")) != TYPE_ARRAY or p.get("mode") not in ["broadcast", "directed"]:
             return fail("INVALID_PAYLOAD")
@@ -309,6 +326,8 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
                 "phase": "running", "point_id": "", "ink_state": p["ink_state"].duplicate(true),
                 "lines": [], "choices": [], "started_minute": minute, "started_event_id": event_id,
                 "last_event_id": event_id}
+            if effect.has("conversation_day"):
+                sessions[p["session_id"]]["conversation_day"] = effect["conversation_day"]
             if effect.has("customer_memory"):
                 sessions[p["session_id"]]["customer_memory"] = effect["customer_memory"].duplicate(true)
             if kind == "narrative.opportunity.begin":
