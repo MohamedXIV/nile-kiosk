@@ -1,5 +1,8 @@
 # Nile Kiosk — design-to-implementation traceability
 
+> **CURRENT SCOPE CLOSEOUT — 2026-10-18:** See [E1–E6 core closure audit](../experience/CURRENT_SCOPE_CLOSEOUT.md). Older row-level `PARTIAL` evidence/status snapshots below are historical and may predate verified PRs #82–#84. E1/E4/E5 bounded gameplay baseline can close with explicit future-phase deferrals; E2/E3/E6 still have concrete blocking acceptance. Do not conflate issue closure with total design/art/human approval.
+
+
 **Initial baseline reviewed: `main` at `f6eb3557754d3475a71d8b7f36ac99bfe0943b68`, 2026-10-14; reconciled 2026-10-17 through merged E1 P0–P2 PRs #64–#66 and E6 P0 PR #63 (historical main checkpoint `1f0e80a`, never assume live HEAD).** This is a **gap register**, not a declaration that design work has shipped. [Parent issue #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
 
 ## Reading and updating statuses
