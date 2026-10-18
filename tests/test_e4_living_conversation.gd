@@ -89,6 +89,7 @@ func run() -> void:
     check(g.session.world.player_knows("salma:evening-boats"),"P2 learns legitimately heard answer")
     check(g.conversation_next().get("beat_id","")=="end","Ink reconverges")
     check(g.conversation_next().get("code","")=="FINISHED","finish")
+    check(g.ambient_exchange().get("npc_id","")=="salma" and not str(g.ambient_exchange().get("line","")).begins_with("Mahmoud:"),"reply ending must match actual caption speaker")
     check(not g.conversation_begin().get("ok",false),"no duplicate join")
     var w: RefCounted = Kernel.new()
     check(w.restore_snapshot(g.session.world.view()),"full deterministic replay")
