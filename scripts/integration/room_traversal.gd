@@ -11,6 +11,7 @@ var anchors: Dictionary = {}
 const KioskNav = preload("res://scripts/integration/kiosk_navigation.gd")
 var visit_spots: Dictionary = {}
 var navigator: RefCounted
+var social_visit: Dictionary = {}
 var graph_id: String = ""
 
 static func fail(code: String) -> Dictionary:
@@ -156,6 +157,29 @@ func configure_walkable(raw: Variant) -> Dictionary:
     navigator = nav
     return {"ok":true}
 
+func configure_social_visit(raw: Variant, session: RefCounted) -> Dictionary:
+    if typeof(raw) != TYPE_DICTIONARY or raw.size() != 9 or not exact(raw,
+            ["schema","npc_id","room_id","routine_id","entry_point","meeting_point",
+             "walk_minutes","opportunity_id","ink_path"]):
+        return fail("INVALID_SOCIAL_VISIT")
+    if not WorldState.integral(raw["schema"],1) or int(raw["schema"]) != 1 or not ident(raw["npc_id"]) or not ident(raw["routine_id"]):
+        return fail("INVALID_SOCIAL_VISIT")
+    if raw["room_id"] != "kiosk" or not anchors.has(raw["npc_id"]) or anchors[raw["npc_id"]]["room_id"] != raw["room_id"]:
+        return fail("INVALID_VISIT_LOCATION")
+    if not pos(raw["entry_point"],int(rooms["kiosk"]["width"]),int(rooms["kiosk"]["height"])) or not pos(raw["meeting_point"],int(rooms["kiosk"]["width"]),int(rooms["kiosk"]["height"])):
+        return fail("INVALID_VISIT_SPOT")
+    if not WorldState.integral(raw["walk_minutes"],1,10) or not ident(raw["opportunity_id"]) or typeof(raw["ink_path"]) != TYPE_STRING:
+        return fail("INVALID_SOCIAL_VISIT")
+    if point(raw["entry_point"]) != point(anchors[raw["npc_id"]]["point"]):
+        return fail("VISIT_ENTRY_MISMATCH")
+    if session.world.npc(raw["npc_id"]).is_empty() or not session.world.npc_routines().has(raw["routine_id"]):
+        return fail("VISIT_ROUTINE_MISSING")
+    var route: PackedVector2Array = navigation_path(point(raw["entry_point"]),point(raw["meeting_point"]))
+    if route.size() < 2 or not KioskNav._path_has_clearance(route,navigator.obstacle_rects()):
+        return fail("VISIT_ROUTE_BLOCKED")
+    social_visit = raw.duplicate(true)
+    return {"ok":true}
+
 func navigation_path(origin: Vector2, target: Vector2) -> PackedVector2Array:
     if navigator == null: return PackedVector2Array()
     return navigator.path_between(origin,target)
@@ -189,6 +213,31 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
     if session.world.npc(npc_id).get("location_id","") != room_id:
         return {}
     var home: Vector2 = point(anchor["point"])
+    if not social_visit.is_empty() and npc_id == social_visit["npc_id"] and session.world.npc(npc_id).get("routine_id","") == social_visit["routine_id"]:
+        var snapshot: Dictionary = session.world.view()
+        var start_id: String = "npc:" + str(social_visit["routine_id"]) + ":begin"
+        var end_id: String = "npc:" + str(social_visit["routine_id"]) + ":end"
+        var begins: Dictionary = snapshot["jobs"].get(start_id,{})
+        var ends: Dictionary = snapshot["jobs"].get(end_id,{})
+        if begins.is_empty() or ends.is_empty(): return {}
+        var arrived: int = int(begins["due_minute"]) - int(begins["every_minutes"])
+        var departing: int = int(ends["due_minute"])
+        var now: int = int(snapshot["world_minute"])
+        var duration: int = int(social_visit["walk_minutes"])
+        var destination: Vector2 = point(social_visit["meeting_point"])
+        var route: PackedVector2Array = navigation_path(home,destination)
+        if route.size() < 2: return {}
+        var motion: String = "visiting"
+        var progress: float = 1.0
+        if now < arrived + duration:
+            motion = "arriving"
+            progress = clampf(float(now-arrived)/float(duration),0.0,1.0)
+        elif now >= departing - duration:
+            motion = "leaving"
+            progress = clampf(float(departing-now)/float(duration),0.0,1.0)
+        return {"npc_id":npc_id,"room_id":room_id,
+            "position":sample_path(route,progress),"mode":motion,"order_id":"",
+            "route_waypoints":route.size()}
     var current: Vector2 = home
     var mode: String = "standing"
     var order_id: String = ""

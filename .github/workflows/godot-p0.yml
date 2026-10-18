@@ -206,6 +206,12 @@ jobs:
           godot --headless --path . --script res://tests/test_e4_npc_invitation.gd 2>&1 | tee /tmp/e4-npc-invitation.log
           grep -q 'E4 NPC INVITATION: PASS' /tmp/e4-npc-invitation.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E4 NPC INVITATION: FAIL)' /tmp/e4-npc-invitation.log; then exit 1; fi
+      - name: E4 independent nonbuyer visit, canonical time, real Ink and whole-world replay
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e4_nonbuyer_visit.gd 2>&1 | tee /tmp/e4-nonbuyer.log
+          grep -q 'E4 NONBUYER VISIT: PASS' /tmp/e4-nonbuyer.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E4 NONBUYER VISIT: FAIL)' /tmp/e4-nonbuyer.log; then exit 1; fi
       - name: E1 quiet moments — native spatial activity, scheduler and disk replay
         run: |
           set -o pipefail

@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "npc_id": "mona",
+  "room_id": "kiosk",
+  "routine_id": "mona_salma_visit",
+  "entry_point": [
+    220,
+    70
+  ],
+  "meeting_point": [
+    196,
+    76
+  ],
+  "walk_minutes": 3,
+  "opportunity_id": "mona_visits_salma",
+  "ink_path": "res://content/ink/nile_mona_salma_visit.ink.json",
+  "story": {
+    "story_id": "mona_visits_salma",
+    "beats": {
+      "mona_hello": {
+        "speaker_id": "mona",
+        "fact_id": "mona:visiting-salma"
+      },
+      "mona_welcome": {
+        "speaker_id": "mona",
+        "fact_id": ""
+      },
+      "mona_looking": {
+        "speaker_id": "mona",
+        "fact_id": ""
+      },
+      "mona_goodbye": {
+        "speaker_id": "mona",
+        "fact_id": ""
+      }
+    },
+    "choice_points": {
+      "mona_visit_choice": {
+        "welcome": {
+          "text": "It's nice you came to check on her.",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        },
+        "looking": {
+          "text": "Are you looking for Salma?",
+          "requires_known": [],
+          "requires_trusted": "",
+          "disclose_fact_id": "",
+          "speaker_id": ""
+        }
+      }
+    }
+  }
+}
