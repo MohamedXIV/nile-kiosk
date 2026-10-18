@@ -125,7 +125,7 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         return {"ok":false,"code":"INVALID_MEAL_POLICY"}
     if session.world.needs_view()["meal_values"].is_empty():
         var provision: Dictionary = session.command("game:needs:meals:v1","system:director",
-            "needs.meals.configure",{"recipes":meals["recipes"]})
+            "needs.meals.configure",{"recipes":meals["recipes"],"policy_version":2})
         if not provision.get("ok",false): return provision
     if not FileAccess.file_exists(TEA_ACTION_POLICY):
         return {"ok":false,"code":"TEA_ACTION_POLICY_NOT_FOUND"}
