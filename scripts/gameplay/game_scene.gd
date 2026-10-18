@@ -52,6 +52,8 @@ func report(marker: String) -> void:
     diagnostic["sound_enabled"] = soundscape.enabled if soundscape != null else false
     if soundscape != null:
         soundscape.set_context(str(diagnostic["location"]),not str(diagnostic["tea_stage"]).is_empty(),int(diagnostic["hour"]) >= 18 or int(diagnostic["hour"]) < 6)
+        diagnostic["sound_room"] = soundscape.room_id
+        diagnostic["sound_kettle"] = soundscape.kitchen_active
     print(marker + " " + JSON.stringify(diagnostic))
     queue_redraw()
 
