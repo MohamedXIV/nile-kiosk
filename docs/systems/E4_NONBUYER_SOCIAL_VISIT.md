@@ -1,6 +1,6 @@
 # E4 — Independent nonbuyer social visit (Mona visiting Salma)
 
-**Status:** implementation candidate; exact-head Native and production Chromium/Ink still required before merge.
+**Status: VERIFIED / MERGED 2026-10-18** — [PR #81](https://github.com/MohamedXIV/nile-kiosk/pull/81), squash merge `c65629bca42131360f2d9493186cfcc476838c08`; exact feature head `da6bc6f794ed734106824d8bd27b31f4bafa93cd` passed [Full Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39082795869) and [Full Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39082795900) including `E4 NONBUYER VISIT: PASS`, `E4_NONBUYER_CHROMIUM_PASS` plus Mahmoud/Salma whole-world regression markers. Scope remains a bounded authored visit.
 
 ## Player-visible behavior
 
