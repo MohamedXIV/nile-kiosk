@@ -1,6 +1,6 @@
 # E6 current-scope closure — contextual prompts and minimum ambience
 
-**Issue:** [#61](https://github.com/MohamedXIV/nile-kiosk/issues/61), **status:** implementation branch, not verified/merged. **Decision:** [frozen current scope](../experience/CURRENT_SCOPE_CLOSEOUT.md). This is E6 core intelligibility and sound-off functionality, not art/audio polish or a licensed radio.
+**Issue:** [#61](https://github.com/MohamedXIV/nile-kiosk/issues/61), **status:** VERIFIED / MERGED under bounded current-scope acceptance. **Decision:** [frozen current scope](../experience/CURRENT_SCOPE_CLOSEOUT.md). This is E6 core intelligibility and sound-off functionality, not art/audio polish or a licensed radio.
 
 ## Gameplay
 
@@ -21,3 +21,9 @@
 ## Remaining after this bounded implementation
 
 Human accessibility/play feel review, rich audio mixing/sound sources, Arabic/RTL, production fixed-angle sprite art / V001 signoff, future contextual audio nuance and camera/presentation refinement are deferred under the owner's scope freeze and **not claimed delivered**.
+
+
+## Verified evidence — 2026-10-18
+
+[PR #85](https://github.com/MohamedXIV/nile-kiosk/pull/85) squash merged `33eaaa3e6c37dd3bb8fc3688bc57bdbc21a45a34`, exact tested head `a5e71c8fffc2e77d2e8f35527809a695660d401d`: [Native SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39144054185) and [Chromium/Ink SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39144054203), including `E6 AMBIENCE: PASS`, `E6_AMBIENCE_CHROMIUM_PASS` and old E1–E5/P7 regressions.
+The actual production room/active-kettle audio and persistent mute now run through Godot. Web uses synchronous browser `localStorage` for its sound-off preference because ordinary auxiliary `user://` files are not guaranteed to finish Web IndexedDB sync before reload; native Godot keeps ConfigFile. No separate canonical state or copyrighted audio is introduced. Contextual in-world keyboard hints, bounded audio and no phantom remote purchase prompts satisfy this scoped functional gate. Visual/art, historical soundtrack rights, Arabic/RTL, comprehensive accessibility and human feel approval are deferred, not claimed delivered.
