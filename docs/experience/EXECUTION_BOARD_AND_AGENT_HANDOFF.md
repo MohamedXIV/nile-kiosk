@@ -1,5 +1,8 @@
 # Experience delivery board & agent handoff
 
+> **CURRENT SCOPE CLOSEOUT — 2026-10-18:** Scope freeze in [CURRENT_SCOPE_CLOSEOUT.md](CURRENT_SCOPE_CLOSEOUT.md). Implement/verify existing remaining E2/E3/E6 baseline acceptance before claiming completion; E1/E4/E5 bounded scopes are ready for explicit closeout with expansion deferred. Historical candidate proposals below are **not current implementation tickets**. Keep #55 open and #19/#20 human-gated.
+
+
 **Reconciled 2026-10-17 against \`main\` \`1f0e80abc33c483f15b8192878d7a50dbcf6e1d2\`. This SHA is a historical checkpoint, NOT a branch to assume is still current.** Before every execution, inspect live \`main\`, issues, PRs, CI and source through the connected GitHub tools.
 
 **Purpose:** let a new implementing agent recover **what has shipped, which gameplay behaviors remain, possible future ideas, their dependencies, and the evidence needed to call something done** without access to any ChatGPT conversation. This board augments, rather than replaces, [design traceability](../design/DESIGN_IMPLEMENTATION_TRACEABILITY.md), [decision register](../DECISION_REGISTER.md), [system architecture](../architecture/SYSTEM_FIRST_ARCHITECTURE.md) and [experience Epic #55](https://github.com/MohamedXIV/nile-kiosk/issues/55).
