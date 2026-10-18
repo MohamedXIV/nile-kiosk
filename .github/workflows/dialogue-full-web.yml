@@ -24,6 +24,7 @@ on:
       - "tools/web-play-c6-smoke.mjs"
       - "tools/web-e6-game-entry-smoke.mjs"
       - "tools/web-e3-tea-technique-smoke.mjs"
+      - "tools/web-e2-closure-smoke.mjs"
       - "tools/web-social-memory-referral-smoke.mjs"
       - "tools/web-living-conversation-smoke.mjs"
       - "tools/web-procurement-smoke.mjs"
@@ -164,6 +165,7 @@ jobs:
           node tools/web-social-memory-referral-smoke.mjs http://127.0.0.1:8765
           node tools/web-e6-game-entry-smoke.mjs http://127.0.0.1:8765
           node tools/web-e3-tea-technique-smoke.mjs http://127.0.0.1:8765
+          node tools/web-e2-closure-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
