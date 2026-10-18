@@ -91,3 +91,8 @@ Dedicated branch `feat/social-memory-referral` implements real returning-custome
 ## E4 living conversations — implementation branch (2026-10-18)
 
 **PARTIAL / branch `feat/living-conversations`, not a merge claim.** The existing Salma–Mahmoud river exchange now has optional nearby Ink participation, independent P1 progression while ignored or awaiting a response, two reconverging responses, canonical P6 daily consumption, guarded P2 hearing, and pending-choice replay. [Contract and exact executable scope](systems/E4_LIVING_CONVERSATIONS.md). Full native/Web results and final SHA belong in the delivery report; hosted CI is not implied. Private/distant participation rejected. E4/E6 remain OPEN; broader conversational choreography, acoustic simulation, audio/RTL/art remain. E5 procurement alternative is the next separate batch. #55/#59/#60/#61 stay OPEN; human-gated #20 unchanged.
+
+
+## E5 procurement choice — implementation branch (2026-10-18)
+
+**PARTIAL / `feat/procurement-alternatives`, stacked on the living-conversation branch; no merge claim.** Public finite-stock market collection composes actual P5 payment, P1 elapsed schedule/needs and P3 goods, alongside the existing genuinely learned delivery. Same30g: PROPOSED450/40min public collection versus550/15min learned delivery, 17–19 market window and one30g lot. No fake walkable market or new clock/vendor-stock authority. Decline/ignore/closed/too-late/short-stock/duplicate/replay cases stay explicit. [Full scoped contract and tests](systems/E5_PROCUREMENT_ALTERNATIVES.md). #55/#59/#60/#61 remain OPEN; replenishing suppliers, richer transport/home comfort and final atmosphere/art remain. #20 untouched. Exact local evidence and hosted availability are recorded separately in the delivery report.

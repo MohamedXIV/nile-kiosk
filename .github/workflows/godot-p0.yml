@@ -234,6 +234,12 @@ jobs:
           timeout 90s godot --headless --path . --script res://tests/test_e5_referral.gd 2>&1 | tee /tmp/e5-referral.log
           grep -q 'E5 REFERRAL: PASS' /tmp/e5-referral.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|E5 REFERRAL: FAIL)' /tmp/e5-referral.log; then exit 1; fi
+      - name: E5 public collection versus earned delivery and finite supply
+        run: |
+          set -o pipefail
+          timeout 90s godot --headless --path . --script res://tests/test_e5_procurement.gd 2>&1 | tee /tmp/e5-procurement.log
+          grep -q 'E5 PROCUREMENT: PASS' /tmp/e5-procurement.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|E5 PROCUREMENT: FAIL)' /tmp/e5-procurement.log; then exit 1; fi
       - name: E1 quiet moments — native spatial activity, scheduler and disk replay
         run: |
           set -o pipefail

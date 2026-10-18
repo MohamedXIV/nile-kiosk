@@ -77,9 +77,20 @@ try {
       }
       check(Math.abs(s.x-target)<=18 && Math.abs(s.y-targetY)<=18,'could not walk to target',s);return s;
     }
-    async function waitTo(minute) {
+    async function waitTo(minute, precise=false) {
       let s=last;
-      for(let i=0;i<350 && s.minute<minute;i++){s=await action('j','E6_GAME_WAIT');if(i%70===69)console.log(outcome+' waiting: '+s.minute);}
+      for(let i=0;i<350 && s.minute<minute;i++) {
+        // Real game time keeps moving (one minute every two seconds), while J
+        // advances five. Near a short authored speech window, let the real P1
+        // clock reach the beat instead of jumping over it with another J.
+        if(precise && s.minute+5>=minute) {
+          await page.waitForTimeout(160);
+          s=await snapshot();
+        } else {
+          s=await action('j','E6_GAME_WAIT');
+        }
+        if(i%70===69)console.log(outcome+' waiting: '+s.minute);
+      }
       check(s.minute>=minute,'canonical wait stalled',s);return s;
     }
     async function readyTea() {
@@ -101,7 +112,7 @@ try {
     check(s.ambient_npc==='salma' && s.ambient_beat===0,'independent opening missing',s);
     await action('g','E6_GAME_SERVE');await action('g','E6_GAME_SERVE');
     await action('h','E6_GAME_TEA_HEAT');
-    s=await waitTo(1049);
+    s=await waitTo(1049,true);
     check(s.ambient_npc==='mahmoud' && s.ambient_beat===1 && s.conversation_near,'actual exchange boundary missing',s);
     s=await action('f','E6_GAME_TALK');check(!s.supplier_known && !s.conversation_fact_known,'generic listen bypassed authored information',s);
     if(outcome!=='ignore') {

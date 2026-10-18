@@ -3,6 +3,7 @@ extends RefCounted
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const Procurement = preload("res://scripts/gameplay/procurement_play.gd")
 const LivingConversation = preload("res://scripts/gameplay/living_conversation_play.gd")
 const CustomerMemory = preload("res://scripts/gameplay/customer_memory_play.gd")
 const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
@@ -29,6 +30,7 @@ const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedu
 const COUNTER = Vector2(115, 80)
 const COUNTER_RADIUS = 48.0
 
+var procurement: RefCounted = Procurement.new()
 var conversation: RefCounted = LivingConversation.new()
 var session: RefCounted
 var graph: RefCounted
@@ -183,6 +185,8 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
         if not registered_mahmoud.get("ok", false): return registered_mahmoud
     var conversation_config: Dictionary = conversation.configure(session)
     if not conversation_config.get("ok",false): return conversation_config
+    var market_config: Dictionary = procurement.configure(session)
+    if not market_config.get("ok",false): return market_config
     var memory_config: Dictionary = customer_memory.configure(session)
     if not memory_config.get("ok",false): return memory_config
     if existing["code"] == "NEW_WORLD":
@@ -615,6 +619,12 @@ func referral_purchase() -> Dictionary:
 func referral_decline() -> Dictionary:
     return customer_memory.resolve_referral(session,room() == "kiosk" and position().distance_to(COUNTER) <= COUNTER_RADIUS,false,_id("supply_decline"))
 
+func market_purchase() -> Dictionary:
+    return procurement.resolve(session,room()=="kiosk" and position().distance_to(COUNTER)<=COUNTER_RADIUS,true,_id("market_buy"))
+
+func market_decline() -> Dictionary:
+    return procurement.resolve(session,room()=="kiosk" and position().distance_to(COUNTER)<=COUNTER_RADIUS,false,_id("market_decline"))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -663,6 +673,7 @@ func status() -> Dictionary:
         "referral_offer":customer_memory.referral(session),
         "leaves_stock":int(v["cooking"]["stock"].get("leaves",0)),
         "supply_resolutions":v["economy"]["supply_resolutions"],
+        "market_offer":procurement.view(session),
         "supplier_known":session.world.player_knows(CustomerMemory.FACT),
         "conversation_fact_known":session.world.player_knows("salma:evening-boats"),
         "conversation_id":conversation_id(),

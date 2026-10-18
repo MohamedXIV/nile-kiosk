@@ -1,3 +1,4 @@
+import { waitForGodotSave } from "./browser-save-observer.mjs";
 import { chromium } from "playwright-core";
 
 // Real Godot Web input to C0-backed spatial presentation. The scene is QA-only.
@@ -69,7 +70,7 @@ try {
   const saved = await until("SAVED",0);
   check(saved.digest===heard.digest && saved.revision===heard.revision,
     "Saving changed canonical world");
-  await page.waitForTimeout(1500);
+  await waitForGodotSave(page,"nk-play-c1-web-qa.json", data=>data.sequence===saved.revision);
   await page.reload({waitUntil:"load",timeout:30000});
   const restored = await until("RESTORED",0);
   check(restored.digest===saved.digest && restored.known===true &&
@@ -81,7 +82,7 @@ try {
     "NPC offscreen routine did not advance while player remained in kiosk");
   await key("p");
   const saved2 = await until("SAVED",1);
-  await page.waitForTimeout(1500);
+  await waitForGodotSave(page,"nk-play-c1-web-qa.json", data=>data.sequence===saved2.revision);
   await page.reload({waitUntil:"load",timeout:30000});
   const after = await until("RESTORED",1);
   check(after.digest===saved2.digest && after.revision===saved2.revision &&

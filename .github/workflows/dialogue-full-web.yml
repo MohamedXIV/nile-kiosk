@@ -25,6 +25,8 @@ on:
       - "tools/web-e6-game-entry-smoke.mjs"
       - "tools/web-social-memory-referral-smoke.mjs"
       - "tools/web-living-conversation-smoke.mjs"
+      - "tools/web-procurement-smoke.mjs"
+      - "tools/browser-save-observer.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
@@ -156,6 +158,7 @@ jobs:
           node tools/web-play-c4-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c5-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c6-smoke.mjs http://127.0.0.1:8765
+          node tools/web-procurement-smoke.mjs http://127.0.0.1:8765
           node tools/web-living-conversation-smoke.mjs http://127.0.0.1:8765
           node tools/web-social-memory-referral-smoke.mjs http://127.0.0.1:8765
           node tools/web-e6-game-entry-smoke.mjs http://127.0.0.1:8765
@@ -169,4 +172,5 @@ jobs:
             /tmp/nile-e6-*.png
             /tmp/nile-memory-*.png
             /tmp/nile-conversation-*.png
+            /tmp/nile-procurement-*.png
           if-no-files-found: ignore

@@ -135,6 +135,8 @@ func _act(kind: String) -> void:
         "radio_listen": result = game.listen_radio()
         "bed": result = game.bed_near()
         "bed_store": result = game.store_bed()
+        "market_buy": result = game.market_purchase()
+        "market_decline": result = game.market_decline()
         "supply_buy": result = game.referral_purchase()
         "supply_decline": result = game.referral_decline()
     if result.get("ok", false):
@@ -156,6 +158,8 @@ func _act(kind: String) -> void:
             "radio_store":"Radio put away safely.",
             "radio_listen":str(result.get("caption","The radio fills the room.")),
             "bed":str(result.get("caption","A bed for home.")),
+            "market_buy":"You collect 30g leaves from the market. Paid 450; 40 minutes away. The kiosk kept running.",
+            "market_decline":"You leave the market collection for another day. Nothing spent or received.",
             "supply_buy":"Hoda's runner brings 30g leaves. Paid 550 piastres; 15 minutes pass.",
             "supply_decline":"You leave the delivery offer. No money or stock changes hands.",
             "bed_store":"The bed is put away. Sleep will be simpler tonight."
@@ -268,6 +272,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
             else:
                 story_id = game.conversation_id()
                 _story_action("begin")
+        KEY_F5: _act("market_buy")
+        KEY_F6: _act("market_decline")
         KEY_F3: _act("supply_buy")
         KEY_F4: _act("supply_decline")
         KEY_F2:
@@ -460,6 +466,10 @@ func _draw() -> void:
         _text(Vector2(705,348),"L · Talk to Mona (social visit)",13,Color("#f1ca80"))
     if state["memory_near"] and not story_open:
         _text(Vector2(665,326),"F2 · Catch up with Mahmoud",14,Color("#f1ca80"))
+    var market: Dictionary = state["market_offer"]
+    if location=="kiosk" and not story_open and not state["conversation_near"] and not market.is_empty():
+        _text(Vector2(28,266),"Market collection · %dg / %d / %d min away · F5 collect / F6 decline" % [market["quantity"],market["goods_minor"],market["minutes"]],14,Color("#f1ca80"))
+        _text(Vector2(28,284),"PROPOSED · 17:00–19:00 · one 30g lot · " + str(market["status"]),13,Color("#d2b98c"))
     var referral: Dictionary = state["referral_offer"]
     if location == "kiosk" and referral.get("status","") == "available" and not story_open:
         _text(Vector2(28,300),"Hoda: 30g leaves · 450 + 100 delivery · 15 min · F3 buy / F4 decline",14,Color("#f1ca80"))
