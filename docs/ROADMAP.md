@@ -1,5 +1,8 @@
 # Roadmap — System-First Development (reconciled 2026-10-17)
 
+> **CURRENT SCOPE CLOSEOUT — 2026-10-18:** The owner chose to finish/close the already implemented playable baseline first and move optional additions, polish and depth to a distinct later phase. Read [the explicit E1–E6 closeout matrix](experience/CURRENT_SCOPE_CLOSEOUT.md) before following historical candidate sections or older status snapshots. Closed E1/E4/E5 mean **verified bounded baseline plus explicit deferral of richer experience**, NOT complete game content/human signoff. Core E2/E3/E6 acceptance stays BLOCKING. Parent #55 and art #19/#20 remain independently gated.
+
+
 **Policy: system-first, not vertical-slice-first.** The current [Experience Execution Board / Agent Handoff](experience/EXECUTION_BOARD_AND_AGENT_HANDOFF.md) tracks exact shipped slices, remaining candidates, dependencies, proposals and the agent update protocol. Live implementation tracker: [parent #23 and system epics #24–#31](https://github.com/MohamedXIV/nile-kiosk/issues/23). The game is early pre-production. **SYS P0–P7 are now verified and merged** with real native/Chromium whole-world integration. Next: production content authoring and actual playable spatial presentation (still pending art review), not a second authoritative world implementation. The D001 and V001 spikes remain evidence, not automatic production implementations. See [architecture](architecture/SYSTEM_FIRST_ARCHITECTURE.md), [delivery board](systems/SYSTEM_DELIVERY_BOARD.md) and [time contract](systems/WORLD_TIME_AND_SCHEDULER.md).
 
 | Order | Workstream | Delivery gate |
