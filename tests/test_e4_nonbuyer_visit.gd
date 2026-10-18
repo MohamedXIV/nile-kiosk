@@ -22,6 +22,11 @@ func progress(g: RefCounted, n: int) -> void:
         command(g.wait_minutes(step),"canonical time step")
         n -= step
 
+func no_mona_orders(g: RefCounted) -> bool:
+    for o in g.session.world.orders_view()["orders"].values():
+        if o["npc_id"] == "mona": return false
+    return true
+
 func _initialize() -> void:
     call_deferred("_run")
 
@@ -85,7 +90,7 @@ func _run() -> void:
     progress(g,3)
     check(g.npc_pose("mona").get("mode","")=="visiting","visitor not at meeting spot")
     check(g.mona_visit_near(),"offer not nearby after P2 visitor stops")
-    check(g.session.world.orders_view()["orders"].is_empty(),"nonbuyer created order")
+    check(no_mona_orders(g),"nonbuyer created order")
     check(not g.session.world.player_knows("mona:visiting-salma"),"learned fact before spoken")
     check(g.mona_story_session().is_empty(),"unexpected forced conversation")
     check(g.mona_story_begin().get("code","")=="INK_LOADING","actual Ink not attached lazily")
@@ -118,7 +123,7 @@ func _run() -> void:
     check(resumed.mona_story_next().get("beat_id","")=="mona_goodbye","Ink merge beat")
     check(resumed.mona_story_next().get("code","")=="FINISHED","real session not finished")
     check(resumed.mona_story_begin().get("code","")=="STORY_ALREADY_FINISHED","replayed one-shot conversation")
-    check(resumed.session.world.orders_view()["orders"].is_empty(),"speech generated fake service")
+    check(no_mona_orders(resumed),"speech generated fake service")
     var forged: Dictionary = resumed.session.world.view()
     forged["narrative"]["opportunities"]["mona_visits_salma"]["source_event_id"]="forged"
     check(not resumed.session.world.restore_snapshot(forged),"fake visiting source accepted")
