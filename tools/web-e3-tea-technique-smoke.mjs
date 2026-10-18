@@ -13,7 +13,7 @@ const traces=new Map(), errors=[];
 let last;
 page.on('console',m=>{
   const line=m.text();
-  const match=/^((?:E6_GAME|E4_STORY)_[A-Z_]+) (\\{.*\\})$/.exec(line);
+  const match=/^((?:E6_GAME|E4_STORY)_[A-Z_]+) (\{.*\})$/.exec(line);
   if(match){try{
     last=JSON.parse(match[2]);
     const list=traces.get(match[1])||[];list.push(last);traces.set(match[1],list);
