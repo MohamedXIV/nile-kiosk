@@ -1,7 +1,7 @@
 import { chromium } from 'playwright-core';
 import { waitForGodotSave } from './browser-save-observer.mjs';
 // Default scene, ordinary keyboard controls, read-only persistence observation.
-const browser = await chromium.launch({executablePath:process.env.CHROME_BINARY || '/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const browser = await chromium.launch({executablePath:process.env.CHROME_BINARY || '/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 const proofs=[];
 function check(value,label){if(!value)throw new Error(label);}
 try {
