@@ -124,8 +124,13 @@ func on_elapsed(from_minute: int, to_minute: int, kind: String,
         # E2 policy 2: every absolute 120-minute boundary evolves Mood once.
         # Physiological readings at each boundary are computed from the same
         # P1 timeline, not the arbitrary size of this time.advance command.
-        # The loop is capped by the finite 32-bit canonical world horizon.
-        for slot in range(int(from_minute / 120) + 1, int(to_minute / 120) + 1):
+        # Hunger falls below the discomfort threshold within at most 4,500
+        # elapsed minutes; after that each beat reaches a fixed point or moves
+        # toward one in at most 100 more beats. Avoid processing millions of
+        # slots for a single legal but unusually long P1 advance.
+        var first_slot: int = int(from_minute / 120) + 1
+        var last_slot: int = mini(int(to_minute / 120),first_slot + 159)
+        for slot in range(first_slot,last_slot + 1):
             var at_minute: int = slot * 120
             var beat_hunger: int = maxi(0, hunger_before -
                 (int(at_minute / 45) - int(from_minute / 45)))
