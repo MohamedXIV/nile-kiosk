@@ -1,6 +1,6 @@
 # E2 — Current bounded scope closure and deterministic needs
 
-**Issue:** [#57](https://github.com/MohamedXIV/nile-kiosk/issues/57) and parent [#55](https://github.com/MohamedXIV/nile-kiosk/issues/55). **Status:** candidate pending exact-head hosted acceptance and merge; no claims of verification merely from source. [Frozen scope](../experience/CURRENT_SCOPE_CLOSEOUT.md) excludes weather, additional appliances, meals, animation, art #20, and deeper content.
+**Issue:** [#57](https://github.com/MohamedXIV/nile-kiosk/issues/57) and parent [#55](https://github.com/MohamedXIV/nile-kiosk/issues/55). **Status: VERIFIED / MERGED / #57 CLOSED for current bounded scope.** [PR #87](https://github.com/MohamedXIV/nile-kiosk/pull/87) squash-merged `6fe9943497d460ef27b675ad3170227a5908f303`; exact feature head `a15744a76c89d0074f9e5ba4f30ad47503e04f53` passed [Full Native SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39160267854) (`E2 CLOSURE: PASS`, `E2 NEEDS: PASS`, `PLAY C2: PASS`) and [Full Web/Chromium/Ink SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39160267835) (`E2_CLOSURE_CHROMIUM_PASS` plus E3/E4/E5/E6 regressions). [Frozen scope](../experience/CURRENT_SCOPE_CLOSEOUT.md) excludes weather, additional appliances, meals, animation, art #20, and deeper content.
 
 ## Failure reproduced in Codex handoff
 
@@ -22,3 +22,9 @@ For a genuinely neglected player after two canonical days and a rooftop quiet ac
 4. **Gate:** full Godot Native and full Web/Chromium/Ink workflows `SUCCESS` on the *same final pushed feature head*. Do not close #57 / parent #55 before this and any required scope reconciliation. No human pacing approval implied.
 
 Additional recipes, fans/temperature, wider household comfort and multiweek human balance are postponed by user scope freeze, not represented as implemented. Art PR #20 is untouched.
+
+
+## Final hosted verification and issue disposition
+
+[PR #87](https://github.com/MohamedXIV/nile-kiosk/pull/87) squash-merged `6fe9943497d460ef27b675ad3170227a5908f303`; exact feature head `a15744a76c89d0074f9e5ba4f30ad47503e04f53` passed [Full Native SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39160267854) (`E2 CLOSURE: PASS`, `E2 NEEDS: PASS`, `PLAY C2: PASS`) and [Full Web/Chromium/Ink SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39160267835) (`E2_CLOSURE_CHROMIUM_PASS` plus E3/E4/E5/E6 regressions).
+One new E2 domain test plus the original E2 core/regression paths ran under hosted Godot 4.6 Native; production Chromium/Ink ran the real multi-day scenario, existing P7/E3/E4/E5/E6 drivers and exact persisted reload. Parent #55 closed after scope matrix reconciliation. No broader comfort/economic scenarios or human art direction are implied. Art PR #20 untouched.
