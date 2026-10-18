@@ -248,7 +248,9 @@ func npc_pose(session: RefCounted, npc_id: String) -> Dictionary:
         for o in orders.values():
             if o["npc_id"] != npc_id or o["venue_id"] != visit_spots["venue_id"]:
                 continue
-            if latest.is_empty() or int(o["offer_sequence"]) > int(latest["offer_sequence"]):
+            # Recurring P1 demands retain the scheduler creation sequence.
+            # Actual encounter minute must take precedence across days.
+            if latest.is_empty() or int(o["created_minute"]) > int(latest["created_minute"]) or (int(o["created_minute"]) == int(latest["created_minute"]) and int(o["offer_sequence"]) > int(latest["offer_sequence"])):
                 latest = o
         if not latest.is_empty() and visit_spots["route_points"].has(latest["route"]):
             var destination: Vector2 = point(visit_spots["route_points"][latest["route"]])

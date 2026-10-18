@@ -8,6 +8,8 @@ on:
       - "content/navigation/**"
       - "content/service/**"
       - "content/life/**"
+      - "content/social/**"
+      - "content/economy/**"
       - "content/dialogue_manager/**"
       - "scripts/**"
       - "scenes/**"
@@ -21,10 +23,13 @@ on:
       - "tools/web-play-c5-smoke.mjs"
       - "tools/web-play-c6-smoke.mjs"
       - "tools/web-e6-game-entry-smoke.mjs"
+      - "tools/web-social-memory-referral-smoke.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
     paths:
+      - "content/social/**"
+      - "content/economy/**"
       - "content/ink/**"
       - "content/dialogue_manager/**"
       - "scripts/**"
@@ -150,6 +155,7 @@ jobs:
           node tools/web-play-c4-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c5-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c6-smoke.mjs http://127.0.0.1:8765
+          node tools/web-social-memory-referral-smoke.mjs http://127.0.0.1:8765
           node tools/web-e6-game-entry-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
@@ -159,4 +165,5 @@ jobs:
           path: |
             /tmp/d001-full-web-*.png
             /tmp/nile-e6-*.png
+            /tmp/nile-memory-*.png
           if-no-files-found: ignore

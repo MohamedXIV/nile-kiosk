@@ -1,5 +1,6 @@
 extends RefCounted
 ## SYS P6: deterministic authored narrative sessions. Ink owns prose/cursor, not world truth.
+const Experience = preload("res://scripts/core/customer_experience.gd")
 const MAX_INT: int = 2147483647
 const OpportunityRules = preload("res://scripts/core/story_opportunity_rules.gd")
 var stories: Dictionary = {}
@@ -107,14 +108,23 @@ func available(session_id: String, society: RefCounted) -> Array[Dictionary]:
     return out
 
 func _validate_story(p: Dictionary) -> Dictionary:
-    if not exact(p, ["story_id", "beats", "choice_points"]) or not id(p.get("story_id")) or typeof(p.get("beats")) != TYPE_DICTIONARY or typeof(p.get("choice_points")) != TYPE_DICTIONARY:
+    var story_keys: Array = ["story_id", "beats", "choice_points", "customer_memory"] if p.has("customer_memory") else ["story_id", "beats", "choice_points"]
+    if not exact(p, story_keys) or not id(p.get("story_id")) or typeof(p.get("beats")) != TYPE_DICTIONARY or typeof(p.get("choice_points")) != TYPE_DICTIONARY:
         return fail("INVALID_PAYLOAD")
     if p["beats"].is_empty() or p["beats"].size() > 128 or p["choice_points"].size() > 32:
         return fail("INVALID_STORY")
+    if p.has("customer_memory"):
+        var guard: Variant = p["customer_memory"]
+        if typeof(guard) != TYPE_DICTIONARY or not exact(guard,["npc_id","venue_id"]) or not id(guard.get("npc_id")) or not id(guard.get("venue_id")):
+            return fail("INVALID_MEMORY_GUARD")
     for beat_id in p["beats"]:
         var beat: Variant = p["beats"][beat_id]
-        if not id(beat_id) or typeof(beat) != TYPE_DICTIONARY or not exact(beat, ["speaker_id", "fact_id"]) or not id(beat.get("speaker_id")) or typeof(beat.get("fact_id")) != TYPE_STRING:
+        var beat_keys: Array = ["speaker_id","fact_id","requires_memory"] if typeof(beat) == TYPE_DICTIONARY and beat.has("requires_memory") else ["speaker_id","fact_id"]
+        if not id(beat_id) or typeof(beat) != TYPE_DICTIONARY or not exact(beat, beat_keys) or not id(beat.get("speaker_id")) or typeof(beat.get("fact_id")) != TYPE_STRING:
             return fail("INVALID_BEAT")
+        if beat.has("requires_memory"):
+            if not p.has("customer_memory") or beat["speaker_id"] != p["customer_memory"]["npc_id"] or beat["requires_memory"] not in ["good","okay","rough","settled","abandoned"]:
+                return fail("INVALID_MEMORY_BEAT")
         if not beat["fact_id"].is_empty() and not id(beat["fact_id"]):
             return fail("INVALID_BEAT")
     for point_id in p["choice_points"]:
@@ -152,7 +162,7 @@ func _speech(society: RefCounted, speaker: String, fact_id: String, mode: String
 func observe_event(event: Dictionary, world: RefCounted) -> void:
     OpportunityRules.unlock(opportunity_rules, opportunities, event, world)
 
-func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs: Dictionary, minute: int) -> Dictionary:
+func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs: Dictionary, minute: int, world: RefCounted = null) -> Dictionary:
     if kind == "narrative.opportunity.register":
         if actor != "system:narrative": return fail("UNAUTHORIZED")
         var expected_fields: Array = ["opportunity_id", "trigger_event", "when", "initiator_npc_id"] if p.has("initiator_npc_id") else ["opportunity_id", "trigger_event", "when"]
@@ -205,7 +215,19 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
                     return fail("OPPORTUNITY_ALREADY_STARTED")
         var present: Dictionary = _participants(p["participants"], society)
         if not present["ok"]: return present
-        return {"ok": true, "effect": {"location_id": present["location_id"]}}
+        var effect: Dictionary = {"location_id":present["location_id"]}
+        var story: Dictionary = stories[p["story_id"]]
+        if story.has("customer_memory"):
+            var guard: Dictionary = story["customer_memory"]
+            if world == null or not p["participants"].has("player") or not p["participants"].has(guard["npc_id"]):
+                return fail("INVALID_MEMORY_PARTICIPANTS")
+            var memory: Dictionary = Experience.returning(world.service.orders,world.cooking,world.events,guard["npc_id"],guard["venue_id"])
+            if memory.is_empty(): return fail("NO_CUSTOMER_MEMORY")
+            for existing in sessions.values():
+                if existing.get("customer_memory",{}).get("return_order_id","") == memory["return_order_id"]:
+                    return fail("RETURN_ALREADY_REMEMBERED")
+            effect["customer_memory"] = memory
+        return {"ok":true,"effect":effect}
     if not id(p.get("session_id")) or not sessions.has(p["session_id"]):
         return fail("UNKNOWN_SESSION")
     var s: Dictionary = sessions[p["session_id"]]
@@ -218,6 +240,8 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
         var beats: Dictionary = stories[s["story_id"]]["beats"]
         if not beats.has(p["beat_id"]): return fail("UNKNOWN_BEAT")
         var beat: Dictionary = beats[p["beat_id"]]
+        if beat.has("requires_memory") and s.get("customer_memory",{}).get("branch","") != beat["requires_memory"]:
+            return fail("MEMORY_BRANCH_MISMATCH")
         var speaker: String = beat["speaker_id"]
         if not s["participants"].has(speaker) or _location(speaker, society) != s["location_id"]:
             return fail("SPEAKER_ABSENT")
@@ -285,6 +309,8 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
                 "phase": "running", "point_id": "", "ink_state": p["ink_state"].duplicate(true),
                 "lines": [], "choices": [], "started_minute": minute, "started_event_id": event_id,
                 "last_event_id": event_id}
+            if effect.has("customer_memory"):
+                sessions[p["session_id"]]["customer_memory"] = effect["customer_memory"].duplicate(true)
             if kind == "narrative.opportunity.begin":
                 sessions[p["session_id"]]["opportunity_id"] = p["opportunity_id"]
         "narrative.line.commit":

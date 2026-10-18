@@ -1,4 +1,6 @@
 import { chromium } from "playwright-core";
+import { readFileSync } from "node:fs";
+const monaMeeting = JSON.parse(readFileSync(new URL("../content/social/nile_mona_visit.v1.json", import.meta.url), "utf8")).meeting_point;
 
 // E6/P0: launch the real default scene (not D001 or QA), navigate, and reload.
 const browser = await chromium.launch({
@@ -162,11 +164,18 @@ try {
   check(teaStarted.tea_action === "H" && teaStarted.tea_stage === "waiting", "tea did not request heat");
   await press("g");
   const blockedShortcut = await until("E6_GAME_SERVE",2);
-  check(blockedShortcut.revision === teaStarted.revision && blockedShortcut.tea_stage === "waiting",
+  check(blockedShortcut.tea_stage === "waiting" && blockedShortcut.tea_action === "H" &&
+    blockedShortcut.leaves_stock === teaStarted.leaves_stock && blockedShortcut.money === teaStarted.money &&
+    blockedShortcut.active_order === teaStarted.active_order,
     "G shortcut bypassed hands-on tea");
   await press("u");
   const wrongPour = await until("E6_GAME_TEA_POUR",0);
-  check(wrongPour.revision === teaStarted.revision, "incorrect first gesture advanced world");
+  // The P1 real-time clock keeps running between browser key events. The
+  // rejected gesture must preserve service/resources, not freeze world time.
+  check(wrongPour.tea_stage === "waiting" && wrongPour.tea_action === "H" &&
+    wrongPour.leaves_stock === teaStarted.leaves_stock && wrongPour.money === teaStarted.money &&
+    wrongPour.active_order === teaStarted.active_order && wrongPour.order_status === "accepted",
+    "incorrect first gesture changed cooking or resources");
   await press("h");
   const heated = await until("E6_GAME_TEA_HEAT",0);
   check(heated.tea_stage === "active" && heated.tea_ready_in > 0, "kettle not heating in canonical P3");
@@ -264,7 +273,30 @@ try {
   // The riverside rail is physically near Mona's P2/schedule-derived visit
   // spot. She is not an order: the player explicitly opts into her Ink story.
   const visitorStartedIndex = (traces.E4_VISITOR_STARTED || []).length;
-  await press("l");
+  let visitorJoined = false;
+  for (let attempt=0; attempt<12; attempt++) {
+    const loading = (traces.E4_VISITOR_LOADING || []).length;
+    const rejected = (traces.E4_VISITOR_REJECTED || []).length;
+    await press("l");
+    for(let i=0;i<35;i++) {
+      if((traces.E4_VISITOR_STARTED || []).length > visitorStartedIndex || (traces.E4_VISITOR_LOADING || []).length > loading) {
+        await until("E4_VISITOR_STARTED",visitorStartedIndex);visitorJoined=true;break;
+      }
+      if((traces.E4_VISITOR_REJECTED || []).length > rejected)break;
+      await page.waitForTimeout(50);
+    }
+    if(visitorJoined)break;
+    const latest=(traces.E4_VISITOR_REJECTED || []).at(-1);
+    check(latest && !latest.player_knows_mona_visit && !latest.mona_visit_near,
+      "Mona rejected a physically nearby player or leaked unheard knowledge");
+    // Correct the actual player pose toward the authored, stationary meeting
+    // point instead of assuming a timed walk ended within the hearing radius.
+    const dx=monaMeeting[0]-latest.x, dy=monaMeeting[1]-latest.y;
+    if(Math.abs(dy)>12)await nudgeY(dy>0);
+    else if(dx>0)await moveDiagonal(155);
+    else await walkBack(155);
+  }
+  check(visitorJoined,"could not approach Mona's actual visit pose");
   const visitorStarted = await until("E4_VISITOR_STARTED",visitorStartedIndex);
   check(visitorStarted.mona_story_phase === "running","Mona's visit didn't start a P6 story");
   await press("Enter");

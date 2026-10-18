@@ -42,12 +42,15 @@ func _exit_tree() -> void:
 
 func report(marker: String) -> void:
     last_marker = marker
-    print(marker + " " + JSON.stringify(game.status()))
+    var diagnostic: Dictionary = game.status()
+    diagnostic["dialogue_text"] = story_line
+    diagnostic["dialogue_id"] = story_id
+    print(marker + " " + JSON.stringify(diagnostic))
     queue_redraw()
 
 func _process(delta: float) -> void:
     if not initialized: return
-    if story_pending and game.session.ink_ready(story_id):
+    if story_pending and (game.memory_story_ready() if story_id.begins_with("memory:") else game.session.ink_ready(story_id)):
         _story_action("begin")
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
@@ -126,6 +129,8 @@ func _act(kind: String) -> void:
         "radio_listen": result = game.listen_radio()
         "bed": result = game.bed_near()
         "bed_store": result = game.store_bed()
+        "supply_buy": result = game.referral_purchase()
+        "supply_decline": result = game.referral_decline()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
@@ -145,6 +150,8 @@ func _act(kind: String) -> void:
             "radio_store":"Radio put away safely.",
             "radio_listen":str(result.get("caption","The radio fills the room.")),
             "bed":str(result.get("caption","A bed for home.")),
+            "supply_buy":"Hoda's runner brings 30g leaves. Paid 550 piastres; 15 minutes pass.",
+            "supply_decline":"You leave the delivery offer. No money or stock changes hands.",
             "bed_store":"The bed is put away. Sleep will be simpler tonight."
         }.get(kind, "Done")
     else:
@@ -153,7 +160,12 @@ func _act(kind: String) -> void:
 
 func _story_action(kind: String, option_id: String = "") -> void:
     var result: Dictionary = {}
-    if story_id == MONA_STORY_ID:
+    if story_id.begins_with("memory:"):
+        match kind:
+            "begin": result = game.memory_story_begin()
+            "next": result = game.memory_story_next()
+            "choose": result = game.memory_story_choose(option_id)
+    elif story_id == MONA_STORY_ID:
         match kind:
             "begin": result = game.mona_story_begin()
             "next": result = game.mona_story_next()
@@ -175,18 +187,20 @@ func _story_action(kind: String, option_id: String = "") -> void:
         else:
             story_pending = false
             notice = "Conversation: " + str(result.get("code", "UNKNOWN"))
-        report(("E4_VISITOR_" if story_id == MONA_STORY_ID else ("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_")) + ("LOADING" if story_pending else "REJECTED"))
+        report(_story_prefix() + ("LOADING" if story_pending else "REJECTED"))
         return
     story_pending = false
     var code: String = str(result.get("code", ""))
     match code:
         "STARTED", "RESUMED":
             story_open = true
-            story_line = ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here.")) + " Press Enter to listen."
+            story_line = ("Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Press Enter to listen."
             notice = "A moment beside the Nile."
         "LINE":
             story_open = true
-            story_line = str(result.get("speaker_id", "salma")).capitalize() + ": " + str(result.get("text", ""))
+            story_line = str(result.get("text", ""))
+            var speaker: String = str(result.get("speaker_id", "salma")).capitalize() + ": "
+            if not story_line.begins_with(speaker): story_line = speaker + story_line
         "WAITING":
             story_open = true
             story_line = "What would you like to say?"
@@ -197,7 +211,15 @@ func _story_action(kind: String, option_id: String = "") -> void:
         _:
             story_open = true
             story_line = "Press Enter to continue."
-    report(("E4_VISITOR_" if story_id == MONA_STORY_ID else ("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_")) + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
+    report(_story_prefix() + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
+
+func _story_prefix() -> String:
+    if story_id.begins_with("memory:"): return "E4_MEMORY_"
+    return "E4_VISITOR_" if story_id == MONA_STORY_ID else ("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_")
+
+func _story_choices(state: Dictionary) -> Array:
+    if story_id.begins_with("memory:"): return state["memory_story_choices"]
+    return state["mona_story_choices"] if story_id == MONA_STORY_ID else (state["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else state["river_story_choices"])
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
@@ -208,7 +230,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
                 if story_open: _story_action("next")
             KEY_1, KEY_2:
                 if story_open:
-                    var options: Array = game.status()["mona_story_choices"] if story_id == MONA_STORY_ID else (game.status()["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else game.status()["river_story_choices"])
+                    var options: Array = _story_choices(game.status())
                     var index: int = 0 if event.keycode == KEY_1 else 1
                     if index < options.size(): _story_action("choose",str(options[index]["option_id"]))
             KEY_ESCAPE:
@@ -220,6 +242,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_P: _act("save")
         return
     match event.keycode:
+        KEY_F3: _act("supply_buy")
+        KEY_F4: _act("supply_decline")
+        KEY_F2:
+            if game.status()["memory_near"]:
+                story_id = game.customer_memory.session_id(game.session)
+                _story_action("begin")
         KEY_N:
             story_id = Game.RIVER_STORY_ID
             _story_action("begin")
@@ -403,12 +431,18 @@ func _draw() -> void:
         _text(Vector2(690,369),"Mahmoud: A word?  M · Listen   I · Ignore",13,Color("#f1ca80"))
     if state["mona_visit_near"] and state["mona_story_phase"] != "finished" and not story_open:
         _text(Vector2(705,348),"L · Talk to Mona (social visit)",13,Color("#f1ca80"))
+    if state["memory_near"] and not story_open:
+        _text(Vector2(665,326),"F2 · Catch up with Mahmoud",14,Color("#f1ca80"))
+    var referral: Dictionary = state["referral_offer"]
+    if location == "kiosk" and referral.get("status","") == "available" and not story_open:
+        _text(Vector2(28,300),"Hoda: 30g leaves · 450 + 100 delivery · 15 min · F3 buy / F4 decline",14,Color("#f1ca80"))
+        _text(Vector2(28,320),"Call from the counter; offer lasts %d more world minutes." % int(referral["remaining_minutes"]),13,Color("#d2b98c"))
     if story_open or story_pending:
         draw_rect(Rect2(60,242,840,192),Color("#162d31"))
         draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))
-        _text(Vector2(84,280),"Mona · Here to see Salma" if story_id == MONA_STORY_ID else ("Mahmoud · A word after tea" if story_id == Game.MAHMOUD_STORY_ID else "By the Nile · Salma"),20,Color("#f0d8a8"))
+        _text(Vector2(84,280),"Mahmoud · A familiar customer" if story_id.begins_with("memory:") else ("Mona · Here to see Salma" if story_id == MONA_STORY_ID else ("Mahmoud · A word after tea" if story_id == Game.MAHMOUD_STORY_ID else "By the Nile · Salma")),20,Color("#f0d8a8"))
         _text(Vector2(84,315),story_line if not story_pending else "Opening conversation...",17)
-        var choices: Array = state["mona_story_choices"] if story_id == MONA_STORY_ID else (state["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else state["river_story_choices"])
+        var choices: Array = _story_choices(state)
         if choices.is_empty():
             _text(Vector2(84,394),"Enter · Continue       Esc · Leave       P · Save",15,Color("#ddbb7f"))
         else:

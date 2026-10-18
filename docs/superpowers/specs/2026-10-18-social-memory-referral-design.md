@@ -1,0 +1,16 @@
+# Returning-customer memory and earned tea-supplier referral
+
+## Scope and authority
+The authorized overnight batch implements E4 returning-customer dialogue and one E5 procurement consequence in the default production game. Existing Salma, Mahmoud invitation and Mona visit remain intact. E4/E5/E6/#55 stay PARTIAL/OPEN. PR #20 is outside scope.
+
+P4/C6 history is the only customer memory authority: identify an actual later order from the same NPC/venue, then the latest earlier settled or abandoned order. Paid tea quality comes from P3's event-derived item quality. No sentiment counter, trust reward or friendship UI is added. A guarded P6 session freezes the two order IDs, closure provenance, outcome and quality when it starts; Ink receives only the derived authored branch. Starting and committing the wrong memory branch must fail canonically. Only the customer concerned can speak this personal memory, with P2 player/NPC co-presence and Godot route-derived proximity in the production adapter. Moving out of range prevents further hearing/choices; the world clock continues.
+
+## Playable content
+On Mahmoud's later visit, a separate optional conversation acknowledges good, okay, rough or missed service. The player can ask about fresh tea stock or leave the subject alone. The supplier answer teaches an authored public P2 fact only through the actual P6 line. The ordinary conversation never gives cash, stock or trust. Existing P2 directed/trusted speech remains authoritative for private information.
+
+At the kiosk counter, a player who heard the supplier contact can request one delivery or explicitly decline. Ignoring is valid. Provisional authored terms: 30 grams of tea leaves, 450 minor units for goods plus 100 delivery, 15 world minutes, available for 120 minutes after learning the contact. A single atomic kernel event validates the knowledge provenance, offer, location, funds, stock bounds, pause/time bounds and prior resolution; it posts one P5 transfer, advances P1 including scheduled firings/needs and adds stock through P3. No free goods or arbitrary effect from Ink. The one-shot resolution and catalog are owned by P5 and replay-validated. No market framework, supplier AI or pretend market geometry is introduced.
+
+## Saves and verification
+Introduce schema 12 for the new P5 catalog/resolution projection. Preserve supported schemas 7–11 by replay and comparison of their original shape, rejecting downgraded new procurement events. Pending P6 choices and supplier knowledge/receipts must round-trip through actual disk and browser hard reload. Test wrong customer, fresh/unpaid/cancelled histories, rough/settled/abandoned branches, offsite/unheard/private facts, insufficient funds, expiry, paused clock, overflow, duplicate IDs, declined and repeated requests, canonical ledger/stock/time, and forged snapshots/effects.
+
+Native tests exercise the real production adapter and compiled Ink. Chromium drives the default scene using normal input and real saved-world reloads. Run the complete existing Native and Web/Ink suite at final committed head; exact-head GitHub CI/PR publication additionally requires API access. Optional NPC interjection is deferred until these two deliverables are verified.
