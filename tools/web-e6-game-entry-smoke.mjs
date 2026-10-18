@@ -461,6 +461,64 @@ try {
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(morningRestored.tea_technique_known && morningRestored.tea_technique.phase === "heard",
     "actually heard teaching lost across second Web reload");
+  // Real day-two tea AFTER the actually heard NPC tip. The first day's
+  // earlier cup must never count as learning. The next cup uses normal
+  // player input and authoritative P3 ingredients, jobs and quality.
+  const roofExitIndex = (traces.E6_GAME_DOOR || []).length;
+  await press("e"); let learnedDay = await until("E6_GAME_DOOR",roofExitIndex);
+  check(learnedDay.location==="landing", "later lesson: roof exit");
+  await moveDiagonal(1260);
+  const streetIndex = (traces.E6_GAME_DOOR || []).length;
+  await press("e");learnedDay=await until("E6_GAME_DOOR",streetIndex);
+  check(learnedDay.location==="street", "later lesson: street exit");
+  await moveDiagonal(1230);
+  const kioskIndex = (traces.E6_GAME_DOOR || []).length;
+  await press("e");learnedDay=await until("E6_GAME_DOOR",kioskIndex);
+  check(learnedDay.location==="kiosk", "later lesson: kiosk arrival");
+  await moveDiagonal(520);
+  const reopenedIndex = (traces.E6_GAME_OPEN || []).length;
+  await press("o");learnedDay=await until("E6_GAME_OPEN",reopenedIndex);
+  for (let i=0;i<140 && learnedDay.minute<2475;i++) {
+    const waitIndex=(traces.E6_GAME_WAIT||[]).length;
+    await press("j");learnedDay=await until("E6_GAME_WAIT",waitIndex);
+  }
+  check(learnedDay.order_status==="offered" && learnedDay.tea_technique.phase==="heard",
+    "genuine later order missing or previously cooked item granted automatic mastery");
+  let markerIndex=(traces.E6_GAME_SERVE||[]).length;
+  await press("g");learnedDay=await until("E6_GAME_SERVE",markerIndex);
+  check(learnedDay.order_status==="accepted", "later tea order rejected");
+  markerIndex=(traces.E6_GAME_SERVE||[]).length;
+  await press("g");learnedDay=await until("E6_GAME_SERVE",markerIndex);
+  check(learnedDay.tea_stage==="waiting","second P3 real preparation absent");
+  markerIndex=(traces.E6_GAME_TEA_HEAT||[]).length;
+  await press("h");learnedDay=await until("E6_GAME_TEA_HEAT",markerIndex);
+  check(learnedDay.tea_stage==="active","manual tea heating after NPC tip missing");
+  let waitIndex=(traces.E6_GAME_WAIT||[]).length;
+  await press("j"); await until("E6_GAME_WAIT",waitIndex);
+  markerIndex=(traces.E6_GAME_TEA_HEAT||[]).length;
+  await press("h");learnedDay=await until("E6_GAME_TEA_HEAT",markerIndex);
+  check(learnedDay.tea_action==="U","player did not lift second kettle");
+  markerIndex=(traces.E6_GAME_TEA_POUR||[]).length;
+  await press("u");await until("E6_GAME_TEA_POUR",markerIndex);
+  waitIndex=(traces.E6_GAME_WAIT||[]).length;
+  await press("j");await until("E6_GAME_WAIT",waitIndex);
+  markerIndex=(traces.E6_GAME_TEA_POUR||[]).length;
+  await press("u");learnedDay=await until("E6_GAME_TEA_POUR",markerIndex);
+  check(learnedDay.tea_stage==="" && learnedDay.tea_technique.phase==="attempted" &&
+    learnedDay.tea_technique.grade==="rough" && learnedDay.tea_technique.item_id.startsWith("item:"),
+    "later hands-on P3 tea did not record authentic rough attempt after witnessed tip");
+  const laterSavedIndex=(traces.E6_GAME_SAVE||[]).length;
+  await press("p");const laterSaved=await until("E6_GAME_SAVE",laterSavedIndex);
+  await page.waitForTimeout(1700);
+  const laterReloadIndex=(traces.E6_GAME_RESTORED||[]).length;
+  await page.reload({waitUntil:"load"});
+  const laterRestored=await until("E6_GAME_RESTORED",laterReloadIndex);
+  check(laterRestored.tea_technique.phase==="attempted" &&
+    laterRestored.tea_technique.item_id===laterSaved.tea_technique.item_id &&
+    laterRestored.digest===laterSaved.digest,
+    "learned real-cup outcome changed after actual Chromium hard reload");
+  console.log("E3_TEA_TECHNIQUE_CHROMIUM_PASS: optional Salma Ink tip -> P2 hearing -> second-day hands-on P3 cup -> replay");
+
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E4_NONBUYER_CHROMIUM_PASS: Mona independently visits without order, optional Ink speech learns P2 fact, choices and hard reload persist");
