@@ -197,7 +197,7 @@ func _story_action(kind: String, option_id: String = "") -> void:
         _:
             story_open = true
             story_line = "Press Enter to continue."
-    report(("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_") + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
+    report(("E4_VISITOR_" if story_id == MONA_STORY_ID else ("E4_NPC_" if story_id == Game.MAHMOUD_STORY_ID else "E4_STORY_")) + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
