@@ -91,12 +91,18 @@ func run() -> void:
         elif scenario=="before":
             ok(g.session.advance(1430,"procurement:before"),"next day before market opens")
             rejected(g,"supply.purchase",{"offer_id":MARKET},"OFFER_NOT_OPEN")
+            var prior: Dictionary=g.status();ok(g.market_decline(),"decline before daily opening")
+            check(g.status()["money"]==prior["money"] and g.status()["minute"]==prior["minute"] and g.status()["leaves_stock"]==prior["leaves_stock"],"before-open refusal changed resources")
+            check(Kernel.new().restore_snapshot(g.session.world.view()),"before-open decline replay")
         elif scenario=="late":
             ok(g.session.advance(85,"procurement:late"),"late approach")
             rejected(g,"supply.purchase",{"offer_id":MARKET},"COLLECTION_TOO_LATE")
         elif scenario=="closed":
             ok(g.session.advance(120,"procurement:closed"),"wait to market closing")
             rejected(g,"supply.purchase",{"offer_id":MARKET},"OFFER_EXPIRED")
+            var prior: Dictionary=g.status();ok(g.market_decline(),"decline after daily closing")
+            check(g.status()["money"]==prior["money"] and g.status()["minute"]==prior["minute"] and g.status()["leaves_stock"]==prior["leaves_stock"],"after-close refusal changed resources")
+            check(Kernel.new().restore_snapshot(g.session.world.view()),"after-close decline replay")
         elif scenario=="decline":
             var pre: Dictionary=g.status();ok(g.market_decline(),"decline public collection")
             check(g.status()["money"]==pre["money"] and g.status()["minute"]==pre["minute"] and g.status()["leaves_stock"]==pre["leaves_stock"],"decline mutated economy/time/stock")

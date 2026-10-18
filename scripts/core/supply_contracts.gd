@@ -76,8 +76,11 @@ static func plan(kind: String, p: Dictionary, actor: String, world: RefCounted) 
     if not offer["required_fact"].is_empty() and known.is_empty(): return fail("FACT_NOT_KNOWN")
     if world.society.player_location != offer["location_id"]: return fail("WRONG_LOCATION")
     if not known.is_empty() and world.world_minute-int(known["heard_minute"]) >= int(offer["valid_minutes"]): return fail("OFFER_EXPIRED")
-    var unavailable: String = availability(offer,world.world_minute,kind=="supply.purchase")
-    if not unavailable.is_empty(): return fail(unavailable)
+    # Public collection reopens daily: refusing a future trip remains valid
+    # outside opening hours. Learned offers still use the expiry check above.
+    if kind=="supply.purchase":
+        var unavailable: String = availability(offer,world.world_minute,true)
+        if not unavailable.is_empty(): return fail(unavailable)
     var effect: Dictionary = {"offer_id":p["offer_id"],"knowledge_event_id":known.get("event_id",""),
         "supplier_id":offer["supplier_id"],"status":"declined" if kind == "supply.decline" else "purchased"}
     if kind == "supply.decline": return {"ok":true,"effect":effect}

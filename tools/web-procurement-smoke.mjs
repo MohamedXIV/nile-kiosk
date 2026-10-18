@@ -120,6 +120,7 @@ try {
     } else if(outcome==='expired') {
       s=await action('F5','E6_GAME_MARKET_BUY');
       check(s.money===before.money && s.leaves_stock===before.leaves_stock && !s.supply_resolutions['market:tea-collection'] && s.market_offer.status==='OFFER_EXPIRED','expired market created stock',s);
+      s=await action('F6','E6_GAME_MARKET_DECLINE');check(s.money===before.money && s.leaves_stock===before.leaves_stock && s.supply_resolutions['market:tea-collection']?.status==='declined','after-hours refusal unavailable',s);
     } else {
       const delivery=outcome==='delivery';const cost=delivery?550:450;const minutes=delivery?15:40;
       s=await action(delivery?'F3':'F5',delivery?'E6_GAME_SUPPLY_BUY':'E6_GAME_MARKET_BUY');
