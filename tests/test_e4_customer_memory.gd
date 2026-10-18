@@ -21,13 +21,15 @@ func enter(g: RefCounted) -> void:
     move(g,9); ok(g.travel_near(),"street exit")
     move(g,4); ok(g.open_kiosk(),"open")
     ok(elapse(g,19),"first scheduled customer")
-func serve(g: RefCounted, rough: bool) -> void:
+func serve(g: RefCounted, rough: bool, settle: bool = true) -> void:
     ok(g.service_near(),"accept"); ok(g.service_near(),"prepare")
     ok(g.tea_action_near("H"),"heat")
     ok(elapse(g,20 if rough else 2),"actual kettle timing")
     ok(g.tea_action_near("H"),"lift"); ok(g.tea_action_near("U"),"pour")
     ok(g.wait_minutes(1),"pour time"); ok(g.tea_action_near("U"),"finish")
-    ok(g.service_near(),"deliver"); ok(g.service_near(),"quote"); ok(g.service_near(),"settle")
+    ok(g.service_near(),"deliver")
+    if settle:
+        ok(g.service_near(),"quote"); ok(g.service_near(),"settle")
 func ready(g: RefCounted) -> bool:
     for i in range(180):
         if g.memory_story_ready(): return true
@@ -43,6 +45,16 @@ func _run() -> void:
     check(probe.session.world.customer_memory("mahmoud","kiosk").is_empty(),"invented first-visit memory")
     check(not probe.memory_story_begin().get("ok",false),"offsite/fresh customer starts memory")
     probe.dispose()
+    for neutral in ["cancelled","unpaid"]:
+        var n: RefCounted = Game.new(); ok(n.start(SAVE),"neutral history boot"); enter(n)
+        if neutral == "cancelled":
+            var id: String = str(n.session.world.orders_view()["orders"].keys()[0])
+            ok(n.session.command("memory:cancel","player","order.cancel",{"order_id":id,"reason":"changed-mind"}),"cancel actual order")
+        else: serve(n,false,false)
+        ok(elapse(n,2479-int(n.status()["minute"])),"neutral return")
+        check(n.session.world.customer_memory("mahmoud","kiosk").is_empty(),"neutral/unpaid visit invented paid memory")
+        check(n.memory_story_begin().get("code","")=="NO_CUSTOMER_MEMORY","neutral history launched memory dialogue")
+        n.dispose()
     for outcome in ["good","rough","abandoned"]:
         var g: RefCounted = Game.new()
         ok(g.start(SAVE),"new branch"); enter(g)

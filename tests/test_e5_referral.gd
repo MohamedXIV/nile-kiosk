@@ -84,10 +84,19 @@ func run() -> void:
     ok(cmd(over,"stock.add",{"ingredient_id":"leaves","quantity":2147483647-leaves},"system:stock"),"fill stock to bound")
     rejected(over,"supply.purchase",{"offer_id":OFFER},"AMOUNT_OVERFLOW");over.dispose()
     money=g.session.world.balance_minor();stock=int(g.session.world.cooking_view()["stock"]["leaves"]);minute=int(g.status()["minute"])
+    var before_purchase_revision: int = int(g.session.world.view()["sequence"])
+    ok(cmd(g,"schedule.create",{"job_id":"e5:delivery-clock","due_minute":minute+7,"priority":50,"topic":"delivery:clock-proof","data":{},"every_minutes":0},"system:director"),"ordinary P1 scheduled event")
     var received: Dictionary = g.referral_purchase();ok(received,"canonical paid delivery")
     check(g.session.world.balance_minor()==money-550,"incorrect paid goods plus delivery")
     check(g.session.world.cooking_view()["stock"]["leaves"]==stock+30,"phantom/missing stock")
     check(g.status()["minute"]==minute+15,"delivery did not consume P1 time")
+    var firings: Array = g.session.world.scheduled_events_after(before_purchase_revision)
+    var found: Dictionary = {}
+    for firing in firings:
+        if firing["job_id"]=="e5:delivery-clock":found=firing
+    check(not found.is_empty() and found.get("world_minute",0)==minute+7,"delivery P1 firings hidden from canonical consumers")
+    if not found.is_empty():
+        ok(cmd(g,"schedule.ack",{"consumer_id":"e5:proof","fire_id":found["fire_id"]},"system:consumer"),"ack firing during supply elapsed time")
     var receipt: Dictionary = g.session.world.economy_view()["supply_resolutions"][OFFER]
     check(receipt.get("status","")=="purchased" and receipt.get("event_id","")==received.get("event_id","") and receipt.get("completed_minute",0)==minute+15,"unaudited supply resolution")
     var tx: Dictionary = g.session.world.economy_view()["transactions"][receipt["transaction_id"]]

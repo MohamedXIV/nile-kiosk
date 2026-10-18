@@ -42,7 +42,10 @@ func _exit_tree() -> void:
 
 func report(marker: String) -> void:
     last_marker = marker
-    print(marker + " " + JSON.stringify(game.status()))
+    var diagnostic: Dictionary = game.status()
+    diagnostic["dialogue_text"] = story_line
+    diagnostic["dialogue_id"] = story_id
+    print(marker + " " + JSON.stringify(diagnostic))
     queue_redraw()
 
 func _process(delta: float) -> void:
@@ -191,11 +194,13 @@ func _story_action(kind: String, option_id: String = "") -> void:
     match code:
         "STARTED", "RESUMED":
             story_open = true
-            story_line = ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here.")) + " Press Enter to listen."
+            story_line = ("Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Press Enter to listen."
             notice = "A moment beside the Nile."
         "LINE":
             story_open = true
-            story_line = str(result.get("speaker_id", "salma")).capitalize() + ": " + str(result.get("text", ""))
+            story_line = str(result.get("text", ""))
+            var speaker: String = str(result.get("speaker_id", "salma")).capitalize() + ": "
+            if not story_line.begins_with(speaker): story_line = speaker + story_line
         "WAITING":
             story_open = true
             story_line = "What would you like to say?"

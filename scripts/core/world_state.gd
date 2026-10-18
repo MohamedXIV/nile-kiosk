@@ -192,9 +192,12 @@ static func _command_kind(event_kind: String) -> String:
         "schedule.acknowledged": return "schedule.ack"
     return ""
 
+static func elapsed_event(kind: String) -> bool:
+    return kind in ["time.advanced","life.slept","life.activity_done","supply.purchased"]
+
 func _find_fire(fire_id: String) -> bool:
     for event in events:
-        if event["kind"] != "time.advanced":
+        if not elapsed_event(event["kind"]):
             continue
         for fire in event["payload"]["effect"]["fires"]:
             if fire["fire_id"] == fire_id:

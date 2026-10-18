@@ -150,6 +150,7 @@ jobs:
           node tools/web-play-c4-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c5-smoke.mjs http://127.0.0.1:8765
           node tools/web-play-c6-smoke.mjs http://127.0.0.1:8765
+          node tools/web-social-memory-referral-smoke.mjs http://127.0.0.1:8765
           node tools/web-e6-game-entry-smoke.mjs http://127.0.0.1:8765
       - name: Attach browser screenshots
         if: always()
@@ -159,4 +160,5 @@ jobs:
           path: |
             /tmp/d001-full-web-*.png
             /tmp/nile-e6-*.png
+            /tmp/nile-memory-*.png
           if-no-files-found: ignore

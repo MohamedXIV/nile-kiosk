@@ -96,7 +96,7 @@ func scheduled_events_after(revision: int) -> Array[Dictionary]:
     ## separate fire_id. Independent consumers can use revision/ACK cursors.
     var out: Array[Dictionary] = []
     for event in _state.events:
-        if event["sequence"] <= revision or event["kind"] != "time.advanced":
+        if event["sequence"] <= revision or not WorldState.elapsed_event(event["kind"]):
             continue
         for item in event["payload"]["effect"]["fires"]:
             var fire: Dictionary = item.duplicate(true)
