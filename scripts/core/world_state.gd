@@ -11,7 +11,7 @@ const NarrativeWorld = preload("res://scripts/core/narrative_world.gd")
 const SpatialWorld = preload("res://scripts/core/spatial_world.gd")
 const DailyLife = preload("res://scripts/core/daily_life_world.gd")
 const Needs = preload("res://scripts/core/needs_world.gd")
-const VERSION: int = 11
+const VERSION: int = 12
 const MAX_INT_JSON: int = 2147483647
 
 var seed: int = 1
@@ -237,7 +237,12 @@ func plan(kind: String, payload: Dictionary, actor_id: String) -> Dictionary:
     if NarrativeWorld.owns(kind):
         return narrative.plan(kind, payload, actor_id, society, jobs, world_minute, self)
     if EconomyWorld.owns(kind):
-        return economy.plan(kind, payload, actor_id, service, cooking)
+        var contract: Dictionary = economy.plan(kind,payload,actor_id,service,cooking,self)
+        if contract.get("ok",false) and kind == "supply.purchase":
+            var elapsed: Dictionary = _plan_time_effect(int(contract["effect"]["to_minute"]))
+            if not elapsed.get("ok",false): return elapsed
+            contract["effect"].merge(elapsed["effect"])
+        return contract
     if HousingWorld.owns(kind):
         var planned: Dictionary = housing.plan(kind, payload, actor_id, society, economy, jobs, world_minute)
         if not planned.get("ok", false): return planned
@@ -442,7 +447,7 @@ func _apply_event(raw: Dictionary) -> bool:
             if not acknowledgements.has(request["consumer_id"]):
                 acknowledgements[request["consumer_id"]] = {}
             acknowledgements[request["consumer_id"]][request["fire_id"]] = true
-        "time.advance", "life.sleep", "life.activity":
+        "time.advance", "life.sleep", "life.activity", "supply.purchase":
             for fire in planned["effect"]["fires"]:
                 var job: Dictionary = jobs[fire["job_id"]]
                 job["execution_count"] += 1
@@ -460,6 +465,9 @@ func _apply_event(raw: Dictionary) -> bool:
             world_minute = int(planned["effect"]["to_minute"])
             if kind == "life.activity":
                 needs.on_activity(str(planned["effect"]["activity_id"]),world_minute)
+    if kind == "supply.purchase":
+        # Goods arrive only after the same P1 firings/needs as any elapsed action.
+        cooking.apply_command("stock.add",planned["effect"]["stock_request"],planned["effect"]["stock_effect"],world_minute,expected["event_id"],sequence,actor_id,command_id,jobs)
     events.append(expected)
     # Post-commit read-only rule evaluation. The one-shot opportunity marker
     # is derived from this same canonical event and rebuilt on replay.

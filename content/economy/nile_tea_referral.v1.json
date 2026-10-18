@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "terms_status": "PROPOSED",
+  "offer": {
+    "offer_id": "hoda:tea-introduction",
+    "supplier_id": "hoda",
+    "required_fact": "mahmoud:tea-supplier",
+    "ingredient_id": "leaves",
+    "quantity": 30,
+    "goods_minor": 450,
+    "delivery_minor": 100,
+    "minutes": 15,
+    "location_id": "kiosk",
+    "valid_minutes": 120
+  }
+}

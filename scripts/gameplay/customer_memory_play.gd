@@ -2,6 +2,8 @@ extends RefCounted
 ## E4/E5 production adapter. All history, choices, knowledge and money live
 ## in WorldKernel; this object owns packaged content and proximity queries only.
 const POLICY = "res://content/social/nile_returning_customer.v1.json"
+const SUPPLY_POLICY = "res://content/economy/nile_tea_referral.v1.json"
+const OFFER = "hoda:tea-introduction"
 const FACT = "mahmoud:tea-supplier"
 const STORY = "returning_customer"
 const RADIUS = 38.0
@@ -17,7 +19,13 @@ func configure(session: RefCounted) -> Dictionary:
             "social.fact.register",{"fact_id":FACT,"source_npc_id":pack["npc_id"],"visibility":"public"})
         if not fact.get("ok",false): return fact
     if not session.world.narrative_view()["stories"].has(STORY):
-        return session.command("game:memory:story:v1","system:narrative","narrative.story.register",pack["story"])
+        var registered: Dictionary = session.command("game:memory:story:v1","system:narrative","narrative.story.register",pack["story"])
+        if not registered.get("ok",false): return registered
+    var supply: Variant = JSON.parse_string(FileAccess.get_file_as_string(SUPPLY_POLICY))
+    if typeof(supply) != TYPE_DICTIONARY or supply.size() != 3 or supply.get("schema") != 1 or supply.get("terms_status") != "PROPOSED" or typeof(supply.get("offer")) != TYPE_DICTIONARY or supply["offer"].get("offer_id") != OFFER:
+        return {"ok":false,"code":"INVALID_SUPPLY_CONTENT"}
+    if not session.world.economy_view()["supply_offers"].has(OFFER):
+        return session.command("game:memory:supply:v1","system:catalog","supply.offer.register",supply["offer"])
     return {"ok":true,"code":"CONFIGURED"}
 
 func memory(session: RefCounted) -> Dictionary:
@@ -66,3 +74,18 @@ func next(session: RefCounted, graph: RefCounted, command_id: String) -> Diction
 func choose(session: RefCounted, graph: RefCounted, option_id: String, command_id: String) -> Dictionary:
     if not near(session,graph): return {"ok":false,"code":"CUSTOMER_TOO_FAR"}
     return session.ink_choose(session_id(session),option_id,command_id)
+
+func referral(session: RefCounted) -> Dictionary:
+    var economy: Dictionary = session.world.economy_view()
+    if not session.world.player_knows(FACT): return {}
+    var offer: Dictionary = economy["supply_offers"][OFFER].duplicate(true)
+    var resolution: Dictionary = economy["supply_resolutions"].get(OFFER,{})
+    var heard: Dictionary = session.world.social_view()["knowledge"]["player"][FACT]
+    var now: int = int(session.world.view()["world_minute"])
+    offer["remaining_minutes"] = maxi(0,int(heard["heard_minute"])+int(offer["valid_minutes"])-now)
+    offer["status"] = resolution.get("status","available" if offer["remaining_minutes"] > 0 else "expired")
+    return offer
+
+func resolve_referral(session: RefCounted, at_counter: bool, purchase: bool, command_id: String) -> Dictionary:
+    if not at_counter: return {"ok":false,"code":"NOT_AT_SUPPLY_COUNTER"}
+    return session.command(command_id,"player","supply.purchase" if purchase else "supply.decline",{"offer_id":OFFER})

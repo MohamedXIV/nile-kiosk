@@ -659,6 +659,12 @@ func memory_story_session() -> Dictionary:
 func memory_story_ready() -> bool:
     return session.ink_ready(customer_memory.session_id(session))
 
+func referral_purchase() -> Dictionary:
+    return customer_memory.resolve_referral(session,room() == "kiosk" and position().distance_to(COUNTER) <= COUNTER_RADIUS,true,_id("supply_buy"))
+
+func referral_decline() -> Dictionary:
+    return customer_memory.resolve_referral(session,room() == "kiosk" and position().distance_to(COUNTER) <= COUNTER_RADIUS,false,_id("supply_decline"))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -698,6 +704,9 @@ func status() -> Dictionary:
         "memory_story_id":customer_memory.session_id(session),
         "memory_story_phase":str(memory_story_session().get("phase","")),
         "memory_story_choices":session.ink_choices(customer_memory.session_id(session)) if memory_story_ready() else [],
+        "referral_offer":customer_memory.referral(session),
+        "leaves_stock":int(v["cooking"]["stock"].get("leaves",0)),
+        "supply_resolutions":v["economy"]["supply_resolutions"],
         "supplier_known":session.world.player_knows(CustomerMemory.FACT),
         "ambient_line":str(aside.get("line","")),
         "ambient_npc":str(aside.get("npc_id","")),

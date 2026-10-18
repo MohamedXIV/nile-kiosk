@@ -126,6 +126,8 @@ func _act(kind: String) -> void:
         "radio_listen": result = game.listen_radio()
         "bed": result = game.bed_near()
         "bed_store": result = game.store_bed()
+        "supply_buy": result = game.referral_purchase()
+        "supply_decline": result = game.referral_decline()
     if result.get("ok", false):
         notice = {
             "door":"You step into " + game.room() + ".",
@@ -145,6 +147,8 @@ func _act(kind: String) -> void:
             "radio_store":"Radio put away safely.",
             "radio_listen":str(result.get("caption","The radio fills the room.")),
             "bed":str(result.get("caption","A bed for home.")),
+            "supply_buy":"Hoda's runner brings 30g leaves. Paid 550 piastres; 15 minutes pass.",
+            "supply_decline":"You leave the delivery offer. No money or stock changes hands.",
             "bed_store":"The bed is put away. Sleep will be simpler tonight."
         }.get(kind, "Done")
     else:
@@ -233,6 +237,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
             KEY_P: _act("save")
         return
     match event.keycode:
+        KEY_F3: _act("supply_buy")
+        KEY_F4: _act("supply_decline")
         KEY_F2:
             if game.status()["memory_near"]:
                 story_id = game.customer_memory.session_id(game.session)
@@ -422,6 +428,10 @@ func _draw() -> void:
         _text(Vector2(705,348),"L · Talk to Mona (social visit)",13,Color("#f1ca80"))
     if state["memory_near"] and not story_open:
         _text(Vector2(665,326),"F2 · Catch up with Mahmoud",14,Color("#f1ca80"))
+    var referral: Dictionary = state["referral_offer"]
+    if location == "kiosk" and referral.get("status","") == "available" and not story_open:
+        _text(Vector2(28,300),"Hoda: 30g leaves · 450 + 100 delivery · 15 min · F3 buy / F4 decline",14,Color("#f1ca80"))
+        _text(Vector2(28,320),"Call from the counter; offer lasts %d more world minutes." % int(referral["remaining_minutes"]),13,Color("#d2b98c"))
     if story_open or story_pending:
         draw_rect(Rect2(60,242,840,192),Color("#162d31"))
         draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))

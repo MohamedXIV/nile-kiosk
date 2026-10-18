@@ -194,12 +194,13 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not WorldState.integral(data.get("version"), 1):
         return false
     var version: int = int(data["version"])
+    if version == 12 and data.size() != 20: return false
     if version == 11 and data.size() != 20: return false
     if version == 10 and data.size() != 20: return false
     if version == 9 and data.size() != 19: return false
     if version == 8 and data.size() != 18: return false
     if version == 7 and data.size() != 17: return false
-    if version not in [7, 8, 9, 10, 11]: return false
+    if version not in [7, 8, 9, 10, 11, 12]: return false
     if not WorldState.integral(data.get("seed"), 1) or typeof(data.get("events")) != TYPE_ARRAY:
         return false
     var candidate: RefCounted = WorldState.new(int(data["seed"]))
@@ -207,6 +208,13 @@ func restore_snapshot(data: Dictionary) -> bool:
         if typeof(raw) != TYPE_DICTIONARY or not candidate._apply_event(raw):
             return false
     var expected: Dictionary = candidate.snapshot()
+    if version <= 11:
+        # Old saves have no P5 supply projection. They cannot contain new
+        # supply events disguised as an old format with erased receipts.
+        if not candidate.economy.supply_offers.is_empty() or not candidate.economy.supply_resolutions.is_empty(): return false
+        expected["economy"].erase("supply_offers")
+        expected["economy"].erase("supply_resolutions")
+        expected["version"] = version
     if version <= 10:
         # v11's rule/outcome projections are deterministic and reconstructable.
         # Older saves genuinely lack them; compare their original shape.
@@ -228,7 +236,7 @@ func restore_snapshot(data: Dictionary) -> bool:
     if not _matches(data, expected):
         return false
     _state = candidate
-    last_restore_was_migration = version in [7, 8, 9, 10]
+    last_restore_was_migration = version in [7, 8, 9, 10, 11]
     return true
 
 func save_to_file(path: String) -> bool:

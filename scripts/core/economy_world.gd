@@ -1,8 +1,11 @@
 extends RefCounted
 ## SYS P5 canonical, integer-minor-unit zero-sum ledger and priced P4 claims.
 ## Values in EGP minor units are intentionally authored, never hardcoded here.
+const Supply = preload("res://scripts/core/supply_contracts.gd")
 const LIMIT: int = 2147483647
 
+var supply_offers: Dictionary = {}
+var supply_resolutions: Dictionary = {}
 var accounts: Dictionary = {
     "player": 0, "world:treasury": 0, "world:vendors": 0,
     "world:landlord": 0, "world:customers": 0
@@ -28,10 +31,11 @@ static func exact(p: Dictionary, keys: Array) -> bool:
     return true
 
 static func owns(kind: String) -> bool:
-    return kind in ["economy.fund", "economy.pay", "economy.refund",
+    return Supply.owns(kind) or kind in ["economy.fund", "economy.pay", "economy.refund",
         "economy.recipe.price.set", "economy.order.quote", "economy.order.settle"]
 
 static func event_kind(kind: String) -> String:
+    if Supply.owns(kind): return Supply.event_kind(kind)
     match kind:
         "economy.fund": return "economy.funded"
         "economy.pay": return "economy.paid"
@@ -42,6 +46,8 @@ static func event_kind(kind: String) -> String:
     return ""
 
 static func command_kind(kind: String) -> String:
+    var supply_kind: String = Supply.command_kind(kind)
+    if not supply_kind.is_empty(): return supply_kind
     match kind:
         "economy.funded": return "economy.fund"
         "economy.paid": return "economy.pay"
@@ -55,7 +61,7 @@ static func fail(code: String) -> Dictionary:
     return {"ok": false, "code": code}
 
 func snapshot() -> Dictionary:
-    return {"accounts": accounts.duplicate(true), "transactions": transactions.duplicate(true),
+    return {"supply_offers":supply_offers.duplicate(true),"supply_resolutions":supply_resolutions.duplicate(true),"accounts": accounts.duplicate(true), "transactions": transactions.duplicate(true),
         "journal": journal.duplicate(true), "refunded": refunded.duplicate(true),
         "prices": prices.duplicate(true), "quotes": quotes.duplicate(true)}
 
@@ -79,7 +85,9 @@ func plan_transfer(transfer: Dictionary) -> Dictionary:
     return _transfer_effect(str(transfer["transaction_id"]), str(transfer["from_account"]),
         str(transfer["to_account"]), int(transfer["amount_minor"]), str(transfer["cause_id"]))
 
-func plan(kind: String, p: Dictionary, actor: String, service: RefCounted, cooking: RefCounted) -> Dictionary:
+func plan(kind: String, p: Dictionary, actor: String, service: RefCounted, cooking: RefCounted, world: RefCounted = null) -> Dictionary:
+    if Supply.owns(kind):
+        return Supply.plan(kind,p,actor,world) if world != null else fail("WORLD_CONTEXT_REQUIRED")
     match kind:
         "economy.fund":
             if not exact(p, ["transaction_id", "amount_minor", "source_id"]) or not minor(p.get("amount_minor"), 1) or not identity(p.get("source_id")):
@@ -166,6 +174,9 @@ func apply_transfer(effect: Dictionary, event_id: String, minute: int, source_ki
 
 func apply_command(kind: String, p: Dictionary, effect: Dictionary, event_id: String,
         minute: int, service: RefCounted) -> void:
+    if Supply.owns(kind):
+        Supply.apply(self,kind,p,effect,event_id,minute)
+        return
     match kind:
         "economy.fund", "economy.pay", "economy.refund", "economy.order.settle":
             apply_transfer(effect, event_id, minute, kind)

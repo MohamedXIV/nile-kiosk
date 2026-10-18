@@ -80,7 +80,7 @@ func _run() -> void:
     if not repeated.get("ok",false): return
     check(JSON.stringify(first.view()) == JSON.stringify(repeated["candidate"].view()), "not byte-identical deterministic import")
     check(first.view()["sequence"] == source["commands"].size(), "not one event per authored command")
-    check(first.view()["version"] == 11, "world schema accidentally changed")
+    check(first.view()["version"] == 12, "world schema accidentally changed")
     check(first.view()["world_minute"] == 0, "import advanced time")
     check(first.npc("amina")["location_id"] == "kiosk", "registered NPC absent")
     check(first.npc("reda")["location_id"] == "street", "registered routine origin")
