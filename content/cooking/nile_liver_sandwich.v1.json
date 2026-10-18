@@ -1,0 +1,248 @@
+{
+  "schema": 1,
+  "pack_id": "nile-liver-sandwich-v1",
+  "terms_status": "PROPOSED",
+  "commands": [
+    {
+      "id": "ingredient:liver",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "liver",
+        "unit": "g"
+      }
+    },
+    {
+      "id": "ingredient:garlic",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "garlic",
+        "unit": "g"
+      }
+    },
+    {
+      "id": "ingredient:green_pepper",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "green_pepper",
+        "unit": "g"
+      }
+    },
+    {
+      "id": "ingredient:cooking_oil",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "cooking_oil",
+        "unit": "ml"
+      }
+    },
+    {
+      "id": "ingredient:lemon_juice",
+      "kind": "ingredient.define",
+      "actor_id": "system:director",
+      "payload": {
+        "ingredient_id": "lemon_juice",
+        "unit": "ml"
+      }
+    },
+    {
+      "id": "recipe",
+      "kind": "recipe.define",
+      "actor_id": "system:director",
+      "payload": {
+        "recipe_id": "liver_sandwich",
+        "steps": [
+          {
+            "station_type": "prep_board",
+            "inputs": {
+              "liver": 100,
+              "garlic": 3
+            },
+            "work_minutes": 1
+          },
+          {
+            "station_type": "frying_pan",
+            "inputs": {
+              "cooking_oil": 5,
+              "green_pepper": 20
+            },
+            "work_minutes": 6,
+            "technique": {
+              "action_id": "turn",
+              "earliest_minutes": 2,
+              "finish_minutes": 2
+            }
+          },
+          {
+            "station_type": "prep_board",
+            "inputs": {
+              "bread": 1,
+              "lemon_juice": 5
+            },
+            "work_minutes": 0
+          }
+        ],
+        "shelf_minutes": 60
+      }
+    },
+    {
+      "id": "station:sandwich_board",
+      "kind": "station.register",
+      "actor_id": "system:director",
+      "payload": {
+        "station_id": "sandwich_board",
+        "station_type": "prep_board"
+      }
+    },
+    {
+      "id": "station:sandwich_pan",
+      "kind": "station.register",
+      "actor_id": "system:director",
+      "payload": {
+        "station_id": "sandwich_pan",
+        "station_type": "frying_pan"
+      }
+    },
+    {
+      "id": "offer:liver",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:liver",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "liver",
+        "quantity": 400,
+        "goods_minor": 1200,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:liver",
+          "stock_quantity": 400
+        }
+      }
+    },
+    {
+      "id": "offer:garlic",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:garlic",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "garlic",
+        "quantity": 12,
+        "goods_minor": 40,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:garlic",
+          "stock_quantity": 12
+        }
+      }
+    },
+    {
+      "id": "offer:green_pepper",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:green_pepper",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "green_pepper",
+        "quantity": 80,
+        "goods_minor": 100,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:green_pepper",
+          "stock_quantity": 80
+        }
+      }
+    },
+    {
+      "id": "offer:cooking_oil",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:cooking_oil",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "cooking_oil",
+        "quantity": 20,
+        "goods_minor": 60,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:cooking_oil",
+          "stock_quantity": 20
+        }
+      }
+    },
+    {
+      "id": "offer:lemon_juice",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:lemon_juice",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "lemon_juice",
+        "quantity": 20,
+        "goods_minor": 40,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:lemon_juice",
+          "stock_quantity": 20
+        }
+      }
+    },
+    {
+      "id": "offer:bread",
+      "kind": "supply.offer.register",
+      "actor_id": "system:catalog",
+      "payload": {
+        "offer_id": "sandwich:bread",
+        "supplier_id": "street-market",
+        "required_fact": "",
+        "ingredient_id": "bread",
+        "quantity": 4,
+        "goods_minor": 120,
+        "delivery_minor": 0,
+        "minutes": 1,
+        "location_id": "kiosk",
+        "valid_minutes": 1440,
+        "availability": {
+          "opens_minute": 0,
+          "closes_minute": 1440,
+          "lot_id": "sandwich:lot:bread",
+          "stock_quantity": 4
+        }
+      }
+    }
+  ]
+}

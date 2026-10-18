@@ -1,6 +1,7 @@
 extends RefCounted
 ## SYS P3 production food domain. All effects are replayed by WorldState.
 ## No scenes, NPC scripts, prices, RNG or D001 tea_steps here.
+const TechniqueQuality = preload("res://scripts/core/cooking_technique_quality.gd")
 const MAX_AMOUNT: int = 2147483647
 const MAX_STEPS: int = 32
 
@@ -33,7 +34,7 @@ static func command(kind: String) -> bool:
         "ingredient.define", "stock.add", "stock.discard", "recipe.define",
         "station.register", "station.block", "station.unblock",
         "cook.start", "cook.step.begin", "cook.step.finish",
-        "cook.step.interrupt", "cook.step.resume", "cook.cancel", "cook.item.use"
+        "cook.step.interrupt", "cook.step.resume", "cook.step.action", "cook.cancel", "cook.item.use"
     ]
 
 static func event_kind(kind: String) -> String:
@@ -50,6 +51,7 @@ static func event_kind(kind: String) -> String:
         "cook.step.finish": return "cook.step_finished"
         "cook.step.interrupt": return "cook.step_interrupted"
         "cook.step.resume": return "cook.step_resumed"
+        "cook.step.action": return "cook.step_actioned"
         "cook.cancel": return "cook.cancelled"
         "cook.item.use": return "cook.item_used"
     return ""
@@ -68,6 +70,7 @@ static func command_kind(kind: String) -> String:
         "cook.step_finished": return "cook.step.finish"
         "cook.step_interrupted": return "cook.step.interrupt"
         "cook.step_resumed": return "cook.step.resume"
+        "cook.step_actioned": return "cook.step.action"
         "cook.cancelled": return "cook.cancel"
         "cook.item_used": return "cook.item.use"
     return ""
@@ -80,14 +83,15 @@ func snapshot() -> Dictionary:
         "items": items.duplicate(true), "waste": waste.duplicate(true)
     }
 
-# Canonical E3 sensory quality is projected from the *verified event log* for
-# an actual produced tea item. It does not require a second cooking state,
-# mutate legacy P3 item snapshots or change the v10 save contract. Quantities
-# and grades are provisional, not approved economic or gameplay balancing.
+# Sensory quality is projected from verified events for real produced items.
+# Tea keeps its existing policy; opted-in techniques use a reusable projection.
+# Neither path adds saved quality state or changes legacy item snapshots.
+# Scores and grades are PROPOSED, not approved economic/gameplay balancing.
 func item_quality(item_id: String, history: Array[Dictionary]) -> Dictionary:
     if not items.has(item_id): return {}
     var item: Dictionary = items[item_id]
-    if str(item["recipe_id"]) != "tea": return {}
+    if str(item["recipe_id"]) != "tea":
+        return TechniqueQuality.assess(item, recipes[item["recipe_id"]], history)
     var job_id: String = str(item["job_id"])
     var ready_at: int = -1
     var previous_finish: int = -1
@@ -147,10 +151,21 @@ func _validate_steps(steps: Array) -> Dictionary:
         return rejected("INVALID_STEPS")
     var totals: Dictionary = {}
     for step in steps:
-        if typeof(step) != TYPE_DICTIONARY or not exact(step, ["station_type", "inputs", "work_minutes"]):
+        if typeof(step) != TYPE_DICTIONARY:
             return rejected("INVALID_STEPS")
+        var keys: Array = ["station_type", "inputs", "work_minutes"]
+        if step.has("technique"): keys.append("technique")
+        if not exact(step, keys): return rejected("INVALID_STEPS")
         if not valid_id(step.get("station_type")) or not num(step.get("work_minutes")) or typeof(step.get("inputs")) != TYPE_DICTIONARY:
             return rejected("INVALID_STEPS")
+        if step.has("technique"):
+            var t: Variant = step["technique"]
+            if typeof(t) != TYPE_DICTIONARY or not exact(t, ["action_id", "earliest_minutes", "finish_minutes"]):
+                return rejected("INVALID_TECHNIQUE")
+            if not valid_id(t["action_id"]) or not num(t["earliest_minutes"], 1) or not num(t["finish_minutes"], 1):
+                return rejected("INVALID_TECHNIQUE")
+            if int(t["earliest_minutes"]) > int(step["work_minutes"]):
+                return rejected("INVALID_TECHNIQUE")
         var inputs: Dictionary = step["inputs"]
         if inputs.is_empty():
             return rejected("INVALID_STEPS")
@@ -280,11 +295,32 @@ func plan(kind: String, p: Dictionary, actor: String, scheduler_jobs: Dictionary
             if int(step["work_minutes"]) > MAX_AMOUNT - minute:
                 return rejected("TIME_OVERFLOW")
             return {"ok": true, "effect": {"ready_minute": minute + int(step["work_minutes"]), "inputs": step["inputs"].duplicate(true)}}
+        "cook.step.action":
+            if actor != "player": return rejected("UNAUTHORIZED")
+            if not exact(p, ["job_id", "action_id"]) or not valid_id(p.get("job_id")) or not valid_id(p.get("action_id")):
+                return rejected("INVALID_PAYLOAD")
+            if not preparations.has(p["job_id"]): return rejected("UNKNOWN_PREPARATION")
+            var j: Dictionary = preparations[p["job_id"]]
+            if j["stage"] != "active": return rejected("INVALID_STAGE")
+            var step: Dictionary = recipes[j["recipe_id"]]["steps"][j["step_index"]]
+            if not step.has("technique"): return rejected("ACTION_NOT_SUPPORTED")
+            var t: Dictionary = step["technique"]
+            if p["action_id"] != t["action_id"]: return rejected("WRONG_ACTION")
+            if j.has("step_action"): return rejected("ACTION_ALREADY_DONE")
+            # Before the gesture ready_minute is the preferred latest action
+            # time. Resume preserves the unworked duration, including lead-in.
+            var earliest: int = int(j["ready_minute"]) - (int(step["work_minutes"]) - int(t["earliest_minutes"]))
+            if minute < earliest: return rejected("ACTION_TOO_EARLY")
+            if int(t["finish_minutes"]) > MAX_AMOUNT - minute: return rejected("TIME_OVERFLOW")
+            return {"ok":true,"effect":{"action_id":p["action_id"],"ready_minute":minute + int(t["finish_minutes"])}}
         "cook.step.finish":
             var validated: Dictionary = _job(p, "active")
             if not validated["ok"]:
                 return validated
             var j: Dictionary = validated["job"]
+            var step: Dictionary = recipes[j["recipe_id"]]["steps"][j["step_index"]]
+            if step.has("technique") and not j.has("step_action"):
+                return rejected("ACTION_REQUIRED")
             if minute < j["ready_minute"]:
                 return rejected("STEP_NOT_READY")
             var final_step: bool = j["step_index"] == recipes[j["recipe_id"]]["steps"].size() - 1
@@ -417,8 +453,13 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
             job["station_id"] = p["station_id"]
             job["ready_minute"] = effect["ready_minute"]
             stations[p["station_id"]]["busy_job"] = p["job_id"]
+        "cook.step.action":
+            var job: Dictionary = preparations[p["job_id"]]
+            job["step_action"] = {"action_id":effect["action_id"],"world_minute":minute,"event_id":event_id}
+            job["ready_minute"] = effect["ready_minute"]
         "cook.step.finish":
             var job: Dictionary = preparations[p["job_id"]]
+            job.erase("step_action")
             _release_station(job)
             if effect["completed"]:
                 job["stage"] = "completed"
