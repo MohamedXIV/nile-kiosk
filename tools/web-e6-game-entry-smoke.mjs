@@ -246,11 +246,21 @@ try {
   check(riverMoment.story_opportunities?.river_watch_reflection &&
     riverMoment.river_story_phase === "", "canonical Nile opportunity didn't unlock before the real conversation");
   check(riverMoment.npc_mona === "kiosk" &&
-    ["visiting","arriving"].includes(riverMoment.npc_mona_mode) &&
-    riverMoment.story_opportunities?.mona_visits_salma,
-    "nonbuyer Mona failed to visit independently on P1/P2 schedule");
+    ["visiting","arriving"].includes(riverMoment.npc_mona_mode),
+    "nonbuyer Mona didn't arrive through the independent P1/P2 routine");
   check(riverMoment.player_knows_mona_visit === false,
     "Mona taught the player a fact before the authored conversation");
+  // Q is a life.activity_done elapsed-time event. The explicitly-authored
+  // opportunity listens to canonical time.advanced instead; the next real
+  // world-time step must observe Mona's actual presence before offering Ink.
+  const visitorClockIndex = (traces.E6_GAME_WAIT || []).length;
+  await press("j");
+  const visitorClock = await until("E6_GAME_WAIT",visitorClockIndex);
+  check(visitorClock.npc_mona === "kiosk" &&
+    visitorClock.npc_mona_mode === "visiting" &&
+    visitorClock.story_opportunities?.mona_visits_salma &&
+    !visitorClock.player_knows_mona_visit,
+    "Mona opportunity didn't unlock on canonical time.advanced with player present");
   // The riverside rail is physically near Mona's P2/schedule-derived visit
   // spot. She is not an order: the player explicitly opts into her Ink story.
   const visitorStartedIndex = (traces.E4_VISITOR_STARTED || []).length;
