@@ -3,6 +3,7 @@ extends RefCounted
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
 const Demand = preload("res://scripts/integration/customer_demand_config.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
@@ -37,6 +38,7 @@ var tea_reactions: Dictionary = {}
 var exchange_pack: Dictionary = {}
 var river_story_pack: Dictionary = {}
 var mahmoud_story_pack: Dictionary = {}
+var social_visitor: RefCounted = SocialVisitor.new()
 
 func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     session = Session.new(71, save_path)
@@ -61,6 +63,8 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var walkable: Variant = JSON.parse_string(FileAccess.get_file_as_string(WALKABLE))
     var configured_walk: Dictionary = graph.configure_walkable(walkable)
     if not configured_walk.get("ok",false): return configured_walk
+    var configured_visitor: Dictionary = social_visitor.configure(session,graph)
+    if not configured_visitor.get("ok",false): return configured_visitor
     if session.world.view()["life"]["policy"].is_empty():
         if not FileAccess.file_exists(DAILY_POLICY):
             return {"ok":false,"code":"DAILY_POLICY_NOT_FOUND"}
@@ -621,6 +625,21 @@ func mahmoud_story_choose(option_id: String) -> Dictionary:
     if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_choose(MAHMOUD_STORY_ID,option_id,_id("mahmoud_choose"))
 
+func mona_story_begin() -> Dictionary:
+    return social_visitor.begin(session,graph,_id("mona_begin"))
+
+func mona_story_next() -> Dictionary:
+    return social_visitor.next(session,_id("mona_next"))
+
+func mona_story_choose(option_id: String) -> Dictionary:
+    return social_visitor.choose(session,option_id,_id("mona_choose"))
+
+func mona_visit_near() -> bool:
+    return social_visitor.near(session,graph)
+
+func mona_story_session() -> Dictionary:
+    return social_visitor.session_state(session)
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -695,6 +714,12 @@ func status() -> Dictionary:
         "mahmoud_invite_near": mahmoud_invite_near(),
         "mahmoud_story_phase": str(mahmoud_story_session().get("phase","")),
         "mahmoud_story_choices": session.ink_choices(MAHMOUD_STORY_ID) if session.ink_ready(MAHMOUD_STORY_ID) else [],
+        "mona_visit_near": mona_visit_near(),
+        "mona_story_phase": str(mona_story_session().get("phase","")),
+        "mona_story_choices": session.ink_choices(SocialVisitor.STORY_ID) if session.ink_ready(SocialVisitor.STORY_ID) else [],
+        "npc_mona": str(session.world.npc("mona").get("location_id","")),
+        "npc_mona_mode": str(npc_pose("mona").get("mode","absent")),
+        "player_knows_mona_visit": session.world.player_knows("mona:visiting-salma"),
         "radio_owned": not radio_state.is_empty(),
         "radio_placed": not radio_state.is_empty() and radio_state.get("unit_id","") == radio_pack.get("unit_id","") and radio_state.get("slot_id","") == radio_pack.get("slot_id",""),
         "radio_uses": int(radio_state.get("use_count",0)),
