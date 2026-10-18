@@ -14,7 +14,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E6_AUDIO|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
