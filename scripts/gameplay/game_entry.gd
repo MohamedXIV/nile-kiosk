@@ -5,6 +5,7 @@ const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const Procurement = preload("res://scripts/gameplay/procurement_play.gd")
 const LivingConversation = preload("res://scripts/gameplay/living_conversation_play.gd")
+const TeaTechnique = preload("res://scripts/gameplay/tea_technique_play.gd")
 const CustomerMemory = preload("res://scripts/gameplay/customer_memory_play.gd")
 const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
 const Demand = preload("res://scripts/integration/customer_demand_config.gd")
@@ -167,6 +168,12 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     if river_raw["story"].get("story_id", "") != RIVER_STORY_ID:
         return {"ok":false,"code":"INVALID_RIVER_STORY_ID"}
     river_story_pack = river_raw.duplicate(true)
+    # Salma owns an authored P2 fact. An actual P6 Ink river_rest beat,
+    # not choosing the option alone, is the only way the player learns it.
+    if not session.world.social_view()["social_facts"].has(TeaTechnique.FACT):
+        var tea_fact: Dictionary = session.command("game:e3:tea-tip-fact:v1","system:director",
+            "social.fact.register",{"fact_id":TeaTechnique.FACT,"source_npc_id":"salma","visibility":"public"})
+        if not tea_fact.get("ok",false): return tea_fact
     if not session.world.narrative_view()["stories"].has(RIVER_STORY_ID):
         var registered: Dictionary = session.command("game:e4:river:story:v1", "system:narrative",
             "narrative.story.register", river_story_pack["story"])
@@ -692,6 +699,8 @@ func status() -> Dictionary:
         "customer_reaction_order":str(spoken.get("order_id","")),
         "customer_reaction_event":str(spoken.get("source_event_id","")),
         "tea_quality":str(quality.get("grade","")),
+        "tea_technique":TeaTechnique.progress(session),
+        "tea_technique_known":session.world.player_knows(TeaTechnique.FACT),
         "tea_quality_score":int(quality.get("score",0)),
         "tea_quality_item":str(quality.get("item_id","")),
         "tea_stage":str(tea_context.get("stage","")),

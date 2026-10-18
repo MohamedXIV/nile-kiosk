@@ -435,6 +435,15 @@ func _draw() -> void:
                 speech = str(state["customer_reaction"])
             elif npc_id == state["ambient_npc"]:
                 speech = str(state["ambient_line"])
+            elif npc_id == "salma" and str(state["tea_technique"].get("item_id","")) != "" and \
+                    state["minute"] - int(state["tea_technique"]["created_minute"]) <= 25 and \
+                    game.position().distance_to(pose["position"]) <= Graph.RADIUS:
+                # A nearby mentor acknowledges only a genuine post-advice P3
+                # cup and its actual quality; this caption is not a P2 fact,
+                # a free P3 bonus or a new autonomous dialogue state.
+                speech = "You lifted it in time. That is the trick." if \
+                    state["tea_technique"]["phase"] == "understood" else \
+                    "The kettle stayed too long. Try again next time."
             if not speech.is_empty():
                 var npc_pos: Vector2 = _iso(pose["position"])
                 var left: float = clampf(npc_pos.x - 130.0,16.0,640.0)
