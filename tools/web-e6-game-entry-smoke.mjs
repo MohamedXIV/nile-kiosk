@@ -197,7 +197,11 @@ try {
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted",
     "finished tea wasn't authentic prepared item for pending order");
-  check(finishedTea.ambient_line === "", "incidental two-line exchange repeated outside its beat");
+  // Batch A adds an authored reconvergence beat at 17:39–17:44. It must
+  // progress while cooking, then return to silence outside that exact window.
+  const inClosingBeat = finishedTea.minute % 1440 >= 1059 && finishedTea.minute % 1440 < 1064;
+  check(finishedTea.ambient_line === (inClosingBeat ? "Quiet or busy, we still have this bit of river." : ""),
+    "independent conversation closing beat/silence disagrees with P1 time");
   check(finishedTea.tea_quality === "rough" && finishedTea.tea_quality_score >= 25 &&
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");

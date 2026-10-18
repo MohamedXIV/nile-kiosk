@@ -103,6 +103,7 @@ try {
     await action('h','E6_GAME_TEA_HEAT');
     s=await waitTo(1049);
     check(s.ambient_npc==='mahmoud' && s.ambient_beat===1 && s.conversation_near,'actual exchange boundary missing',s);
+    s=await action('f','E6_GAME_TALK');check(!s.supplier_known && !s.conversation_fact_known,'generic listen bypassed authored information',s);
     if(outcome!=='ignore') {
       const startedCount=count('E4_CONVERSATION_STARTED');await page.keyboard.press('t');s=await until('E4_CONVERSATION_STARTED',startedCount);
       s=await action('Enter','E4_CONVERSATION_LINE');
@@ -115,6 +116,7 @@ try {
         const rn=count('E4_CONVERSATION_RESUMED');await page.keyboard.press('t');await until('E4_CONVERSATION_RESUMED',rn);
       }
       s=await action('Enter','E4_CONVERSATION_WAITING');check(s.conversation_choices.length===2,'real Ink choice absent',s);
+      await page.screenshot({path:'/tmp/nile-conversation-'+outcome+'-choice.png'});
       await persisted(await snapshot());const n=count('E6_GAME_RESTORED');await page.reload({waitUntil:'load'});s=await until('E6_GAME_RESTORED',n);
       check(s.conversation_phase==='choice' && !s.conversation_fact_known,'pending choice changed knowledge',s);
       const rn=count('E4_CONVERSATION_RESUMED');await page.keyboard.press('t');s=await until('E4_CONVERSATION_RESUMED',rn);

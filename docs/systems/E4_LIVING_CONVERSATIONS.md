@@ -12,6 +12,8 @@ At the open kiosk, Salma speaks at day minute 1039 and Mahmoud answers at 1049. 
 
 Participation requires a public topic, same-room player, both participants present, existing mutual visual contact, and player within **70 units of both current poses**. Authored known/trusted requirements are respected at entry. Captions require **110 units to their active speaker**. These ranges, ten-minute beat/window and English prose are **PROPOSED** experience defaults. Same-room public sound can pass furniture; furniture vision occlusion is not acoustic occlusion. Private talk yields no outsider captions or participation. Room-to-room sound propagation, doors/materials, gaze and comprehensive acoustic simulation remain OPEN.
 
+Generic **F** listening excludes facts bound to authored P6 beats/choice disclosures, including the existing learned supplier contact; it cannot skip the reviewed Ink context. Other unbound public hearing remains available.
+
 An ordinary public P2 observation is learned only when its actual Ink answer line commits; selecting the question is not hearing. The other reply and ignoring grant no fact. Existing P2 visibility/trust/source checks remain authoritative. New metadata lives in existing P6 stories/sessions and replayed events, so schema 12 needs no additional projection or migration.
 
 ## Evidence and remaining work
