@@ -2,6 +2,7 @@ extends Node
 ## E6 minimum, asset-free local ambience. Never a WorldKernel authority.
 ## Live Godot audio, not a claimed historical recording or licensed radio.
 const SETTINGS_PATH = "user://nile-kiosk-sound.cfg"
+const WEB_KEY = "nile-kiosk-sound-enabled"
 const SAMPLE_RATE = 11025.0
 
 var enabled: bool = true
@@ -17,7 +18,13 @@ var water: float = 0.0
 
 func _ready() -> void:
     var settings: ConfigFile = ConfigFile.new()
-    if settings.load(SETTINGS_PATH) == OK:
+    if OS.has_feature("web"):
+        # A separate user:// file is not guaranteed to finish Emscripten's
+        # async IndexedDB sync before a browser hard reload. localStorage is
+        # synchronous and isolated from the canonical world-save file.
+        var pref: Variant = JavaScriptBridge.eval("window.localStorage.getItem('nile-kiosk-sound-enabled')",true)
+        enabled = str(pref) != "false"
+    elif settings.load(SETTINGS_PATH) == OK:
         enabled = bool(settings.get_value("audio", "enabled", true))
     voice = AudioStreamPlayer.new()
     var stream: AudioStreamGenerator = AudioStreamGenerator.new()
@@ -36,11 +43,17 @@ func set_context(location: String, heating: bool, after_dark: bool) -> void:
 
 func toggle_sound() -> bool:
     enabled = not enabled
-    var settings: ConfigFile = ConfigFile.new()
-    settings.set_value("audio", "enabled", enabled)
-    var saved: Error = settings.save(SETTINGS_PATH)
-    if saved != OK:
-        push_warning("E6_SOUND_SETTINGS_NOT_SAVED: " + str(saved))
+    if OS.has_feature("web"):
+        # Only a fixed literal is evaluated; no user text or world content
+        # becomes JavaScript. This preference never mutates replayable state.
+        var value: String = "true" if enabled else "false"
+        JavaScriptBridge.eval("window.localStorage.setItem('nile-kiosk-sound-enabled', '" + value + "')",true)
+    else:
+        var settings: ConfigFile = ConfigFile.new()
+        settings.set_value("audio", "enabled", enabled)
+        var saved: Error = settings.save(SETTINGS_PATH)
+        if saved != OK:
+            push_warning("E6_SOUND_SETTINGS_NOT_SAVED: " + str(saved))
     return enabled
 
 func _process(_delta: float) -> void:
