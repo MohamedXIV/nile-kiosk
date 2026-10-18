@@ -1,6 +1,6 @@
 # E4 returning-customer memory and E5 tea-supplier contract
 
-**Scope:** production default game, English provisional authored content. E4/E5/E6 and parent #55 remain **PARTIAL/OPEN**. This branch does not implement optional interjection, broad NPC motivation, a marketplace, pickup/delivery comparison, localization or final visual approval. Art PR #20 is untouched.
+**Status: VERIFIED / MERGED 2026-10-18** — [PR #82](https://github.com/MohamedXIV/nile-kiosk/pull/82) squash `675f0a588c6d3ed1cccc8a419730fd7028fff509`; exact final feature head `9bfa18aaa9f7d6c6eb2a06f396ae79b07cc9b5e1` passed [full Godot Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39092268247) and [full Web/Chromium/Ink](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39092268312), including `E4 CUSTOMER MEMORY: PASS`, `E5 REFERRAL: PASS`, `SOCIAL_MEMORY_REFERRAL_CHROMIUM_GOOD_PASS`, `SOCIAL_MEMORY_REFERRAL_CHROMIUM_ROUGH_PASS`, `SOCIAL_MEMORY_REFERRAL_CHROMIUM_ABANDONED_PASS`, prior Mona/Mahmoud/Salma/E6 and P7 regressions. **Scope:** production default game, English provisional authored content. E4/E5/E6 and parent #55 remain **PARTIAL/OPEN**. This branch does not implement optional interjection, broad NPC motivation, a marketplace, pickup/delivery comparison, localization or final visual approval. Art PR #20 is untouched.
 
 ## Play the loop
 
