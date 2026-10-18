@@ -26,6 +26,7 @@ on:
       - "tools/web-social-memory-referral-smoke.mjs"
       - "tools/web-living-conversation-smoke.mjs"
       - "tools/web-procurement-smoke.mjs"
+      - "tools/browser-save-observer.mjs"
       - ".github/workflows/dialogue-full-web.yml"
   push:
     branches: [main]
