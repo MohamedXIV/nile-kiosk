@@ -1,6 +1,6 @@
 # E5 bounded procurement alternatives
 
-**Issue #60 / ECON-02 PARTIAL.** Stacked branch `feat/procurement-alternatives`, based on `feat/living-conversations`. No merge or hosted CI success is implied.
+**VERIFIED / MERGED 2026-10-18; #60 remains PARTIAL.** [PR #84](https://github.com/MohamedXIV/nile-kiosk/pull/84) merged `439008e92f3b1dfa4f1d05ac009fe14f567e25c2`; exact tested head `a209b70267f1fe1393b809607f852106099edba5`: [Full Native SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39130354172), [Full Web/Chromium/Ink SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39130354250). E4 was merged first and E5 reconciled to the resulting squash tree through a true two-parent merge.
 
 ## Playable choice — all new balance PROPOSED
 
@@ -30,3 +30,8 @@ Before committing, purchase validates known fact if required, location, resoluti
 ## Remaining
 
 #55/#59/#60/#61 remain OPEN/PARTIAL. Restocking, richer suppliers, substitutions/delays, transport/market geometry, future home comfort, contextual audio/RTL and final UX/art remain separate scope. #20 remains human-gated and untouched. English controls and all prices, opening hours, quantities and travel durations here are provisional implementation values, explicitly **PROPOSED**.
+
+
+## Verified delivery
+[PR #84](https://github.com/MohamedXIV/nile-kiosk/pull/84) merged `439008e92f3b1dfa4f1d05ac009fe14f567e25c2`; exact tested head `a209b70267f1fe1393b809607f852106099edba5`: [Full Native SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39130354172), [Full Web/Chromium/Ink SUCCESS](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39130354250).
+Native `E5 PROCUREMENT: PASS`, Chromium `E5_PROCUREMENT_CHROMIUM_PASS public/decline/expired/delivery/collection`, plus `E4_LIVING_CONVERSATION_CHROMIUM_PASS boats/work/ignore` and P7/E6 regressions. Earlier pre-fix Web run failed when 5-minute J skipped a brief authored beat during automatically advancing P1 time. Final test uses real P1 clock near that beat, without widening gameplay eligibility; full hosted workflows PASSED on the corrected exact head. Prices/window/travel time PROPOSED.
