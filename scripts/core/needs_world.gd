@@ -11,6 +11,9 @@ var last_activity_day: int = -1
 var uses_today: Dictionary = {}
 var last_good_day: int = -1
 var good_days: int = 0
+# Policy 1 remains byte-compatible for authenticated older event histories.
+# Policy 2 is explicitly recorded by a new needs.meals.configure command.
+var policy_version: int = 1
 
 static func owns(kind: String) -> bool:
     return kind in ["needs.meals.configure", "needs.eat"]
@@ -28,10 +31,14 @@ static func command_kind(kind: String) -> String:
     return ""
 
 func snapshot() -> Dictionary:
-    return {"hunger":hunger,"rest":rest,"mood":mood,
+    var result: Dictionary = {"hunger":hunger,"rest":rest,"mood":mood,
         "wellbeingBaseline":wellbeing_baseline,"meal_values":meal_values.duplicate(true),
         "last_activity_day":last_activity_day,"uses_today":uses_today.duplicate(true),
         "last_good_day":last_good_day,"good_days":good_days}
+    # Old v12 snapshots did not contain this key; preserving their exact
+    # serialized projection is essential for authenticated legacy replay.
+    if policy_version == 2: result["policy_version"] = 2
+    return result
 
 func plan(kind: String, payload: Dictionary, actor: String,
           cooking: RefCounted, service: RefCounted, society: RefCounted,
@@ -39,7 +46,8 @@ func plan(kind: String, payload: Dictionary, actor: String,
     if kind == "needs.meals.configure":
         if actor != "system:director": return {"ok":false,"code":"UNAUTHORIZED"}
         if not meal_values.is_empty(): return {"ok":false,"code":"MEALS_ALREADY_CONFIGURED"}
-        if payload.size() != 1 or typeof(payload.get("recipes")) != TYPE_DICTIONARY or payload["recipes"].is_empty() or payload["recipes"].size() > 32:
+        var modern: bool = payload.has("policy_version")
+        if (modern and (payload.size() != 2 or typeof(payload["policy_version"]) != TYPE_INT or payload["policy_version"] != 2)) or (not modern and payload.size() != 1) or typeof(payload.get("recipes")) != TYPE_DICTIONARY or payload["recipes"].is_empty() or payload["recipes"].size() > 32:
             return {"ok":false,"code":"INVALID_MEAL_POLICY"}
         var values: Dictionary = payload["recipes"]
         for recipe_id in values:
@@ -47,7 +55,9 @@ func plan(kind: String, payload: Dictionary, actor: String,
                 return {"ok":false,"code":"UNKNOWN_RECIPE"}
             if typeof(values[recipe_id]) != TYPE_INT or int(values[recipe_id]) < 1 or int(values[recipe_id]) > 50:
                 return {"ok":false,"code":"INVALID_NOURISHMENT"}
-        return {"ok":true,"effect":{"recipes":values.duplicate(true)}}
+        var effect: Dictionary = {"recipes":values.duplicate(true)}
+        if modern: effect["policy_version"] = 2
+        return {"ok":true,"effect":effect
     if actor != "player": return {"ok":false,"code":"INVALID_PLAYER_ACTION"}
     if payload.size() != 1 or typeof(payload.get("item_id")) != TYPE_STRING:
         return {"ok":false,"code":"INVALID_MEAL"}
@@ -88,6 +98,8 @@ func _placed_bed(housing: RefCounted, home_room: String) -> bool:
 
 func on_elapsed(from_minute: int, to_minute: int, kind: String,
                 housing: RefCounted, home_room: String) -> void:
+    var hunger_before: int = hunger
+    var rest_before: int = rest
     hunger = maxi(0, hunger - (int(to_minute / 45) - int(from_minute / 45)))
     if kind == "life.sleep":
         var sleep_minutes: int = to_minute - from_minute
@@ -98,16 +110,33 @@ func on_elapsed(from_minute: int, to_minute: int, kind: String,
         _good_day(int(to_minute / MINUTE_PER_DAY))
     else:
         rest = maxi(0, rest - (int(to_minute / 60) - int(from_minute / 60)))
-    # Drift is absolute-time-slot based: N one-minute ticks and a single
-    # N-minute advance produce the same physiological state.
     var beats: int = int(to_minute / 120) - int(from_minute / 120)
-    if mood < wellbeing_baseline:
-        mood = mini(wellbeing_baseline, mood + beats)
-    elif mood > wellbeing_baseline:
-        mood = maxi(wellbeing_baseline, mood - beats)
-    # Discomfort colors the day, but caps at a recoverable 25.
-    if hunger < 20 or rest < 20:
-        mood = maxi(25, mood - mini(2, beats))
+    if policy_version == 1:
+        # Authenticated legacy events must still replay exactly. This old
+        # event-batched discomfort rule was not chunk-invariant for tired days.
+        if mood < wellbeing_baseline:
+            mood = mini(wellbeing_baseline, mood + beats)
+        elif mood > wellbeing_baseline:
+            mood = maxi(wellbeing_baseline, mood - beats)
+        if hunger < 20 or rest < 20:
+            mood = maxi(25, mood - mini(2, beats))
+    else:
+        # E2 policy 2: every absolute 120-minute boundary evolves Mood once.
+        # Physiological readings at each boundary are computed from the same
+        # P1 timeline, not the arbitrary size of this time.advance command.
+        # The loop is capped by the finite 32-bit canonical world horizon.
+        for slot in range(int(from_minute / 120) + 1, int(to_minute / 120) + 1):
+            var at_minute: int = slot * 120
+            var beat_hunger: int = maxi(0, hunger_before -
+                (int(at_minute / 45) - int(from_minute / 45)))
+            var beat_rest: int = rest if kind == "life.sleep" else maxi(0,
+                rest_before - (int(at_minute / 60) - int(from_minute / 60)))
+            if mood < wellbeing_baseline:
+                mood += 1
+            elif mood > wellbeing_baseline:
+                mood -= 1
+            if beat_hunger < 20 or beat_rest < 20:
+                mood = maxi(25, mood - 1)
     mood = clampi(mood, 0, 100)
 
 func on_activity(activity_id: String, world_minute: int) -> void:
@@ -129,6 +158,7 @@ func apply_command(kind: String, effect: Dictionary, cooking: RefCounted,
                    actor: String, command_id: String) -> void:
     if kind == "needs.meals.configure":
         meal_values = effect["recipes"].duplicate(true)
+        if effect.get("policy_version",1) == 2: policy_version = 2
     elif kind == "needs.eat":
         var item_id: String = effect["item_id"]
         cooking.apply_command("cook.item.use",
