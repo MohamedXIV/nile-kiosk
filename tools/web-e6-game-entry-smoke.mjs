@@ -12,7 +12,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E4_STORY|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -245,6 +245,36 @@ try {
     riverMoment.npc_mahmoud_y === 110, "NPC couldn't return home as player enjoyed quiet moment");
   check(riverMoment.story_opportunities?.river_watch_reflection &&
     riverMoment.river_story_phase === "", "canonical Nile opportunity didn't unlock before the real conversation");
+  check(riverMoment.npc_mona === "kiosk" &&
+    ["visiting","arriving"].includes(riverMoment.npc_mona_mode) &&
+    riverMoment.story_opportunities?.mona_visits_salma,
+    "nonbuyer Mona failed to visit independently on P1/P2 schedule");
+  check(riverMoment.player_knows_mona_visit === false,
+    "Mona taught the player a fact before the authored conversation");
+  // The riverside rail is physically near Mona's P2/schedule-derived visit
+  // spot. She is not an order: the player explicitly opts into her Ink story.
+  const visitorStartedIndex = (traces.E4_VISITOR_STARTED || []).length;
+  await press("l");
+  const visitorStarted = await until("E4_VISITOR_STARTED",visitorStartedIndex);
+  check(visitorStarted.mona_story_phase === "running","Mona's visit didn't start a P6 story");
+  await press("Enter");
+  const visitorLine = await until("E4_VISITOR_LINE");
+  check(visitorLine.player_knows_mona_visit && visitorLine.mona_story_phase === "running",
+    "Mona's actual spoken Ink beat didn't teach canonical P2 knowledge");
+  await press("Enter");
+  const visitorWaiting = await until("E4_VISITOR_WAITING");
+  check(visitorWaiting.mona_story_phase === "choice" && visitorWaiting.mona_story_choices?.length === 2,
+    "Mona dialogue didn't expose real player options");
+  await press("1");
+  await until("E4_VISITOR_CHOICE");
+  await press("Enter"); await until("E4_VISITOR_LINE",1);
+  await press("Enter"); await until("E4_VISITOR_LINE",2);
+  await press("Enter");
+  const visitorFinished = await until("E4_VISITOR_FINISHED");
+  check(visitorFinished.mona_story_phase === "finished", "Mona dialogue didn't reach canonical completion");
+  const visitorRepeatIndex = (traces.E4_VISITOR_REJECTED || []).length;
+  await press("l");
+  await until("E4_VISITOR_REJECTED",visitorRepeatIndex);
   // Walk back towards Salma only as needed. The authored opportunity cannot
   // be started remotely from the riverside railing, even though it is unlocked.
   let conversationStarted = false;
@@ -314,7 +344,7 @@ try {
     "NPC position changed on Chromium hard reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
     restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed &&
-    restored.river_story_phase === "choice" && restored.mahmoud_story_phase === "finished", "browser reload lost game state or either canonical Ink story");
+    restored.river_story_phase === "choice" && restored.mahmoud_story_phase === "finished" && restored.mona_story_phase === "finished" && restored.player_knows_mona_visit, "browser reload lost game state or either canonical Ink story");
   await press("n");
   const resumedStory = await until("E4_STORY_RESUMED");
   check(resumedStory.river_story_phase === "choice" && resumedStory.river_story_choices?.length === 2,
@@ -363,6 +393,7 @@ try {
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
+  console.log("E4_NONBUYER_CHROMIUM_PASS: Mona independently visits without order, optional Ink speech learns P2 fact, choices and hard reload persist");
   console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: real delivered tea triggered Mahmoud invite; player consent, native Ink choice and no repeat persisted after hard reload");
   console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
