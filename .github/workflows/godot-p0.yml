@@ -176,6 +176,11 @@ jobs:
           timeout 90s godot --headless --path . --script res://tests/test_play_c6.gd 2>&1 | tee /tmp/play-c6.log
           grep -q 'PLAY C6: PASS' /tmp/play-c6.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|PLAY C6: FAIL)' /tmp/play-c6.log; then exit 1; fi
+      - name: E6 native real ambience context and persisted mute
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_e6_ambience.gd 2>&1 | tee /tmp/e6-ambience.log
+          grep -q "E6 AMBIENCE: PASS" /tmp/e6-ambience.log
       - name: E6 native real game entry, autonomous demand and save/replay
         run: |
           set -o pipefail
