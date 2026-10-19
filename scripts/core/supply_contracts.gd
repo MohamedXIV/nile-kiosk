@@ -19,10 +19,10 @@ static func fail(code: String) -> Dictionary: return {"ok":false,"code":code}
 # ID on later days; learned/private offers remain strictly single-use.
 static func receipt_id(offer_id: String, offer: Dictionary, resolutions: Dictionary,
         minute: int) -> String:
-    if not offer.has("availability") or minute < 1440:
+    if not offer.has("availability") or not resolutions.has(offer_id):
         return offer_id
-    var legacy: Dictionary = resolutions.get(offer_id,{})
-    if not legacy.is_empty() and int(legacy["world_minute"])/1440 == minute/1440:
+    var legacy: Dictionary = resolutions[offer_id]
+    if int(legacy["world_minute"])/1440 == minute/1440:
         return offer_id
     return "%s:day:%d" % [offer_id, minute/1440]
 
