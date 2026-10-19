@@ -33,11 +33,19 @@ jobs:
           ref: fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
           path: _upstream_inkgd
           persist-credentials: false
-      - name: Install inkgd
+      - name: Fetch pinned Dialogue Manager
+        uses: actions/checkout@v4
+        with:
+          repository: nathanhoad/godot_dialogue_manager
+          ref: 5487c524b9eac303b059e5859e2980b134c59d79
+          path: _upstream_dialogue_manager
+          persist-credentials: false
+      - name: Install both pinned narrative runtimes
         run: |
           mkdir -p addons
+          cp -R _upstream_dialogue_manager/addons/dialogue_manager addons/dialogue_manager
           cp -R _upstream_inkgd/addons/inkgd addons/inkgd
-          rm -rf _upstream_inkgd
+          rm -rf _upstream_dialogue_manager _upstream_inkgd
       - name: Compile authored Ink with pinned compiler
         run: |
           curl -fL --retry 3 --output /tmp/inklecate_linux.zip https://github.com/inkle/ink/releases/download/v1.2.1/inklecate_linux.zip
