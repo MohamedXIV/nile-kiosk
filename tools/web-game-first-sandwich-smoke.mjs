@@ -8,7 +8,7 @@ const browser = await chromium.launch({
   args: ["--no-sandbox","--enable-webgl","--use-gl=angle",
     "--use-angle=swiftshader","--enable-unsafe-swiftshader"]
 });
-const context = await browser.newContext({viewport:{width:1100,height:760}});
+const context = await browser.newContext({viewport:{width:1100,height:760},hasTouch:true});
 const page = await context.newPage();
 const traces = {};
 const errors = [];
@@ -62,21 +62,26 @@ async function saveDurably() {
     "IndexedDB confirmed a different P0 world revision");
   return saved;
 }
-async function clickControl(x, y, marker) {
+async function clickControl(x, y, marker, useTouch=false) {
   const index=(traces[marker]||[]).length;
   // Godot's logical 960x540 viewport is aspect-fitted inside the
   // responsive browser canvas. Convert draw/UI coordinates to CSS pixels.
   const canvas=page.locator("canvas").first();
   const bounds=await canvas.evaluate(element => {
     const r=element.getBoundingClientRect();
-    return {width:r.width,height:r.height};
+    return {left:r.left,top:r.top,width:r.width,height:r.height};
   });
   const scale=Math.min(bounds.width/960,bounds.height/540);
   const position={
     x:(bounds.width-960*scale)/2+x*scale,
     y:(bounds.height-540*scale)/2+y*scale
   };
-  await canvas.click({position});
+  if(useTouch) {
+    // Real browser touchscreen event, not a synthesized Godot JS action.
+    await page.touchscreen.tap(bounds.left+position.x,bounds.top+position.y);
+  } else {
+    await canvas.click({position});
+  }
   return until(marker,index);
 }
 try {
@@ -108,7 +113,7 @@ try {
     "actual Godot Button failed to open reachable sandwich counter");
   for(let i=1;i<=6;i++) {
     const bought=i===1
-      ? await clickControl(494,174,"E6_GAME_SANDWICH_PURCHASE")
+      ? await clickControl(494,174,"E6_GAME_SANDWICH_PURCHASE",true)
       : await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
     check(bought.sandwich.offers[i-1].resolved,
       "real purchase missing for ingredient "+i);
