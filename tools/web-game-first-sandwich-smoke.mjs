@@ -50,6 +50,12 @@ async function action(key, marker) {
   await press(key);
   return until(marker,index);
 }
+async function clickControl(x, y, marker) {
+  const index=(traces[marker]||[]).length;
+  // Actual Godot Button: no browser JS calling into game commands.
+  await page.locator("canvas").first().click({position:{x,y}});
+  return until(marker,index);
+}
 try {
   const base=process.argv[2]||"http://127.0.0.1:8765";
   await page.goto(base+"/game/index.html",{waitUntil:"load",timeout:30000});
@@ -74,11 +80,13 @@ try {
   const kiosk=await action("e","E6_GAME_DOOR");
   check(kiosk.location==="kiosk","cannot reach real kiosk");
   await moveDiagonal(520);
-  opened=await action("F7","E6_SANDWICH_TOGGLE");
+  opened=await clickControl(812,387,"E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
-    "sandwich counter is not reachable");
+    "actual Godot Button failed to open reachable sandwich counter");
   for(let i=1;i<=6;i++) {
-    const bought=await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
+    const bought=i===1
+      ? await clickControl(494,174,"E6_GAME_SANDWICH_PURCHASE")
+      : await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
     check(bought.sandwich.offers[i-1].resolved,
       "real purchase missing for ingredient "+i);
   }
@@ -87,7 +95,7 @@ try {
   check(paid.sandwich.can_start && paid.sandwich.stock.liver===400 &&
     paid.sandwich.offers.every(offer=>offer.unit),
     "paid stock, units and recipe readiness must be drawn from P3");
-  let started=await action("Enter","E6_GAME_SANDWICH_STEP");
+  let started=await clickControl(251,415,"E6_GAME_SANDWICH_STEP");
   check(started.sandwich.stage==="waiting" && started.sandwich.step_index===0,
     "sandwich job not canonically started");
   let seasoned=await action("Enter","E6_GAME_SANDWICH_STEP");
@@ -99,11 +107,11 @@ try {
     "pan stage missing");
   check(pan.sandwich.heat_state==="warming" && pan.sandwich.heat_minutes===2,
     "pan illustration did not receive canonical lead-in timing");
-  await action("j","E6_GAME_WAIT"); // Five real minutes on first face.
+  await clickControl(414,414,"E6_GAME_WAIT"); // Godot Button, real P1 clock.
   const turnWindow=traces.E6_GAME_WAIT.at(-1);
   check(turnWindow.sandwich.heat_state==="turn_window",
     "pan did not show the real turn window");
-  const turned=await action("Enter","E6_GAME_SANDWICH_STEP");
+  const turned=await clickControl(251,414,"E6_GAME_SANDWICH_STEP");
   check(turned.sandwich.step_index===1 && turned.sandwich.stage==="active",
     "turn skipped or ended frying instead of changing same active step");
   check(turned.sandwich.heat_state==="turned" &&
@@ -122,9 +130,9 @@ try {
   check(restored.sandwich.heat_state==="turned" &&
     restored.sandwich.heat_minutes===2,
     "visual turn readiness not reconstructed after hard browser reload");
-  opened=await action("F7","E6_SANDWICH_TOGGLE");
+  opened=await clickControl(810,385,"E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
-    "workstation not usable after reload");
+    "clickable workstation did not restore after browser hard reload");
   const overcooked=await action("j","E6_GAME_WAIT");
   check(overcooked.sandwich.heat_state==="second_face_late" &&
     overcooked.sandwich.heat_minutes>=3,
@@ -211,7 +219,7 @@ try {
   check(dayTwo.sandwich.offers.length===6 &&
     dayTwo.sandwich.offers.every(offer=>!offer.resolved),
     "same six public lots did not reopen on the next canonical day");
-  const reopen=await action("F7","E6_SANDWICH_TOGGLE");
+  const reopen=await clickControl(810,385,"E6_SANDWICH_TOGGLE");
   check(reopen.sandwich_visible && reopen.sandwich.near,
     "player lost kitchen access after next-day travel through time");
   for(let i=1;i<=6;i++) {
