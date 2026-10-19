@@ -3,6 +3,7 @@ extends SceneTree
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const GameScene = preload("res://scripts/gameplay/game_scene.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
+const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
@@ -101,6 +102,55 @@ func _run() -> void:
         "tea/talk must not bypass physical counter or NPC proximity")
     root.remove_child(touch)
     touch.free()
+    # P12 station: each of six *real* numbered purchase actions remains
+    # independently tap-sized and cannot intersect another purchasing target.
+    var station: Control = SandwichControls.new()
+    root.add_child(station)
+    station.build()
+    check(station.purchases.size() == 6 and station.opener.size.y >= 68,
+        "sandwich workstation must have six intact offers and thumb-sized opener")
+    var station_buttons: Array[Button] = []
+    for buy in station.purchases:
+        station_buttons.append(buy)
+        check(buy.size.x >= 100 and buy.size.y >= 68,
+            "ingredient purchase target is too small for 640x360 landscape")
+    station_buttons.append_array([station.action_button,station.wait_button,
+        station.save_button,station.close_button])
+    var no_overlap: bool = true
+    for i in range(station_buttons.size()):
+        var a: Button = station_buttons[i]
+        if i >= 6 and a.size.y < 68: no_overlap = false
+        for j in range(i+1,station_buttons.size()):
+            var b: Button = station_buttons[j]
+            if Rect2(a.position,a.size).intersects(Rect2(b.position,b.size)):
+                no_overlap = false
+    check(no_overlap,"purchase/step/wait/save/close targets must not overlap")
+    check(not Rect2(station.opener.position,station.opener.size).intersects(
+        Rect2(810,455,136,70)),
+        "station opener must not intercept the P10/P11 touch pad toggle")
+    var lots: Array = []
+    for ingredient in ["bread","cooking_oil","garlic","green_pepper",
+            "lemon_juice","liver"]:
+        lots.append({"ingredient_id":ingredient,"cost":100,"resolved":false})
+    var station_state: Dictionary = {"near":true,"offers":lots,"cue":"Start pan"}
+    station.update_view(station_state,false,false,false)
+    check(station.opener.visible and not station.purchases[0].visible,
+        "closed station must expose its touch opener without leaking stock controls")
+    station.update_view(station_state,true,false,false)
+    check(not station.opener.visible and station.purchases[5].visible and
+        not station.purchases[5].disabled and station.close_button.visible,
+        "open station must expose all six canonical offers and close affordance")
+    lots[0]["resolved"] = true
+    station.update_view(station_state,true,false,false)
+    check(station.purchases[0].disabled and station.purchases[0].text=="BOUGHT" and
+        not station.purchases[1].disabled,
+        "already purchased ingredient must stay disabled while other real offers remain")
+    station.update_view(station_state,true,true,false)
+    check(not station.purchases[0].visible and not station.action_button.visible and
+        not station.close_button.visible,
+        "authored Ink overlay must hide every sandwich touch action")
+    root.remove_child(station)
+    station.free()
     # Every authored floor corner must remain inside the visible playfield,
     # not beneath the header, tea strip or bottom action text. This camera
     # math is view-only and independent of the saved P2 actor location.
