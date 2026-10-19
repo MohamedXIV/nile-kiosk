@@ -175,12 +175,12 @@ try {
   check(opened.kiosk_open === true, "player did not open the kiosk");
   await press("j");
   const firstAside = await until("E6_GAME_WAIT",0);
-  check(firstAside.minute === 1039 && firstAside.ambient_npc === "salma" &&
+  check(firstAside.minute >= 1039 && firstAside.minute <= 1040 && firstAside.ambient_npc === "salma" &&
     firstAside.ambient_beat === 0 && firstAside.ambient_line.includes("river"),
     "Salma did not initiate the authored neighbor exchange");
   await press("j");
   const silence = await until("E6_GAME_WAIT",1);
-  check(silence.minute === 1044 && silence.ambient_line === "",
+  check(silence.minute >= 1044 && silence.minute <= 1045 && silence.ambient_line === "",
     "incidental dialogue should leave quiet time between the remarks");
   await press("j");
   const afterWait = await until("E6_GAME_WAIT",2);

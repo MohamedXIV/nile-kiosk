@@ -105,13 +105,16 @@ try{
     'verified physical item and technique grade diverged',s);
   // The player can learn a useful principle, not purchase an automatic quality buff.
   check(['attempted','understood'].includes(s.tea_technique.phase),'practice was lost',s);
-  // The FileAccess write is synchronous in Godot, but Web user://
-  // persistence is asynchronously copied to IndexedDB. The previous
-  // immediate hard reload raced that copy and recovered an older snapshot.
-  // Capture the exact saved revision, allow the browser persistence pass,
-  // then verify byte-identical world replay without relaxing any assertion.
+  // Browser save acknowledgment is emitted ONLY after a read-only
+  // IndexedDB check matches the exact canonical file SHA-256 and sequence.
+  // Reload immediately afterward: no arbitrary sleep can hide a stale save.
+  const syncIndex=count('E6_GAME_SAVE_CONFIRMED');
   const before=await snapshot();
-  await page.waitForTimeout(6000);
+  const confirmed=await until('E6_GAME_SAVE_CONFIRMED',syncIndex);
+  check(confirmed.save_storage_status==='confirmed' &&
+    confirmed.save_storage_revision===before.revision,
+    'Web save falsely acknowledged without verified durable revision',
+    {beforeRevision:before.revision,syncRevision:confirmed.save_storage_revision});
   const idxReload=count('E6_GAME_RESTORED');
   await page.reload({waitUntil:'load'});
   s=await until('E6_GAME_RESTORED',idxReload);
