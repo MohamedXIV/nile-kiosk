@@ -784,6 +784,7 @@ func status() -> Dictionary:
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
         "order_recipe": active.get("recipe_id",""),
+        "order_created_minute": int(active.get("created_minute",-1)),
         "order_npc": active.get("npc_id",""),
         "order_payment": active.get("payment_status","none"),
         "sandwich_price":int(v["economy"]["prices"].get(Sandwich.RECIPE,0)),

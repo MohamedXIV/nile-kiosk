@@ -95,6 +95,8 @@ try {
   check(initial.sandwich.heat_state==="idle" &&
     initial.sandwich.stock.liver===0 && !initial.sandwich.can_start,
     "unpaid counter must communicate real missing stock");
+  check(initial.next_step_phase==="head_to_shop",
+    "initial guide must follow the actual roof-to-kiosk route");
   let opened=await action("F7","E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible,"F7 overlay not visible");
   let remote=await action("1","E6_GAME_SANDWICH_PURCHASE");
@@ -107,6 +109,8 @@ try {
   await moveDiagonal(1230);
   const kiosk=await action("e","E6_GAME_DOOR");
   check(kiosk.location==="kiosk","cannot reach real kiosk");
+  check(kiosk.next_step_phase==="open_kiosk",
+    "closed actual kiosk must show the next-step open objective");
   await moveDiagonal(520);
   opened=await clickControl(812,387,"E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
@@ -192,14 +196,22 @@ try {
   check(customer.order_recipe==="liver_sandwich" &&
     customer.order_npc==="salma" && customer.order_status==="offered",
     "canonical P4 schedule did not offer the sandwich");
+  check(customer.next_step_phase==="accept_order",
+    "authentic scheduled Salma offer must drive guide priority");
   let accepted=await action("g","E6_GAME_SERVE");
   check(accepted.order_status==="accepted" &&
     accepted.money===4440,"G did not accept P4 sandwich order");
+  check(accepted.next_step_phase==="deliver_order" &&
+    accepted.sandwich.item_status==="ready",
+    "guide must recognize the already-prepared paid P3 item");
   let delivered=await action("g","E6_GAME_SERVE");
   check(delivered.order_status==="delivered" &&
     delivered.customer_reaction_npc==="salma" &&
     delivered.money===4440,
     "G did not deliver the genuine prepared item and project Salma's reaction");
+  check(delivered.next_step_phase==="collect_payment" &&
+    delivered.sandwich.item_status==="used",
+    "delivered P3 item must not be advertised as still ready");
   check(delivered.customer_reaction_order===accepted.active_order,
     "reaction has no P4 provenance");
   let quoted=await action("g","E6_GAME_SERVE");
@@ -208,6 +220,8 @@ try {
   let settled=await action("g","E6_GAME_SERVE");
   check(settled.money===4990 && settled.order_payment==="settled",
     "customer must pay exactly 550 only after P4 delivery");
+  check(settled.next_step_phase==="close_after_sale",
+    "real P5 settled sale should guide shop closing");
   // Close, walk every P2 portal home, and sleep using the E1 policy.
   const closed=await action("c","E6_GAME_CLOSE");
   check(!closed.kiosk_open,"closing the shop changed no state");
@@ -224,6 +238,8 @@ try {
   check(slept.day===2 && slept.minute>=1920 && slept.minute<1930 &&
     slept.sleep_count===1 && !slept.kiosk_open,
     "E1 sleep failed to wake on next morning");
+  check(slept.next_step_phase==="head_to_shop",
+    "yesterday's settled sale must not block day-two guidance");
   check((await action("e","E6_GAME_DOOR")).location==="landing",
     "could not leave the roof next morning");
   await moveDiagonal(1260);
@@ -279,6 +295,8 @@ try {
     "scheduled second-day Salma demand was skipped");
   const acceptedDayTwo=await action("g","E6_GAME_SERVE");
   check(acceptedDayTwo.order_status==="accepted","G could not accept day-two order");
+  check(acceptedDayTwo.next_step_phase==="prepare_liver",
+    "day-two accepted order must follow real P3 stock and preparation");
   await action("F7","E6_SANDWICH_TOGGLE");
   await action("Enter","E6_GAME_SANDWICH_STEP"); // Start
   await action("Enter","E6_GAME_SANDWICH_STEP"); // Season
