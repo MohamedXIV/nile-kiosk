@@ -24,6 +24,7 @@ var player_visual_position: Vector2 = Vector2.ZERO
 var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
 var player_move_tween: Tween
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
+var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
 var story_pending: bool = false
@@ -60,6 +61,7 @@ func report(marker: String) -> void:
     diagnostic["dialogue_text"] = story_line
     diagnostic["dialogue_id"] = story_id
     diagnostic["help_visible"] = controls_open
+    diagnostic["sandwich_visible"] = sandwich_open
     if not visual_frame.is_empty():
         diagnostic["view_zoom"] = visual_frame["zoom"]
         diagnostic["view_origin_x"] = visual_frame["origin"].x
@@ -88,7 +90,7 @@ func _process(delta: float) -> void:
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
     minute_elapsed += minf(delta, 0.25)
-    if controls_open:
+    if controls_open or sandwich_open:
         move_elapsed = 0.0
     elif move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
@@ -171,7 +173,7 @@ func _snap_player_visual() -> void:
     player_visual_position = game.position()
     queue_redraw()
 
-func _act(kind: String) -> void:
+func _act(kind: String, offer_index: int = -1) -> void:
     var result: Dictionary = {}
     match kind:
         "door": result = game.travel_near()
@@ -196,6 +198,8 @@ func _act(kind: String) -> void:
         "market_decline": result = game.market_decline()
         "supply_buy": result = game.referral_purchase()
         "supply_decline": result = game.referral_decline()
+        "sandwich_purchase": result = game.sandwich_purchase(offer_index)
+        "sandwich_step": result = game.sandwich_step()
     if result.get("ok", false):
         if kind == "door":
             _frame_current_room()
@@ -222,7 +226,9 @@ func _act(kind: String) -> void:
             "market_decline":"You leave the market collection for another day. Nothing spent or received.",
             "supply_buy":"Hoda's runner brings 30g leaves. Paid 550 piastres; 15 minutes pass.",
             "supply_decline":"You leave the delivery offer. No money or stock changes hands.",
-            "bed_store":"The bed is put away. Sleep will be simpler tonight."
+            "bed_store":"The bed is put away. Sleep will be simpler tonight.",
+            "sandwich_purchase":str(result.get("caption","Ingredients purchased.")),
+            "sandwich_step":str(result.get("caption","Preparing liver sandwich."))
         }.get(kind, "Done")
     else:
         notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
@@ -309,6 +315,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
         if event.keycode == KEY_ESCAPE:
             controls_open = false
             report("E6_HELP_TOGGLE")
+        return
+    if event.keycode == KEY_F7 and not (story_open or story_pending):
+        sandwich_open = not sandwich_open
+        notice = "The sandwich counter is ready." if sandwich_open else "Back to the kiosk."
+        report("E6_SANDWICH_TOGGLE")
+        return
+    if sandwich_open:
+        match event.keycode:
+            KEY_ESCAPE:
+                sandwich_open = false
+                report("E6_SANDWICH_TOGGLE")
+            KEY_ENTER, KEY_KP_ENTER: _act("sandwich_step")
+            KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
+                _act("sandwich_purchase",event.keycode - KEY_1)
+            KEY_J: _act("wait")
+            KEY_P: _act("save")
         return
     if event.keycode == KEY_0:
         var sound_on: bool = soundscape.toggle_sound() if soundscape != null else false
@@ -601,6 +623,7 @@ func _draw() -> void:
     if location == "kiosk":
         hints.append("O/C Open/Close")
         if counter_near:
+            hints.append("F7 Sandwich")
             hints.append("G Service")
             hints.append("K Eat")
             if not str(state["tea_stage"]).is_empty(): hints.append(str(state["tea_action"]) + " Tea")
@@ -664,8 +687,34 @@ func _draw() -> void:
             "B / V / X / R    Radio: buy, place, store, listen",
             "T / N / M / L / F2    Nearby conversations",
             "F5 / F6    Market        F3 / F4    Supplier delivery",
-            "P    Save game                         0    Ambient sound"
+            "P    Save game                         0    Ambient sound",
+            "F7    Sandwich counter (kiosk; paid ingredients and preparation)"
         ])
         for i in range(guide.size()):
             _text(Vector2(168,194+i*22),guide[i],15,Color("#f1e2cd"),635)
-        _text(Vector2(168,410),"F1 or Esc · Back to the evening",15,Color("#edc27d"))
+        _text(Vector2(168,415),"F1 or Esc · Back to the evening",15,Color("#edc27d"))
+    if sandwich_open:
+        # Display only: P5 supply receipts and P3 steps/quality own all truth.
+        var sandwich: Dictionary = state["sandwich"]
+        draw_rect(Rect2(0,64,960,383),Color(0.03,0.055,0.065,0.95))
+        draw_rect(Rect2(146,83,668,350),Color("#1c3035"))
+        draw_rect(Rect2(146,83,668,4),Color("#e8bc75"))
+        _text(Vector2(170,119),"THE SANDWICH COUNTER",22,Color("#f1cd88"))
+        _text(Vector2(170,142),"Street-market supplies · paid individually · proposed prices",13,
+            Color("#cbbba6"),618)
+        var options: Array = sandwich["offers"]
+        for i in range(mini(6,options.size())):
+            var option: Dictionary = options[i]
+            var label_line: String = "%d  %s · %d units · %d piastres · %d min" % [
+                i+1,str(option["ingredient_id"]).replace("_"," "),int(option["quantity"]),
+                int(option["cost"]),int(option["minutes"])]
+            if option["resolved"]: label_line += "   [Purchased]"
+            _text(Vector2(170,169+i*24),label_line,15,
+                Color("#a5c4a9") if option["resolved"] else Color("#e9dac1"),618)
+        draw_rect(Rect2(165,317,632,77),Color("#263f40"))
+        _text(Vector2(177,340),str(sandwich["cue"]),17,Color("#f4daa2"),602)
+        if not str(sandwich["item_id"]).is_empty():
+            _text(Vector2(177,365),"Last sandwich: %s · %d/100" % [
+                sandwich["grade"],sandwich["score"]],15,Color("#b3d3bb"),602)
+        _text(Vector2(170,417),"1–6 Buy    Enter Prepare / Turn / Finish    J Wait    P Save    F7 / Esc Close",
+            14,Color("#e8bc75"),625)
