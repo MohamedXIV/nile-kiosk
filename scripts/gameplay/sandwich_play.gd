@@ -1,6 +1,7 @@
 extends RefCounted
 ## Game-First adapter: read-only P3 cues and spatially gated player commands.
 ## Recipe/station, stock, quality and clocks remain owned by WorldKernel.
+const Supply = preload("res://scripts/core/supply_contracts.gd")
 const RECIPE = "liver_sandwich"
 const PREFIX = "player:sandwich:"
 const COUNTER = Vector2(115, 80)
@@ -13,6 +14,7 @@ static func near(session: RefCounted) -> bool:
 
 static func offers(session: RefCounted) -> Array[Dictionary]:
     var economy: Dictionary = session.world.economy_view()
+    var minute: int = int(session.world.view()["world_minute"])
     var ingredients: Dictionary = session.world.cooking_view()["ingredients"]
     var ids: Array = economy["supply_offers"].keys()
     ids.sort()
@@ -24,7 +26,8 @@ static func offers(session: RefCounted) -> Array[Dictionary]:
             "unit":str(ingredients[terms["ingredient_id"]]["unit"]),
             "quantity":int(terms["quantity"]),"cost":int(terms["goods_minor"])+int(terms["delivery_minor"]),
             "minutes":int(terms["minutes"]),
-            "resolved":economy["supply_resolutions"].has(id)})
+            "resolved":economy["supply_resolutions"].has(
+                Supply.receipt_id(str(id),terms,economy["supply_resolutions"],minute))})
     return found
 
 static func active_job(session: RefCounted) -> Dictionary:
