@@ -40,6 +40,11 @@ async function moveDiagonal(ms) {
   await page.waitForTimeout(ms);
   await page.keyboard.up("s");await page.keyboard.up("d");
 }
+async function moveHome(ms) {
+  await page.keyboard.down("w");await page.keyboard.down("a");
+  await page.waitForTimeout(ms);
+  await page.keyboard.up("w");await page.keyboard.up("a");
+}
 async function action(key, marker) {
   const index=(traces[marker]||[]).length;
   await press(key);
@@ -166,6 +171,31 @@ try {
   let settled=await action("g","E6_GAME_SERVE");
   check(settled.money===4990 && settled.order_payment==="settled",
     "customer must pay exactly 550 only after P4 delivery");
+  // Close, walk every P2 portal home, and sleep using the E1 policy.
+  const closed=await action("c","E6_GAME_CLOSE");
+  check(!closed.kiosk_open,"closing the shop changed no state");
+  await moveHome(520);
+  check((await action("e","E6_GAME_DOOR")).location==="street",
+    "could not leave kiosk");
+  await moveHome(1230);
+  check((await action("e","E6_GAME_DOOR")).location==="landing",
+    "could not return from street");
+  await moveHome(1260);
+  check((await action("e","E6_GAME_DOOR")).location==="roof",
+    "could not walk home from landing");
+  const slept=await action("z","E6_GAME_SLEEP");
+  check(slept.day===2 && slept.minute>=1920 && slept.minute<1930 &&
+    slept.sleep_count===1 && !slept.kiosk_open,
+    "E1 sleep failed to wake on next morning");
+  check((await action("e","E6_GAME_DOOR")).location==="landing",
+    "could not leave the roof next morning");
+  await moveDiagonal(1260);
+  check((await action("e","E6_GAME_DOOR")).location==="street",
+    "day-two landing path blocked");
+  await moveDiagonal(1230);
+  check((await action("e","E6_GAME_DOOR")).location==="kiosk",
+    "cannot enter kiosk on day two");
+  await moveDiagonal(520);
   await action("p","E6_GAME_SAVE");
   await page.waitForTimeout(1700);
   await page.reload({waitUntil:"load"});
@@ -200,10 +230,51 @@ try {
   await page.reload({waitUntil:"load"});
   const secondDayReplay=await until("E6_GAME_RESTORED",3);
   check(secondDayReplay.money===3430 && secondDayReplay.sandwich.stock.liver===700 &&
-    secondDayReplay.sandwich.offers.every(offer=>offer.resolved),
-    "next-day P5 transactions or P3 stock did not survive hard reload");
+    secondDayReplay.sandwich.offers.every(offer=>offer.resolved) &&
+    secondDayReplay.sleep_count===1,
+    "second day cash, stock and authentic overnight sleep were not persisted");
+  // Genuine day-two customer, not a test-authored NPC/order.
+  let next=secondDayReplay;
+  while(next.minute<2490) next=await action("j","E6_GAME_WAIT");
+  check((await action("o","E6_GAME_OPEN")).kiosk_open,
+    "shop was not reopened for the returning customer");
+  while(next.minute<2520) next=await action("j","E6_GAME_WAIT");
+  check(next.order_recipe==="liver_sandwich" &&
+    next.order_npc==="salma" && next.order_status==="offered",
+    "scheduled second-day Salma demand was skipped");
+  const acceptedDayTwo=await action("g","E6_GAME_SERVE");
+  check(acceptedDayTwo.order_status==="accepted","G could not accept day-two order");
+  await action("F7","E6_SANDWICH_TOGGLE");
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Start
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Season
+  await action("j","E6_GAME_WAIT");
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Finish seasoning
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Pan
+  await action("j","E6_GAME_WAIT");
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Actual turn
+  await action("j","E6_GAME_WAIT");
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Lift
+  await action("Enter","E6_GAME_SANDWICH_STEP"); // Assemble
+  const secondDish=await action("Enter","E6_GAME_SANDWICH_STEP");
+  check(secondDish.sandwich.item_id!==finished.sandwich.item_id &&
+    secondDish.sandwich.stock.liver===600,
+    "returning customer did not receive an independently cooked dish");
+  await action("F7","E6_SANDWICH_TOGGLE");
+  check((await action("g","E6_GAME_SERVE")).order_status==="delivered",
+    "no authentic second-day item delivery");
+  await action("g","E6_GAME_SERVE"); // Quote
+  const paidTwo=await action("g","E6_GAME_SERVE"); // Settle
+  check(paidTwo.money===3980 && paidTwo.order_payment==="settled",
+    "two-day cashflow must equal 6000 - 2*1560 + 2*550");
+  await action("p","E6_GAME_SAVE");
+  await page.waitForTimeout(2400);
+  await page.reload({waitUntil:"load"});
+  const finalReplay=await until("E6_GAME_RESTORED",4);
+  check(finalReplay.money===3980 && finalReplay.sandwich.stock.liver===600 &&
+    finalReplay.order_payment==="settled" && finalReplay.sleep_count===1,
+    "two-day save/play/reload lost revenue, stock or sleep count");
   check(errors.length===0,"Godot browser script failures");
-  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid P5 stock, timed P3 turning, real Salma P4 delivery and 550 settlement, four hard reloads, including next-day paid replenishment");
+  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid P5 stock, timed P3 turning, real Salma P4 delivery and 550 settlement, five hard reloads, including slept overnight and second real customer");
 } finally {
   await context.close();
   await browser.close();
