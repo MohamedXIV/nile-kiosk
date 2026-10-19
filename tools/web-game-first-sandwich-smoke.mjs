@@ -140,8 +140,41 @@ try {
   check(completed.sandwich.item_id===finished.sandwich.item_id &&
     completed.sandwich.score===finished.sandwich.score &&
     completed.money===4440,"completed item/quality and P5 payment did not replay");
+
+  // P4: the store was closed at 17:15, so the existing tea offer was
+  // correctly skipped. Opening before 18:00 produces Salma's *real*
+  // scheduled sandwich order without injecting an NPC or an order.
+  let customer=await action("o","E6_GAME_OPEN");
+  check(customer.kiosk_open,"real kiosk opening failed");
+  while(customer.minute<1080) customer=await action("j","E6_GAME_WAIT");
+  check(customer.order_recipe==="liver_sandwich" &&
+    customer.order_npc==="salma" && customer.order_status==="offered",
+    "canonical P4 schedule did not offer the sandwich");
+  let accepted=await action("g","E6_GAME_SERVE");
+  check(accepted.order_status==="accepted" &&
+    accepted.money===4440,"G did not accept P4 sandwich order");
+  let delivered=await action("g","E6_GAME_SERVE");
+  check(delivered.order_status==="delivered" &&
+    delivered.customer_reaction_npc==="salma" &&
+    delivered.money===4440,
+    "G did not deliver the genuine prepared item and project Salma's reaction");
+  check(delivered.customer_reaction_order===accepted.active_order,
+    "reaction has no P4 provenance");
+  let quoted=await action("g","E6_GAME_SERVE");
+  check(quoted.money===4440 && quoted.order_payment==="awaiting_ledger",
+    "P5 quote must not credit funds");
+  let settled=await action("g","E6_GAME_SERVE");
+  check(settled.money===4990 && settled.order_payment==="settled",
+    "customer must pay exactly 550 only after P4 delivery");
+  await action("p","E6_GAME_SAVE");
+  await page.waitForTimeout(1700);
+  await page.reload({waitUntil:"load"});
+  const paidAgain=await until("E6_GAME_RESTORED",2);
+  check(paidAgain.money===4990 && paidAgain.order_payment==="settled" &&
+    paidAgain.sandwich.item_id===finished.sandwich.item_id,
+    "real paid sandwich replay lost P3 item or P5 money");
   check(errors.length===0,"Godot browser script failures");
-  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid stock, real timed P3 actions, two hard browser reloads, provenance-derived grade");
+  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid P5 stock, timed P3 turning, real Salma P4 delivery and 550 settlement, three hard reloads");
 } finally {
   await context.close();
   await browser.close();
