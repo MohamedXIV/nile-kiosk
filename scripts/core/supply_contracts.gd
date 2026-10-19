@@ -14,15 +14,32 @@ static func command_kind(kind: String) -> String:
 
 static func fail(code: String) -> Dictionary: return {"ok":false,"code":code}
 
-static func remaining(offers: Dictionary, resolutions: Dictionary, offer: Dictionary) -> int:
+# A publicly stocked market lot reopens on each world day. Keep the day-0
+# historical ID stable and recognize old same-day receipts under the unsuffixed
+# ID on later days; learned/private offers remain strictly single-use.
+static func receipt_id(offer_id: String, offer: Dictionary, resolutions: Dictionary,
+        minute: int) -> String:
+    if not offer.has("availability") or minute < 1440:
+        return offer_id
+    var legacy: Dictionary = resolutions.get(offer_id,{})
+    if not legacy.is_empty() and int(legacy["world_minute"])/1440 == minute/1440:
+        return offer_id
+    return "%s:day:%d" % [offer_id, minute/1440]
+
+static func remaining(offers: Dictionary, resolutions: Dictionary, offer: Dictionary,
+        minute: int) -> int:
     if not offer.has("availability"): return int(offer["quantity"])
     var lot: Dictionary = offer["availability"]
     var stock: int = int(lot["stock_quantity"])
-    for id in resolutions:
-        var receipt: Dictionary = resolutions[id]
+    # Count only real purchases from today's finite shared lot, never yesterday's.
+    for id in offers:
         var terms: Dictionary = offers[id]
-        if receipt["status"]=="purchased" and terms.get("availability",{}).get("lot_id","")==lot["lot_id"]:
-            stock-=int(receipt["quantity"])
+        if terms.get("availability",{}).get("lot_id","") != lot["lot_id"]: continue
+        var key: String = receipt_id(str(id),terms,resolutions,minute)
+        var receipt: Dictionary = resolutions.get(key,{})
+        if receipt.get("status","") == "purchased" and \
+                int(receipt["world_minute"])/1440 == minute/1440:
+            stock -= int(receipt["quantity"])
     return stock
 
 static func availability(offer: Dictionary, minute: int, purchase: bool) -> String:
@@ -71,7 +88,9 @@ static func plan(kind: String, p: Dictionary, actor: String, world: RefCounted) 
     if not economy.exact(p,["offer_id"]) or not economy.identity(p.get("offer_id")): return fail("INVALID_PAYLOAD")
     if not economy.supply_offers.has(p["offer_id"]): return fail("UNKNOWN_OFFER")
     var offer: Dictionary = economy.supply_offers[p["offer_id"]]
-    if economy.supply_resolutions.has(p["offer_id"]): return fail("OFFER_RESOLVED")
+    var resolution_id: String = receipt_id(str(p["offer_id"]),offer,
+        economy.supply_resolutions,world.world_minute)
+    if economy.supply_resolutions.has(resolution_id): return fail("OFFER_RESOLVED")
     var known: Dictionary = world.society.knowledge.get("player",{}).get(offer["required_fact"],{})
     if not offer["required_fact"].is_empty() and known.is_empty(): return fail("FACT_NOT_KNOWN")
     if world.society.player_location != offer["location_id"]: return fail("WRONG_LOCATION")
@@ -84,12 +103,13 @@ static func plan(kind: String, p: Dictionary, actor: String, world: RefCounted) 
     var effect: Dictionary = {"offer_id":p["offer_id"],"knowledge_event_id":known.get("event_id",""),
         "supplier_id":offer["supplier_id"],"status":"declined" if kind == "supply.decline" else "purchased"}
     if kind == "supply.decline": return {"ok":true,"effect":effect}
-    if remaining(economy.supply_offers,economy.supply_resolutions,offer)<int(offer["quantity"]): return fail("SUPPLY_OUT_OF_STOCK")
+    if remaining(economy.supply_offers,economy.supply_resolutions,offer,
+            world.world_minute)<int(offer["quantity"]): return fail("SUPPLY_OUT_OF_STOCK")
     if world.paused: return fail("PAUSED")
     if int(offer["minutes"]) > LIMIT-world.world_minute: return fail("TIME_OVERFLOW")
-    var transfer: Dictionary = economy.plan_transfer({"transaction_id":"supply:"+str(p["offer_id"]),
+    var transfer: Dictionary = economy.plan_transfer({"transaction_id":"supply:"+resolution_id,
         "from_account":"player","to_account":"world:vendors",
-        "amount_minor":int(offer["goods_minor"])+int(offer["delivery_minor"]),"cause_id":p["offer_id"]})
+        "amount_minor":int(offer["goods_minor"])+int(offer["delivery_minor"]),"cause_id":resolution_id})
     if not transfer.get("ok",false): return transfer
     var stock_request: Dictionary = {"ingredient_id":offer["ingredient_id"],"quantity":int(offer["quantity"])}
     var stock: Dictionary = world.cooking.plan("stock.add",stock_request,"system:stock",world.jobs,world.world_minute)
@@ -112,4 +132,6 @@ static func apply(economy: RefCounted, kind: String, p: Dictionary, effect: Dict
         resolution["completed_minute"] = effect["to_minute"]
         resolution["ingredient_id"] = effect["stock_request"]["ingredient_id"]
         resolution["quantity"] = effect["stock_request"]["quantity"]
-    economy.supply_resolutions[p["offer_id"]] = resolution
+    var key: String = receipt_id(str(p["offer_id"]),economy.supply_offers[p["offer_id"]],
+        economy.supply_resolutions,minute)
+    economy.supply_resolutions[key] = resolution
