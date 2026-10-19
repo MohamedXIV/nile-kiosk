@@ -389,13 +389,17 @@ try {
     // wall-clock hold that can overshoot her at y=10.
     const dx = 125 - latest.x;
     const dy = 70 - latest.y;
-    if (Math.abs(dy) > 12) await nudgeY(dy > 0);
-    else if (Math.abs(dx) > 10) {
-      if (dx < 0) await walkBack(155);
-      else await moveDiagonal(155);
-    } else {
-      await nudgeY(dy > 0);
-    }
+    // One keyboard direction at a time avoids the transient diagonal
+    // between sequential keydown events. Near Salma's table the prior
+    // two-key correction bounced between (176,51) and (200,92).
+    // W/A/S/D each produce an honest, collision-checked +/-12 world
+    // step; never inject P2 position or teleport for this acceptance.
+    const toward = dx < 0
+      ? (dy >= 0 ? "a" : "w")
+      : (dy >= 0 ? "s" : "d");
+    await page.keyboard.down(toward);
+    await page.waitForTimeout(155);
+    await page.keyboard.up(toward);
   }
   check(conversationStarted, "player could not start real unlocked Salma Ink conversation");
   await press("Enter");
