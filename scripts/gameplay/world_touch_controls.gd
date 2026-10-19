@@ -19,7 +19,7 @@ func _button(label: String, area: Rect2, tint: Color) -> Button:
     result.size = area.size
     result.focus_mode = Control.FOCUS_ALL
     result.mouse_filter = Control.MOUSE_FILTER_STOP
-    result.add_theme_font_size_override("font_size",15)
+    result.add_theme_font_size_override("font_size",17)
     result.add_theme_color_override("font_color",Color("#f4e5ca"))
     result.add_theme_color_override("font_disabled_color",Color("#a1ada7"))
     for variant in ["normal","hover","pressed","disabled","focus"]:
@@ -42,7 +42,9 @@ func build() -> void:
     if toggle != null: return
     size = Vector2(960,540)
     mouse_filter = Control.MOUSE_FILTER_IGNORE
-    toggle = _button("On-screen",Rect2(830,456,118,38),Color("#386055"))
+    toggle = _button("On-screen",Rect2(810,455,136,70),Color("#386055"))
+    # Wide touch targets stay at least 46 CSS pixels at 640px landscape width.
+    # Buttons sit outside the camera-safe middle playfield.
     toggle.tooltip_text = "Show optional movement and world action buttons"
     toggle.pressed.connect(_toggle)
     # Eight directions, including the two diagonals used by the room exits.
@@ -56,8 +58,8 @@ func build() -> void:
         Vector2i(0,1),Vector2i(2,1),
         Vector2i(0,2),Vector2i(1,2),Vector2i(2,2)]
     for i in range(directions.size()):
-        var pos: Vector2 = Vector2(20+locations[i].x*56,157+locations[i].y*56)
-        var b: Button = _button(labels[i],Rect2(pos,Vector2(52,52)),Color("#3d5b59"))
+        var pos: Vector2 = Vector2(14+locations[i].x*76,118+locations[i].y*76)
+        var b: Button = _button(labels[i],Rect2(pos,Vector2(70,70)),Color("#3d5b59"))
         b.tooltip_text = "Walk %s: hold or tap" % labels[i]
         b.button_down.connect(_direction_down.bind(directions[i]))
         b.button_up.connect(_direction_up.bind(directions[i]))
@@ -70,9 +72,9 @@ func build() -> void:
         {"key":"save","caption":"Save","row":2,"col":0}
     ]:
         var kind: String = spec["key"]
-        var position: Vector2 = Vector2(749+int(spec["col"])*101,167+int(spec["row"])*57)
+        var position: Vector2 = Vector2(728+int(spec["col"])*114,124+int(spec["row"])*75)
         var button: Button = _button(str(spec["caption"]),
-            Rect2(position,Vector2(96,51)),Color("#426251"))
+            Rect2(position,Vector2(104,68)),Color("#426251"))
         button.tooltip_text = "Use real world action: %s" % kind
         button.pressed.connect(_action_pressed.bind(kind))
         actions[kind] = button
