@@ -1,9 +1,12 @@
 extends SceneTree
 ## SYS P3 acceptance: production WorldKernel, not D001 tea_steps.
+const DepthCases = preload("res://tests/cooking_depth_cases.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 var errors: Array[String] = []
 
-func _initialize() -> void:
+func _initialize() -> void: call_deferred("run")
+
+func run() -> void:
     _definitions_and_units()
     _accounting_limits()
     _parallel_reservations()
@@ -11,8 +14,9 @@ func _initialize() -> void:
     _cancel_and_deadlines()
     _items_and_expiry()
     _replay_and_persistence()
+    errors.append_array(DepthCases.new().run())
     if errors.is_empty():
-        print("SYS P3: PASS (7 groups: data, accounting bounds, reservations, interruption, expiry, items, replay)")
+        print("SYS P3: PASS (8 groups: data, accounting bounds, reservations, interruption, expiry, items, replay, cooking depth)")
         quit(0)
         return
     for e in errors:
