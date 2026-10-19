@@ -13,6 +13,7 @@ static func near(session: RefCounted) -> bool:
 
 static func offers(session: RefCounted) -> Array[Dictionary]:
     var economy: Dictionary = session.world.economy_view()
+    var ingredients: Dictionary = session.world.cooking_view()["ingredients"]
     var ids: Array = economy["supply_offers"].keys()
     ids.sort()
     var found: Array[Dictionary] = []
@@ -20,6 +21,7 @@ static func offers(session: RefCounted) -> Array[Dictionary]:
         if not str(id).begins_with("sandwich:"): continue
         var terms: Dictionary = economy["supply_offers"][id]
         found.append({"offer_id":str(id),"ingredient_id":str(terms["ingredient_id"]),
+            "unit":str(ingredients[terms["ingredient_id"]]["unit"]),
             "quantity":int(terms["quantity"]),"cost":int(terms["goods_minor"])+int(terms["delivery_minor"]),
             "minutes":int(terms["minutes"]),
             "resolved":economy["supply_resolutions"].has(id)})
