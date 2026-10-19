@@ -53,6 +53,9 @@ try {
   check(initial.location==="roof" && initial.money===6000 &&
     initial.sandwich?.offers?.length===6 && initial.sandwich.stage==="",
     "starter scene did not load authored sandwich offers");
+  check(initial.sandwich.heat_state==="idle" &&
+    initial.sandwich.stock.liver===0 && !initial.sandwich.can_start,
+    "unpaid counter must communicate real missing stock");
   let opened=await action("F7","E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible,"F7 overlay not visible");
   let remote=await action("1","E6_GAME_SANDWICH_PURCHASE");
@@ -76,6 +79,9 @@ try {
   }
   const paid=traces.E6_GAME_SANDWICH_PURCHASE.at(-1);
   check(paid.money===4440,"paid six offers must debit 1560 minor units");
+  check(paid.sandwich.can_start && paid.sandwich.stock.liver===400 &&
+    paid.sandwich.offers.every(offer=>offer.unit),
+    "paid stock, units and recipe readiness must be drawn from P3");
   let started=await action("Enter","E6_GAME_SANDWICH_STEP");
   check(started.sandwich.stage==="waiting" && started.sandwich.step_index===0,
     "sandwich job not canonically started");
@@ -86,10 +92,18 @@ try {
   const pan=await action("Enter","E6_GAME_SANDWICH_STEP");
   check(pan.sandwich.step_index===1 && pan.sandwich.stage==="active",
     "pan stage missing");
+  check(pan.sandwich.heat_state==="warming" && pan.sandwich.heat_minutes===2,
+    "pan illustration did not receive canonical lead-in timing");
   await action("j","E6_GAME_WAIT"); // Five real minutes on first face.
+  const turnWindow=traces.E6_GAME_WAIT.at(-1);
+  check(turnWindow.sandwich.heat_state==="turn_window",
+    "pan did not show the real turn window");
   const turned=await action("Enter","E6_GAME_SANDWICH_STEP");
   check(turned.sandwich.step_index===1 && turned.sandwich.stage==="active",
     "turn skipped or ended frying instead of changing same active step");
+  check(turned.sandwich.heat_state==="turned" &&
+    turned.sandwich.heat_minutes===2,
+    "post-turn other-side window not projected from P3");
   const saved=await action("p","E6_GAME_SAVE");
   check(saved.sandwich.stage==="active" && saved.sandwich.step_index===1,
     "mid-pan save missing P3 state");
@@ -100,10 +114,16 @@ try {
     restored.sandwich.stage==="active" && restored.sandwich.step_index===1 &&
     restored.sandwich.offers.every(offer=>offer.resolved),
     "hard Web reload lost paid stock/turn stage");
+  check(restored.sandwich.heat_state==="turned" &&
+    restored.sandwich.heat_minutes===2,
+    "visual turn readiness not reconstructed after hard browser reload");
   opened=await action("F7","E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
     "workstation not usable after reload");
-  await action("j","E6_GAME_WAIT");
+  const overcooked=await action("j","E6_GAME_WAIT");
+  check(overcooked.sandwich.heat_state==="second_face_late" &&
+    overcooked.sandwich.heat_minutes>=3,
+    "real overcooking warning missing despite elapsed canonical world time");
   let lifted=await action("Enter","E6_GAME_SANDWICH_STEP");
   check(lifted.sandwich.stage==="waiting" && lifted.sandwich.step_index===2,
     "second face did not finish");
