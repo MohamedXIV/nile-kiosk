@@ -31,6 +31,10 @@ func _run() -> void:
         "installer must not gift meat")
     var offers: Array[Dictionary] = g.sandwich_offers()
     check(offers.size()==6,"six paid offers, not auto-shopping")
+    check(g.sandwich_context()["heat_state"]=="idle" and
+        not g.sandwich_context()["can_start"] and
+        int(g.sandwich_context()["stock"]["liver"])==0,
+        "unpaid ingredients must show a real not-ready station")
     check(g.sandwich_purchase(0).get("code","")=="COUNTER_TOO_FAR",
         "roof cannot buy kiosk ingredients remotely")
     check(g.sandwich_step().get("code","")=="COUNTER_TOO_FAR",
@@ -52,6 +56,9 @@ func _run() -> void:
         spent += int(offers[i]["cost"])
     check(spent==1560 and g.session.world.balance_minor()==balance-spent,
         "P5 debited actual total of six separately paid items")
+    check(g.sandwich_context()["can_start"] and
+        int(g.sandwich_context()["stock"]["liver"])==400 and
+        offers[0].has("unit"),"P3 current inventory and real units shown after payment")
     check(g.sandwich_purchase(0).get("code","")=="OFFER_RESOLVED",
         "cannot duplicate paid stock")
     var started: Dictionary = g.sandwich_step()
@@ -63,11 +70,20 @@ func _run() -> void:
     check(g.wait_minutes(1).get("ok",false),"one season minute")
     check(g.sandwich_step().get("ok",false),"finish seasoning")
     check(g.sandwich_step().get("ok",false),"sear begins")
+    check(g.sandwich_context()["heat_state"]=="warming" and
+        g.sandwich_context()["heat_minutes"]==2,
+        "P1 clock supplies first-face lead-in, no visual timer state")
     check(g.sandwich_step().get("code","")=="ACTION_TOO_EARLY",
         "must sear first face before turning")
     check(g.wait_minutes(2).get("ok",false),"first face two minutes")
+    check(g.sandwich_context()["heat_state"]=="turn_window" and
+        g.sandwich_context()["heat_minutes"]==4,
+        "safe turn window is derived from the canonical heat step")
     check(g.sandwich_step().get("ok",false) and
         g.sandwich_context()["stage"]=="active", "actual recorded turn")
+    check(g.sandwich_context()["heat_state"]=="turned" and
+        g.sandwich_context()["heat_minutes"]==2,
+        "display recognizes real cook.step_actioned event")
     check(g.save_game().get("ok",false),"save midway through second face")
     var before: Dictionary = g.session.world.view()
     var resumed: RefCounted = Game.new()
@@ -78,6 +94,9 @@ func _run() -> void:
     check(resumed.sandwich_context()["stage"]=="active" and
         resumed.sandwich_context()["step_index"]==1 and
         resumed.sandwich_context()["ready_in"]==2,"restore genuine mid-pan action")
+    check(resumed.sandwich_context()["heat_state"]=="turned" and
+        resumed.sandwich_context()["heat_minutes"]==2,
+        "heat view survives save/reload without storing display state")
     check(resumed.sandwich_step().get("code","")=="STEP_NOT_READY",
         "cannot lift second face before time")
     check(resumed.wait_minutes(2).get("ok",false),"second face two minutes")
