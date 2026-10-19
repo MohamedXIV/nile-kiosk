@@ -40,7 +40,7 @@ func _run() -> void:
     var corners_clear: bool = true
     for point in [Vector2.ZERO,Vector2(220,0),Vector2(220,140),Vector2(0,140)]:
         var projected: Vector2 = GameScene.project_in_frame(point,pad_frame)
-        if projected.x < 245.8 or projected.x > 720.2 or
+        if projected.x < 245.8 or projected.x > 720.2 or \
                 projected.y < 113.8 or projected.y > 352.2:
             corners_clear = false
     check(corners_clear,"pad camera must not hide traversable space under touch Buttons")
