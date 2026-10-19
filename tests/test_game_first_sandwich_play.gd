@@ -23,6 +23,7 @@ func _run() -> void:
     # Real Godot Buttons, not painted/pointer hitboxes or fake world state.
     var controls: Control = SandwichControls.new()
     root.add_child(controls)
+    controls.build() # SceneTree._initialize runs before root's first READY.
     var sample_offers: Array = [
         {"ingredient_id":"bread","cost":120,"resolved":false},
         {"ingredient_id":"liver","cost":1200,"resolved":true}
