@@ -31,6 +31,21 @@ func _run() -> void:
         "on-screen traversal has eight real Godot directions and five world actions")
     check(not touch.mode_enabled and not touch.arrows[0].visible,
         "on-screen pad is optional rather than covering the initial scene")
+    # The compact 640px landscape browser maps logical 70px buttons to
+    # 46.7 physical CSS pixels; framing keeps every room corner clear.
+    check(touch.toggle.size.y >= 68.0 and touch.arrows[7].size == Vector2(70,70) and
+        touch.actions["door"].size == Vector2(104,68),
+        "landscape touch targets must remain easy to press after Web scaling")
+    var pad_frame: Dictionary = GameScene.frame_for_room(Vector2(220,140),true)
+    var corners_clear: bool = true
+    for point in [Vector2.ZERO,Vector2(220,0),Vector2(220,140),Vector2(0,140)]:
+        var projected: Vector2 = GameScene.project_in_frame(point,pad_frame)
+        if projected.x < 245.8 or projected.x > 720.2 or
+                projected.y < 113.8 or projected.y > 352.2:
+            corners_clear = false
+    check(corners_clear,"pad camera must not hide traversable space under touch Buttons")
+    check(GameScene.frame_for_room(Vector2(220,140),false)["origin"] != pad_frame["origin"],
+        "disabling the optional pad must restore the normal room camera")
     touch._toggle()
     touch.update_view({"location":"roof","kiosk_open":false},true,false,false,false)
     check(touch.mode_enabled and touch.arrows[7].visible and
