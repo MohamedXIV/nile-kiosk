@@ -413,12 +413,15 @@ func _touch_move_now() -> void:
     _process_movement()
 
 func _touch_action(action: String) -> void:
-    if not initialized or touch_pad == null or not touch_pad.mode_enabled: return
+    if not initialized or touch_pad == null: return
+    # On-screen._toggle changes mode_enabled *before* emitting this callback.
+    # Process both opening and closing; only gate subsequent world actions.
     if action == "toggle":
         _frame_current_room()
         _snap_player_visual()
         report("E6_TOUCH_TOGGLE")
         return
+    if not touch_pad.mode_enabled: return
     if story_open and not controls_open and not sandwich_open:
         var choices: Array = _story_choices(game.status())
         match action:
