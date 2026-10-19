@@ -14,7 +14,7 @@ const traces={};
 const errors=[];
 page.on("console",m=>{
   const line=m.text();
-  const hit=/^((?:E6_GAME|E6_TOUCH)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const hit=/^((?:E6_GAME|E6_TOUCH|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(line);
   if(hit){try{(traces[hit[1]]??=[]).push(JSON.parse(hit[2]));}
     catch(e){errors.push("Malformed game trace "+e)}}
   if(/SCRIPT ERROR:|Parse Error:|E6_GAME_BOOT_FAILED/.test(line))errors.push(line);
@@ -117,8 +117,55 @@ try{
     replay.money===saved.money&&replay.kiosk_open===saved.kiosk_open&&
     replay.digest===saved.digest,
     "touch-driven canonical position/shop state not replayed from actual disk save");
+  // P11: after a real reload, use *only touch* for the customer tea recipe
+  // and the NPC's optional authored Ink reply. No keyboard or world injection.
+  await touch(890,476,"E6_TOUCH_TOGGLE");
+  let offer=replay;
+  for(let i=0;i<8 && offer.order_status!=="offered";i++){
+    offer=await touch(785,383,"E6_GAME_WAIT");
+  }
+  check(offer.order_status==="offered" && offer.order_recipe==="tea" &&
+    offer.npc_mahmoud==="kiosk","touch Wait did not expose genuine P4 tea demand");
+  let accepted=await touch(897,158,"E6_GAME_SERVE");
+  check(accepted.order_status==="accepted","touch Serve did not accept real P4 order");
+  let tea=await touch(897,158,"E6_GAME_SERVE");
+  check(tea.tea_stage==="waiting" && tea.tea_action==="H",
+    "touch Serve failed to begin real P3 tea");
+  tea=await touch(897,383,"E6_GAME_TEA_HEAT");
+  check(tea.tea_stage==="active" && tea.tea_ready_in>0,
+    "touch Heat bypassed canonical hot-kettle stage");
+  await touch(785,383,"E6_GAME_WAIT");
+  tea=await touch(897,383,"E6_GAME_TEA_HEAT");
+  check(tea.tea_action==="U","touch Lift did not advance genuine recipe");
+  tea=await touch(897,383,"E6_GAME_TEA_POUR");
+  check(tea.tea_stage==="active","touch Pour did not begin real finishing step");
+  await touch(785,383,"E6_GAME_WAIT");
+  tea=await touch(897,383,"E6_GAME_TEA_POUR");
+  check(tea.tea_stage==="" && tea.tea_quality_item,
+    "touch tea did not finish an authentic prepared item");
+  const delivered=await touch(897,158,"E6_GAME_SERVE");
+  check(delivered.order_status==="delivered" && delivered.customer_reaction_npc==="mahmoud",
+    "touch service did not deliver a canonical P3 item to P4 customer");
+  check(delivered.mahmoud_invite_near,"touch player is outside real invitation range");
+  let conversation=await touch(897,308,"E4_NPC_STARTED");
+  check(conversation.mahmoud_story_phase==="" || conversation.mahmoud_story_phase==="running",
+    "touch Talk did not open authored Ink");
+  conversation=await touch(785,378,"E4_NPC_LINE");
+  check(conversation.mahmoud_story_phase==="running",
+    "touch Continue did not advance real Ink line");
+  conversation=await touch(785,378,"E4_NPC_WAITING");
+  check(conversation.mahmoud_story_choices?.length===2,
+    "real Ink choices not made available to touch");
+  conversation=await touch(897,378,"E4_NPC_CHOICE");
+  check(conversation.mahmoud_story_phase==="running",
+    "touch Reply 2 did not commit the real authored option");
+  await touch(785,378,"E4_NPC_LINE");
+  await touch(785,378,"E4_NPC_LINE");
+  conversation=await touch(785,378,"E4_NPC_FINISHED");
+  check(conversation.mahmoud_story_phase==="finished",
+    "touchscreen could not conclude authored Ink encounter");
   check(errors.length===0,"Godot scripting errors");
-  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: 640x360 landscape, >=44px touch targets, safe camera, real Door/Open/Serve/Save, hold/release and IndexedDB reload");
+  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P10 landscape and IndexedDB; P11 touch-only P3 tea, P4 delivery, authored NPC Ink choice");
 }finally{
   await context.close();
   await browser.close();
