@@ -7,6 +7,7 @@ const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
+const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
@@ -81,6 +82,9 @@ func report(marker: String) -> void:
     diagnostic["dialogue_id"] = story_id
     diagnostic["help_visible"] = controls_open
     diagnostic["sandwich_visible"] = sandwich_open
+    var guide: Dictionary = NextStepGuide.describe(diagnostic)
+    diagnostic["next_step_phase"] = guide["phase"]
+    diagnostic["next_step_text"] = guide["text"]
     diagnostic["save_storage_status"] = save_confirmation.status
     diagnostic["save_storage_revision"] = save_confirmation.revision
     if not visual_frame.is_empty():
@@ -712,11 +716,15 @@ func _draw() -> void:
         if unit_id.is_empty() or game.session.world.can_access_unit(unit_id):
             exit_name = str(portal_near["to"])
     if not story_open and not story_pending:
-        # One high-value hint instead of another pile of simultaneous callouts.
-        draw_rect(Rect2(24,370,640,37),Color("#20343a"))
-        draw_rect(Rect2(24,370,4,37),Color("#e8bc75"))
-        _text(Vector2(38,394),"NEARBY   " + context_hint(state,exit_name,quiet_near,counter_near),
-            16,Color("#f3e2bf"),605)
+        # Next-step and nearby guidance are independent read-only projections
+        # of the same P1–P5 world. No quest flags or HUD-driven progression.
+        draw_rect(Rect2(24,354,640,53),Color("#20343a"))
+        draw_rect(Rect2(24,354,4,53),Color("#e8bc75"))
+        var guide: Dictionary = NextStepGuide.describe(state)
+        _text(Vector2(38,375),"NEXT   " + str(guide["text"]),
+            14,Color("#f3d39a"),607)
+        _text(Vector2(38,396),"NEARBY   " + context_hint(state,exit_name,quiet_near,counter_near),
+            14,Color("#f3e2bf"),607)
     if location == "kiosk" and not state["tea_stage"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
         var guidance: String = "Tea · %s: %s" % [state["tea_action"],
