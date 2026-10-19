@@ -105,14 +105,20 @@ try{
     'verified physical item and technique grade diverged',s);
   // The player can learn a useful principle, not purchase an automatic quality buff.
   check(['attempted','understood'].includes(s.tea_technique.phase),'practice was lost',s);
+  // P0 disk save is synchronous. Reload the *exact* persisted revision:
+  // waiting after the save lets the live P1 clock move again without saving.
   const before=await snapshot();
-  await page.waitForTimeout(1700);
   const idxReload=count('E6_GAME_RESTORED');
   await page.reload({waitUntil:'load'});
   s=await until('E6_GAME_RESTORED',idxReload);
-  check(s.tea_technique_known&&s.tea_technique.item_id===before.tea_technique.item_id
-    &&s.tea_technique.grade===before.tea_technique.grade
-    &&s.digest===before.digest,'hard Chromium reload lost honest learning or world replay',s);
+  check(s.tea_technique_known===before.tea_technique_known &&
+    s.tea_technique_known && s.tea_technique.item_id===before.tea_technique.item_id &&
+    s.tea_technique.grade===before.tea_technique.grade,
+    'hard Chromium reload lost verified tea learning/item', {before:before.tea_technique,after:s.tea_technique});
+  check(s.digest===before.digest && s.revision===before.revision,
+    'hard Chromium replay diverged from exact on-disk revision',
+    {before:{digest:before.digest,revision:before.revision,minute:before.minute},
+     after:{digest:s.digest,revision:s.revision,minute:s.minute}});
   check(!errors.length,'browser errors',errors);
   console.log('E3_TEA_TECHNIQUE_CHROMIUM_PASS real Salma Ink fact, physical P3 practice and hard reload');
 }finally{await context.close();await browser.close();}
