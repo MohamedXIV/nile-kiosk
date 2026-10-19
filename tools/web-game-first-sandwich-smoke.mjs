@@ -52,8 +52,19 @@ async function action(key, marker) {
 }
 async function clickControl(x, y, marker) {
   const index=(traces[marker]||[]).length;
-  // Actual Godot Button: no browser JS calling into game commands.
-  await page.locator("canvas").first().click({position:{x,y}});
+  // Godot's logical 960x540 viewport is aspect-fitted inside the
+  // responsive browser canvas. Convert draw/UI coordinates to CSS pixels.
+  const canvas=page.locator("canvas").first();
+  const bounds=await canvas.evaluate(element => {
+    const r=element.getBoundingClientRect();
+    return {width:r.width,height:r.height};
+  });
+  const scale=Math.min(bounds.width/960,bounds.height/540);
+  const position={
+    x:(bounds.width-960*scale)/2+x*scale,
+    y:(bounds.height-540*scale)/2+y*scale
+  };
+  await canvas.click({position});
   return until(marker,index);
 }
 try {
