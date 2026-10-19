@@ -23,6 +23,7 @@ on:
       - "tools/web-play-c5-smoke.mjs"
       - "tools/web-play-c6-smoke.mjs"
       - "tools/web-e6-game-entry-smoke.mjs"
+      - "tools/web-game-first-sandwich-smoke.mjs"
       - "tools/web-e3-tea-technique-smoke.mjs"
       - "tools/web-e2-closure-smoke.mjs"
       - "tools/web-social-memory-referral-smoke.mjs"
