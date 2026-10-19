@@ -232,7 +232,7 @@ func _act(kind: String, offer_index: int = -1) -> void:
             "sandwich_step":str(result.get("caption","Preparing liver sandwich."))
         }.get(kind, "Done")
     else:
-        notice = kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))
+        notice = str(result.get("caption",kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))))
     report("E6_GAME_" + kind.to_upper())
 
 func _story_action(kind: String, option_id: String = "") -> void:
@@ -420,6 +420,10 @@ static func context_hint(state: Dictionary, exit_name: String,
                 "%s · %s tea step" % [action, "Finish" if state.get("tea_stage") == "active" else "Start"]
         if state.get("conversation_near",false):
             return "T · Join the nearby conversation"
+        if counter_near and state.get("order_recipe","") == "liver_sandwich":
+            return "G · Accept Salma's sandwich order" if state.get("order_status","") == "offered" else \
+                "F7 · Cook Salma's sandwich, then G to serve" if state.get("order_status","") == "accepted" else \
+                "G · Collect payment for Salma's sandwich"
         if counter_near and not str(state.get("active_order","")).is_empty():
             return "G · Continue the customer order"
     if not exit_name.is_empty():
@@ -636,7 +640,7 @@ func _draw() -> void:
         else: hints.append("B/V Radio")
     _text(Vector2(28,500),"   ".join(hints),13,Color("#e2c18b"))
     if not state["active_order"].is_empty():
-        _text(Vector2(585,526),"Order: " + str(state["order_status"]),14,Color("#d2b98c"))
+        _text(Vector2(555,526),str(state["order_recipe"]).replace("_"," ") + " · " + str(state["order_status"]),14,Color("#d2b98c"))
     if state["conversation_near"] and not story_open:
         _text(Vector2(50,245),"T · Join Salma and Mahmoud (or keep working)",16,Color("#f0d8a8"))
     if game.river_story_available() and state["river_story_phase"] != "finished" and location == "kiosk":

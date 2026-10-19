@@ -120,6 +120,27 @@ static func context(session: RefCounted) -> Dictionary:
         result["item_id"] = str(latest["item_id"])
         result["grade"] = str(quality.get("grade",""))
         result["score"] = int(quality.get("score",0))
+    # This is a P4 projection only; F7 still uses P3 and never accepts,
+    # delivers or settles an order. G remains the real service interaction.
+    result["service_note"] = "No liver order yet · prepare one ahead, or wait"
+    var orders: Dictionary = session.world.orders_view()["orders"]
+    var selected: Dictionary = {}
+    for order in orders.values():
+        if order["recipe_id"] != RECIPE or order["npc_id"] != "salma":
+            continue
+        if selected.is_empty() or int(order["created_minute"]) > int(selected["created_minute"]):
+            selected = order
+    if not selected.is_empty():
+        match str(selected["status"]):
+            "offered":
+                result["service_note"] = "Salma wants a sandwich · G to accept"
+            "accepted":
+                result["service_note"] = "Salma is waiting · F7 prepare, G deliver"
+            "delivered":
+                result["service_note"] = "Delivered · G to quote and settle" if selected["payment_status"] != "settled" else \
+                    "Salma paid for the delivered sandwich"
+            "abandoned":
+                result["service_note"] = "Salma left without a sandwich"
     return result
 
 static func purchase(session: RefCounted, index: int, id: String) -> Dictionary:

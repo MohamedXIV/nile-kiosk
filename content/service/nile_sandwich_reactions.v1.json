@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "recipe_id": "liver_sandwich",
+  "price_minor": 550,
+  "terms_status": "PROPOSED",
+  "npcs": {
+    "salma": {
+      "good": "Lovely sear. The lemon brings it together.",
+      "okay": "Still warm. Next time, turn it sooner.",
+      "rough": "A bit too long on the pan, but thank you."
+    }
+  }
+}

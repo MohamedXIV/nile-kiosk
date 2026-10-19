@@ -48,7 +48,7 @@ static func draw(canvas: CanvasItem, context: Dictionary) -> void:
     canvas.draw_rect(Rect2(146,83,668,350),Color("#1c3035"))
     canvas.draw_rect(Rect2(146,83,668,4),Color("#e8bc75"))
     _text(canvas,Vector2(170,119),"THE SANDWICH COUNTER",22,Color("#f1cd88"))
-    _text(canvas,Vector2(170,143),"Local market lots · purchased individually · proposed prices",
+    _text(canvas,Vector2(170,143),str(context["service_note"]),
         13,Color("#cbbba6"),618)
     _text(canvas,Vector2(173,161),"SUPPLIES",13,Color("#e6c18b"))
     var options: Array = context["offers"]

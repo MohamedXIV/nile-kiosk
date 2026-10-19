@@ -12,6 +12,7 @@ const Demand = preload("res://scripts/integration/customer_demand_config.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
 const CookingContent = preload("res://scripts/core/cooking_content.gd")
 const Sandwich = preload("res://scripts/gameplay/sandwich_play.gd")
+const SandwichService = preload("res://scripts/gameplay/sandwich_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const VISITS = "res://content/navigation/nile_kiosk_visit_spots.v1.json"
@@ -42,6 +43,7 @@ var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
 var tea_actions: Dictionary = {}
 var tea_reactions: Dictionary = {}
+var sandwich_reactions: Dictionary = {}
 var river_story_pack: Dictionary = {}
 var mahmoud_story_pack: Dictionary = {}
 var customer_memory: RefCounted = CustomerMemory.new()
@@ -60,6 +62,9 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     # and deliberately never gifts supplies or alters the clock.
     var sandwich_content: Dictionary = CookingContent.install(session.world)
     if not sandwich_content.get("ok",false): return sandwich_content
+    var sandwich_service: Dictionary = SandwichService.configure(session)
+    if not sandwich_service.get("ok",false): return sandwich_service
+    sandwich_reactions = sandwich_service["reactions"]
     var nav: Dictionary = session.configure_navigation(ROUTES)
     if not nav.get("ok", false): return nav
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
@@ -264,6 +269,15 @@ func service_near() -> Dictionary:
     var next: Dictionary = ServicePlay.next_action(session, "kiosk")
     if next.get("ok",false) and _tea_transition(next):
         return {"ok":false,"code":"HAND_ACTION_REQUIRED"}
+    # The P3 technique gesture must happen via F7. G may accept, deliver,
+    # quote or settle, but must never create a parallel auto-cooking job.
+    if next.get("ok",false) and str(next.get("kind","")).begins_with("cook."):
+        var recipe_id: String = str(next.get("payload",{}).get("recipe_id",""))
+        var job_id: String = str(next.get("payload",{}).get("job_id",""))
+        if recipe_id == Sandwich.RECIPE or (not job_id.is_empty() and \
+                session.world.cooking_view()["preparations"].get(job_id,{}).get("recipe_id","") == Sandwich.RECIPE):
+            return {"ok":false,"code":"SANDWICH_HAND_ACTION_REQUIRED",
+                "caption":"F7 · Prepare and turn the sandwich before serving"}
     var result: Dictionary = ServicePlay.perform_next(session, "kiosk")
     if result.get("ok",false) and result.get("kind","") == "order.deliver":
         var reply: Dictionary = customer_reaction()
@@ -273,6 +287,9 @@ func service_near() -> Dictionary:
     return result
 
 func customer_reaction() -> Dictionary:
+    # Real grade-specific sandwich feedback competes with the latest tea
+    # delivery solely by canonical P4 close time, never by a UI-owned event.
+    var sandwich_reply: Dictionary = SandwichService.reaction(session,sandwich_reactions)
     # A brief authored utterance projected from an actual P4 delivery and
     # verified P3 item quality. It expires naturally with world time; no
     # trust score, synthetic memory event, or dialogue-system authority.
@@ -284,15 +301,17 @@ func customer_reaction() -> Dictionary:
             continue
         if latest.is_empty() or int(order["closed_minute"]) > int(latest["closed_minute"]):
             latest = order
-    if latest.is_empty(): return {}
+    if latest.is_empty(): return sandwich_reply
+    if not sandwich_reply.is_empty() and int(sandwich_reply["closed_minute"]) >= int(latest["closed_minute"]):
+        return sandwich_reply
     var elapsed: int = int(v["world_minute"]) - int(latest["closed_minute"])
-    if elapsed < 0 or elapsed > 30: return {}
+    if elapsed < 0 or elapsed > 30: return sandwich_reply
     var npc_id: String = str(latest["npc_id"])
     if not tea_reactions.has(npc_id) or session.world.npc(npc_id).get("location_id","") != "kiosk":
-        return {}
+        return sandwich_reply
     var quality: Dictionary = session.world.prepared_quality(str(latest["item_id"]))
     if quality.is_empty() or not tea_reactions[npc_id].has(quality["grade"]):
-        return {}
+        return sandwich_reply
     return {"order_id":str(latest["order_id"]),"npc_id":npc_id,
         "item_id":str(latest["item_id"]),"grade":str(quality["grade"]),
         "line":str(tea_reactions[npc_id][quality["grade"]]),
@@ -764,6 +783,10 @@ func status() -> Dictionary:
         "last_quiet": last_quiet,
         "active_order": active.get("order_id",""),
         "order_status": active.get("status","none"),
+        "order_recipe": active.get("recipe_id",""),
+        "order_npc": active.get("npc_id",""),
+        "order_payment": active.get("payment_status","none"),
+        "sandwich_price":int(v["economy"]["prices"].get(Sandwich.RECIPE,0)),
         "npc_mahmoud": session.world.npc("mahmoud").get("location_id",""),
         "roof_access": session.world.can_access_unit("roof"),
         "flat_access": session.world.can_access_unit("flat")
