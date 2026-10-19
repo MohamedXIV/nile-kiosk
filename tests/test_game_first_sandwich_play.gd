@@ -2,6 +2,7 @@ extends SceneTree
 ## Gameplay acceptance: real starter P2 path, paid P5 offers, timed P3 steps,
 ## one item, save/replay and no phantom stock or duplicated results.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
+const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const SAVE = "user://nk-game-first-sandwich-play.json"
 var failures: Array[String] = []
 
@@ -19,6 +20,37 @@ func _initialize() -> void:
         quit(1)
 
 func _run() -> void:
+    # Real Godot Buttons, not painted/pointer hitboxes or fake world state.
+    var controls: Control = SandwichControls.new()
+    root.add_child(controls)
+    var offers: Array = [
+        {"ingredient_id":"bread","cost":120,"resolved":false},
+        {"ingredient_id":"liver","cost":1200,"resolved":true}
+    ]
+    var view: Dictionary = {"near":true,"offers":offers,
+        "cue":"Enter · Turn the liver now"}
+    controls.update_view(view,false,false,false)
+    check(controls.opener.visible,"nearby cooking opener must be visible")
+    controls.update_view(view,true,false,false)
+    check(not controls.opener.visible and controls.purchases[0].visible and
+        not controls.purchases[0].disabled,"open counter has clickable paid offer")
+    check(controls.purchases[1].disabled and controls.purchases[1].text=="BOUGHT",
+        "already purchased ingredient cannot be charged twice by clicking")
+    check(controls.action_button.text=="Turn liver" and
+        not controls.action_button.disabled,"native cooking action matches P3 turn")
+    var far: Dictionary = view.duplicate(true)
+    far["near"] = false
+    controls.update_view(far,true,false,false)
+    check(controls.purchases[0].disabled and controls.action_button.disabled,
+        "distant player cannot purchase or cook via pointer")
+    controls.update_view(view,true,true,false)
+    check(not controls.purchases[0].visible and not controls.action_button.visible,
+        "F7 pointer controls cannot overlap Ink conversations")
+    controls.update_view(view,true,false,true)
+    check(not controls.wait_button.visible and not controls.close_button.visible,
+        "F1 help hides competing pointer controls")
+    root.remove_child(controls)
+    controls.free()
     if FileAccess.file_exists(SAVE):
         DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE))
     var g: RefCounted = Game.new()
