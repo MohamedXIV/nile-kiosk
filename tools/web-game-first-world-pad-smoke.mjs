@@ -53,6 +53,8 @@ async function hold(x,y,durationMs){
   await page.mouse.down();
   await page.waitForTimeout(durationMs);
   await page.mouse.up();
+  // Let Godot process pointer release before changing devices to touch.
+  await page.waitForTimeout(120);
 }
 try{
   const base=process.argv[2]||"http://127.0.0.1:8765";
