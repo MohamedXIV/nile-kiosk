@@ -135,6 +135,11 @@ func _process_movement() -> void:
             var moved: Dictionary = game.move_screen(dx, dy)
             if moved.get("ok", false):
                 _animate_player_visual()
+                # Movement redraws don't issue debug status reports. Refresh
+                # the actual Godot opener at the canonical P2 near boundary.
+                if sandwich_buttons != null:
+                    sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                        story_open or story_pending,controls_open)
                 queue_redraw()
 
 func _process_clock() -> void:
@@ -145,6 +150,11 @@ func _process_clock() -> void:
             if soundscape != null:
                 var state: Dictionary = game.status()
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
+            # This is display-only: heat cues follow the actual P1 tick,
+            # without a UI-owned timer or extra simulation command.
+            if sandwich_buttons != null and sandwich_open:
+                sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                    story_open or story_pending,controls_open)
             queue_redraw()
 
 func _setup_physics() -> void:
