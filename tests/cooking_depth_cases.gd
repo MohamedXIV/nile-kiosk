@@ -73,7 +73,14 @@ func production_sandwich() -> void:
     var k: RefCounted=g.session.world
     var stock_before: Dictionary=k.cooking_view()["stock"]
     var money_before: int=k.balance_minor()
-    var conflict: RefCounted=fork(k.view())
+    # The production Game now installs the pack on boot. For a genuine
+    # *pre-install* conflict, bootstrap a pristine authored C0 world instead
+    # of trying to redefine green_pepper in the already-installed game.
+    var pristine: Dictionary=preload("res://scripts/integration/world_content_bootstrap.gd").from_file(
+        "res://content/world/nile_opening.v1.json",71)
+    check(pristine.get("ok",false),"pristine C0 preflight fixture")
+    if not pristine.get("ok",false): return
+    var conflict: RefCounted=pristine["candidate"]
     check(send(conflict,"conflict","ingredient.define",{"ingredient_id":"green_pepper","unit":"g"})["ok"],"existing content conflict fixture")
     var unchanged: String=JSON.stringify(conflict.view())
     check(not content.install(conflict).get("ok",false) and JSON.stringify(conflict.view())==unchanged,"whole-pack preflight prevents partial live installation")

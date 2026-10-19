@@ -10,6 +10,8 @@ const CustomerMemory = preload("res://scripts/gameplay/customer_memory_play.gd")
 const SocialVisitor = preload("res://scripts/gameplay/social_visitor_play.gd")
 const Demand = preload("res://scripts/integration/customer_demand_config.gd")
 const ServicePlay = preload("res://scripts/integration/kiosk_service_play.gd")
+const CookingContent = preload("res://scripts/core/cooking_content.gd")
+const Sandwich = preload("res://scripts/gameplay/sandwich_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
 const VISITS = "res://content/navigation/nile_kiosk_visit_spots.v1.json"
@@ -53,6 +55,11 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     if existing["code"] == "NEW_WORLD":
         var boot: Dictionary = session.bootstrap_from_content(CONTENT)
         if not boot.get("ok", false): return boot
+    # Register authored recipes and paid offers in the sole canonical world.
+    # Installer preflights/restores history, is idempotent on existing saves
+    # and deliberately never gifts supplies or alters the clock.
+    var sandwich_content: Dictionary = CookingContent.install(session.world)
+    if not sandwich_content.get("ok",false): return sandwich_content
     var nav: Dictionary = session.configure_navigation(ROUTES)
     if not nav.get("ok", false): return nav
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
@@ -632,6 +639,18 @@ func market_purchase() -> Dictionary:
 func market_decline() -> Dictionary:
     return procurement.resolve(session,room()=="kiosk" and position().distance_to(COUNTER)<=COUNTER_RADIUS,false,_id("market_decline"))
 
+func sandwich_offers() -> Array[Dictionary]:
+    return Sandwich.offers(session)
+
+func sandwich_context() -> Dictionary:
+    return Sandwich.context(session)
+
+func sandwich_purchase(index: int) -> Dictionary:
+    return Sandwich.purchase(session,index,_id("sandwich_purchase"))
+
+func sandwich_step() -> Dictionary:
+    return Sandwich.advance(session,_id("sandwich_step"))
+
 func save_game() -> Dictionary:
     return session.save()
 
@@ -679,6 +698,7 @@ func status() -> Dictionary:
         "memory_story_choices":session.ink_choices(customer_memory.session_id(session)) if memory_story_ready() else [],
         "referral_offer":customer_memory.referral(session),
         "leaves_stock":int(v["cooking"]["stock"].get("leaves",0)),
+        "sandwich":sandwich_context(),
         "supply_resolutions":v["economy"]["supply_resolutions"],
         "market_offer":procurement.view(session),
         "supplier_known":session.world.player_knows(CustomerMemory.FACT),
