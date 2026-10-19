@@ -55,6 +55,12 @@ func _button(text: String, area: Rect2, background: Color) -> Button:
     return b
 
 func _ready() -> void:
+    build()
+
+# Headless SceneTree tests may inspect this Control before the first frame
+# delivers NOTIFICATION_READY. Building twice must never duplicate Buttons.
+func build() -> void:
+    if opener != null: return
     size = Vector2(960,540)
     mouse_filter = Control.MOUSE_FILTER_IGNORE
     opener = _button("Open sandwich counter",Rect2(700,368,234,38),Color("#365e53"))
