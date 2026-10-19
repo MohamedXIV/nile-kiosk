@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "plan": {
+    "plan_id": "evening:salma:liver-sandwich",
+    "npc_id": "salma",
+    "venue_id": "kiosk",
+    "recipe_id": "liver_sandwich",
+    "route": "counter",
+    "first_minute": 1080,
+    "interval_minutes": 1440,
+    "wait_minutes": 120,
+    "chance_bp": 10000,
+    "experience_rule": {
+      "settled_bonus_bp": 0,
+      "abandoned_penalty_bp": 2500
+    }
+  }
+}
