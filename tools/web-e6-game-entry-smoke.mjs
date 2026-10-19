@@ -244,7 +244,13 @@ try {
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
   check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
+  // Respond to the NPC's brief, physically proximity-gated invitation
+  // immediately after delivery, before browser assertions consume time and
+  // the independent P1 schedule moves Mahmoud out of speaking distance.
+  // Both are real sequential keyboard inputs, not injected world state.
+  const npcStarted = (traces.E4_NPC_STARTED || []).length;
   await press("g");
+  await press("m");
   const deliveredTea = await until("E6_GAME_SERVE",3);
   check(deliveredTea.order_status === "delivered" && deliveredTea.ambient_line === "" &&
     deliveredTea.customer_reaction_npc === "mahmoud" &&
@@ -258,14 +264,9 @@ try {
     deliveredTea.mahmoud_invitation?.initiator_npc_id === "mahmoud" &&
     deliveredTea.mahmoud_invite_near && deliveredTea.mahmoud_story_phase === "",
     "Mahmoud didn't originate an optional proximity-gated call after HIS real delivery");
-  const npcLoading = (traces.E4_NPC_LOADING || []).length;
-  const npcStarted = (traces.E4_NPC_STARTED || []).length;
-  await press("m"); // The NPC initiated an offer; only the player's response opens Ink.
-  if ((traces.E4_NPC_LOADING || []).length > npcLoading) {
-    await until("E4_NPC_STARTED",npcStarted);
-  } else {
-    await until("E4_NPC_STARTED",npcStarted);
-  }
+  // Starting Ink remains opt-in; the actual invitation appeared because
+  // the player served real prepared tea and then chose to listen.
+  await until("E4_NPC_STARTED",npcStarted);
   await press("Enter");
   const npcLine = await until("E4_NPC_LINE");
   check(npcLine.mahmoud_story_phase === "running", "Mahmoud's real Ink line didn't commit");
