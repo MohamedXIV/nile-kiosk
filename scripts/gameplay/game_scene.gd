@@ -16,6 +16,7 @@ const PLAYER_TWEEN_SECONDS = 0.11 # Read-only visual easing; P2 owns the actual 
 const ISO_X = 1.36 # Current schematic 2:1 basis, not the unapproved V001 art projection.
 const ISO_Y = 0.68
 const PLAYFIELD = Rect2(100.0,114.0,760.0,238.0) # Reserve HUD, guidance and notices.
+const TOUCH_PLAYFIELD = Rect2(246.0,114.0,474.0,238.0) # Unobstructed center between touch columns.
 
 var game: RefCounted
 var initialized: bool = false
@@ -407,6 +408,8 @@ func _touch_move_now() -> void:
 func _touch_action(action: String) -> void:
     if not initialized: return
     if action == "toggle":
+        _frame_current_room()
+        _snap_player_visual()
         report("E6_TOUCH_TOGGLE")
         return
     if story_open or story_pending or controls_open or sandwich_open:
@@ -554,16 +557,17 @@ static func context_hint(state: Dictionary, exit_name: String,
 # Current schematic renderer: one authored projection, sized to the space
 # *between* the HUD and interaction notices. No room-specific magic offsets,
 # player-follow game state or migration of V001 sprite anchors is involved.
-static func frame_for_room(room_size: Vector2) -> Dictionary:
+static func frame_for_room(room_size: Vector2, pad_visible: bool = false) -> Dictionary:
     if not room_size.is_finite() or room_size.x <= 0.0 or room_size.y <= 0.0:
         return {}
+    var safe_area: Rect2 = TOUCH_PLAYFIELD if pad_visible else PLAYFIELD
     var ground_span: float = room_size.x + room_size.y
-    var zoom: float = minf(1.0,minf(PLAYFIELD.size.x / (ground_span * ISO_X),
-        PLAYFIELD.size.y / (ground_span * ISO_Y)))
+    var zoom: float = minf(1.0,minf(safe_area.size.x / (ground_span * ISO_X),
+        safe_area.size.y / (ground_span * ISO_Y)))
     var middle: Vector2 = room_size / 2.0
     var projected_middle := Vector2((middle.x-middle.y)*ISO_X,
         (middle.x+middle.y)*ISO_Y)
-    return {"zoom":zoom,"origin":PLAYFIELD.get_center() - projected_middle*zoom}
+    return {"zoom":zoom,"origin":safe_area.get_center() - projected_middle*zoom}
 
 static func project_in_frame(point: Vector2, frame: Dictionary) -> Vector2:
     return frame["origin"] + Vector2((point.x-point.y)*ISO_X,
@@ -571,7 +575,8 @@ static func project_in_frame(point: Vector2, frame: Dictionary) -> Vector2:
 
 func _frame_current_room() -> void:
     var dimensions: Dictionary = game.graph.rooms[game.room()]
-    visual_frame = frame_for_room(Vector2(dimensions["width"],dimensions["height"]))
+    visual_frame = frame_for_room(Vector2(dimensions["width"],dimensions["height"]),
+        touch_pad != null and touch_pad.mode_enabled)
 
 func _iso(point: Vector2) -> Vector2:
     return project_in_frame(point, visual_frame)
