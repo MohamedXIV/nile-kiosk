@@ -27,8 +27,8 @@ func _run() -> void:
     var touch: Control = WorldTouchControls.new()
     root.add_child(touch)
     touch.build() # SceneTree._initialize precedes the first READY frame.
-    check(touch.arrows.size()==8 and touch.actions.size()==5,
-        "on-screen traversal has eight real Godot directions and five world actions")
+    check(touch.arrows.size()==8 and touch.actions.size()==8 and touch.dialogue_buttons.size()==4,
+        "on-screen traversal has eight directions, eight world actions and four Ink controls")
     check(not touch.mode_enabled and not touch.arrows[0].visible,
         "on-screen pad is optional rather than covering the initial scene")
     # The compact 640px landscape browser maps logical 70px buttons to
@@ -67,9 +67,38 @@ func _run() -> void:
     check(touch.actions["serve"].visible and not touch.actions["serve"].disabled and
         touch.actions["shop"].text=="Close shop" and touch.actions["sleep"].disabled,
         "service is available only near the true kitchen counter")
-    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,true,false)
-    check(not touch.toggle.visible and not touch.actions["save"].visible,
-        "Ink conversation must not leak ordinary on-screen world actions")
+    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,true,false,
+        "",true,[{"option_id":"yes"},{"option_id":"no"}])
+    check(not touch.toggle.visible and not touch.actions["save"].visible and
+        touch.dialogue_buttons["choice_0"].visible and
+        touch.dialogue_buttons["choice_1"].visible and
+        not touch.dialogue_buttons["next"].visible and
+        touch.dialogue_buttons["leave"].visible,
+        "Ink choices must replace world controls and use real option IDs")
+    touch.update_view({"location":"kiosk"},false,true,true,false,"",true,[])
+    check(touch.dialogue_buttons["next"].visible and
+        not touch.dialogue_buttons["choice_0"].visible,
+        "Ink line without choices must allow touch continuation")
+    touch.update_view({"location":"kiosk"},false,true,true,true,"",true,[])
+    check(not touch.dialogue_buttons["next"].visible and
+        not touch.dialogue_buttons["leave"].visible,
+        "F1/F7 modal overlays must suppress all conversation controls")
+    check(WorldTouchControls.dialogue_target({"location":"kiosk",
+        "conversation_near":true,"mahmoud_invite_near":true},false)=="mahmoud" and
+        WorldTouchControls.dialogue_target({"location":"kiosk",
+        "conversation_near":true},false)=="neighbors" and
+        WorldTouchControls.dialogue_target({"location":"roof",
+        "mahmoud_invite_near":true},false).is_empty(),
+        "contextual talk must use canonical proximity instead of UI story flags")
+    touch.update_view({"location":"kiosk","tea_stage":"active","tea_action":"U"},
+        false,true,false,false,"neighbors")
+    check(touch.actions["tea"].visible and not touch.actions["tea"].disabled and
+        touch.actions["tea"].text=="Pour" and not touch.actions["talk"].disabled,
+        "real P3 pour action and nearby Ink talk should be touch-reachable")
+    touch.update_view({"location":"kiosk","tea_stage":"active","tea_action":"H"},
+        false,false,false,false,"")
+    check(touch.actions["tea"].disabled and touch.actions["talk"].disabled,
+        "tea/talk must not bypass physical counter or NPC proximity")
     root.remove_child(touch)
     touch.free()
     # Every authored floor corner must remain inside the visible playfield,
