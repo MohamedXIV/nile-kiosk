@@ -15,11 +15,16 @@ func view(session: RefCounted) -> Dictionary:
     var economy: Dictionary = session.world.economy_view()
     if not economy["supply_offers"].has(OFFER): return {}
     var offer: Dictionary = economy["supply_offers"][OFFER].duplicate(true)
-    # Same pure finite-lot calculation used by canonical command validation.
-    offer["remaining_stock"]=Supply.remaining(economy["supply_offers"],economy["supply_resolutions"],offer)
-    var status: String = Supply.availability(offer,int(session.world.view()["world_minute"]),true)
+    # Shared P5 day-aware finite lot and exact current-day resolution; the
+    # existing learned-contact route remains strictly one-shot as before.
+    var minute: int = int(session.world.view()["world_minute"])
+    offer["remaining_stock"]=Supply.remaining(economy["supply_offers"],
+        economy["supply_resolutions"],offer,minute)
+    var status: String = Supply.availability(offer,minute,true)
     if status.is_empty() and offer["remaining_stock"]<int(offer["quantity"]): status="SUPPLY_OUT_OF_STOCK"
-    offer["status"]=economy["supply_resolutions"].get(OFFER,{}).get("status","available" if status.is_empty() else status)
+    var receipt_key: String = Supply.receipt_id(OFFER,offer,economy["supply_resolutions"],minute)
+    offer["status"]=economy["supply_resolutions"].get(receipt_key,{}).get(
+        "status","available" if status.is_empty() else status)
     return offer
 func resolve(session: RefCounted, at_counter: bool, buy: bool, command_id: String) -> Dictionary:
     if not at_counter: return {"ok":false,"code":"NOT_AT_SUPPLY_COUNTER"}
