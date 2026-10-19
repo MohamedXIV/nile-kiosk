@@ -215,6 +215,12 @@ jobs:
           timeout 150s godot --headless --path . --script res://tests/test_game_first_sandwich_service.gd 2>&1 | tee /tmp/game-first-sandwich-service.log
           grep -q 'GAME FIRST SANDWICH SERVICE: PASS' /tmp/game-first-sandwich-service.log
           if grep -E '(SCRIPT ERROR:|Parse Error:|GAME FIRST SANDWICH SERVICE: FAIL)' /tmp/game-first-sandwich-service.log; then exit 1; fi
+      - name: Game-First daily public supplier restock, finite lots and save replay
+        run: |
+          set -o pipefail
+          timeout 150s godot --headless --path . --script res://tests/test_game_first_daily_supply.gd 2>&1 | tee /tmp/game-first-daily-supply.log
+          grep -q 'GAME FIRST DAILY SUPPLY: PASS' /tmp/game-first-daily-supply.log
+          if grep -E '(SCRIPT ERROR:|Parse Error:|GAME FIRST DAILY SUPPLY: FAIL)' /tmp/game-first-daily-supply.log; then exit 1; fi
       - name: Headless production game entry scene smoke
         run: |
           godot --headless --path . res://scenes/nile_kiosk_game.tscn --quit-after 20 2>&1 | tee /tmp/e6-scene.log
