@@ -173,8 +173,37 @@ try {
   check(paidAgain.money===4990 && paidAgain.order_payment==="settled" &&
     paidAgain.sandwich.item_id===finished.sandwich.item_id,
     "real paid sandwich replay lost P3 item or P5 money");
+
+  // Day-2 market: genuinely move P1 world clock across midnight. The six
+  // public supplier lots must reopen, and every repeat costs real P5 money.
+  let dayTwo=paidAgain;
+  while(dayTwo.minute<1440) dayTwo=await action("j","E6_GAME_WAIT");
+  check(dayTwo.sandwich.offers.length===6 &&
+    dayTwo.sandwich.offers.every(offer=>!offer.resolved),
+    "same six public lots did not reopen on the next canonical day");
+  const reopen=await action("F7","E6_SANDWICH_TOGGLE");
+  check(reopen.sandwich_visible && reopen.sandwich.near,
+    "player lost kitchen access after next-day travel through time");
+  for(let i=1;i<=6;i++) {
+    const fresh=await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
+    check(fresh.sandwich.offers[i-1].resolved,
+      "next-day market repeat didn't issue a second receipt for "+i);
+  }
+  const restocked=traces.E6_GAME_SANDWICH_PURCHASE.at(-1);
+  check(restocked.money===3430 && restocked.sandwich.stock.liver===700,
+    "next-day real market should debit 1560 and only add 400g liver");
+  const duplicate=await action("5","E6_GAME_SANDWICH_PURCHASE");
+  check(duplicate.money===3430 && duplicate.sandwich.stock.liver===700,
+    "same-day repeat key minted free or double-bought supplies");
+  await action("p","E6_GAME_SAVE");
+  await page.waitForTimeout(1700);
+  await page.reload({waitUntil:"load"});
+  const secondDayReplay=await until("E6_GAME_RESTORED",3);
+  check(secondDayReplay.money===3430 && secondDayReplay.sandwich.stock.liver===700 &&
+    secondDayReplay.sandwich.offers.every(offer=>offer.resolved),
+    "next-day P5 transactions or P3 stock did not survive hard reload");
   check(errors.length===0,"Godot browser script failures");
-  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid P5 stock, timed P3 turning, real Salma P4 delivery and 550 settlement, three hard reloads");
+  console.log("GAME_FIRST_SANDWICH_CHROMIUM_PASS: paid P5 stock, timed P3 turning, real Salma P4 delivery and 550 settlement, four hard reloads, including next-day paid replenishment");
 } finally {
   await context.close();
   await browser.close();
