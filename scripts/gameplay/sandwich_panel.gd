@@ -65,8 +65,7 @@ static func draw(canvas: CanvasItem, context: Dictionary) -> void:
             13,color,159)
         _text(canvas,Vector2(341,y),"%d%s" % [int(stock.get(item,0)),
             str(option.get("unit",""))],13,color,74)
-        _text(canvas,Vector2(415,y),"%d p %s" % [int(option["cost"]),
-            "bought" if purchased else ""],13,color,110)
+        _text(canvas,Vector2(401,y),"%d p" % int(option["cost"]),13,color,55)
     canvas.draw_rect(Rect2(534,158,264,155),Color("#273b3c"))
     _text(canvas,Vector2(551,179),str(context["phase_label"]).to_upper(),
         14,Color("#f0d19b"),226)
@@ -86,6 +85,6 @@ static func draw(canvas: CanvasItem, context: Dictionary) -> void:
     if not str(context["item_id"]).is_empty():
         _text(canvas,Vector2(177,387),"Last item: %s · %d/100 (verified timing)" % [
             context["grade"],context["score"]],13,Color("#d8bd8f"),600)
-    _text(canvas,Vector2(170,417),
-        "1–6 Buy · Enter Action · J Wait 5 min · P Save · F7/Esc Close",
-        14,Color("#e8bc75"),626)
+    _text(canvas,Vector2(174,445),
+        "Mouse/touch: use buttons · Keyboard: 1–6 Buy, Enter, J, P, F7/Esc",
+        12,Color("#e8bc75"),630)
