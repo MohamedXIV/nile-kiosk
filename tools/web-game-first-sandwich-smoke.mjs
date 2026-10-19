@@ -50,6 +50,18 @@ async function action(key, marker) {
   await press(key);
   return until(marker,index);
 }
+async function saveDurably() {
+  const marker="E6_GAME_SAVE_CONFIRMED";
+  const index=(traces[marker]||[]).length;
+  const saved=await action("p","E6_GAME_SAVE");
+  check(saved.save_storage_status==="pending" || saved.save_storage_status==="confirmed",
+    "Web save did not start browser durability verification");
+  const acknowledged=await until(marker,index);
+  check(acknowledged.save_storage_status==="confirmed" &&
+    acknowledged.save_storage_revision===saved.revision,
+    "IndexedDB confirmed a different P0 world revision");
+  return saved;
+}
 async function clickControl(x, y, marker) {
   const index=(traces[marker]||[]).length;
   // Godot's logical 960x540 viewport is aspect-fitted inside the
@@ -128,10 +140,9 @@ try {
   check(turned.sandwich.heat_state==="turned" &&
     turned.sandwich.heat_minutes===2,
     "post-turn other-side window not projected from P3");
-  const saved=await action("p","E6_GAME_SAVE");
+  const saved=await saveDurably();
   check(saved.sandwich.stage==="active" && saved.sandwich.step_index===1,
     "mid-pan save missing P3 state");
-  await page.waitForTimeout(1800);
   await page.reload({waitUntil:"load"});
   const restored=await until("E6_GAME_RESTORED");
   check(restored.location==="kiosk" && restored.money===4440 &&
@@ -160,8 +171,7 @@ try {
   const closedCounter=await clickControl(650,415,"E6_SANDWICH_TOGGLE");
   check(!closedCounter.sandwich_visible,
     "real Godot Close Button did not release the cooking overlay");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const completed=await until("E6_GAME_RESTORED",1);
   check(completed.sandwich.item_id===finished.sandwich.item_id &&
@@ -218,8 +228,7 @@ try {
   check((await action("e","E6_GAME_DOOR")).location==="kiosk",
     "cannot enter kiosk on day two");
   await moveDiagonal(520);
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const paidAgain=await until("E6_GAME_RESTORED",2);
   check(paidAgain.money===4990 && paidAgain.order_payment==="settled" &&
@@ -247,8 +256,7 @@ try {
   const duplicate=await action("5","E6_GAME_SANDWICH_PURCHASE");
   check(duplicate.money===3430 && duplicate.sandwich.stock.liver===700,
     "same-day repeat key minted free or double-bought supplies");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const secondDayReplay=await until("E6_GAME_RESTORED",3);
   check(secondDayReplay.money===3430 && secondDayReplay.sandwich.stock.liver===700 &&
@@ -288,8 +296,7 @@ try {
   const paidTwo=await action("g","E6_GAME_SERVE"); // Settle
   check(paidTwo.money===3980 && paidTwo.order_payment==="settled",
     "two-day cashflow must equal 6000 - 2*1560 + 2*550");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(2400);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const finalReplay=await until("E6_GAME_RESTORED",4);
   check(finalReplay.money===3980 && finalReplay.sandwich.stock.liver===600 &&
