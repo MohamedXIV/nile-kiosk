@@ -53,7 +53,7 @@ static func context(session: RefCounted) -> Dictionary:
             enough = false
     var result: Dictionary = {"near":near(session),"offers":offers(session),
         "stage":"","step_index":-1,"ready_in":0,"cue":"Enter · Begin a liver sandwich",
-        "item_id":"","grade":"","score":0,"stock":remaining,"can_start":enough,
+        "item_id":"","item_status":"","grade":"","score":0,"stock":remaining,"can_start":enough,
         "phase_label":"Stock the counter","heat_state":"idle","heat_minutes":0,
         "heat_caption":"Ingredients still need real market purchases" if not enough else
             "Ingredients ready · Enter to season"}
@@ -121,6 +121,7 @@ static func context(session: RefCounted) -> Dictionary:
     if not latest.is_empty():
         var quality: Dictionary = session.world.prepared_quality(str(latest["item_id"]))
         result["item_id"] = str(latest["item_id"])
+        result["item_status"] = str(latest["status"])
         result["grade"] = str(quality.get("grade",""))
         result["score"] = int(quality.get("score",0))
     # This is a P4 projection only; F7 still uses P3 and never accepts,
