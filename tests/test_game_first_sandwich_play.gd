@@ -23,11 +23,11 @@ func _run() -> void:
     # Real Godot Buttons, not painted/pointer hitboxes or fake world state.
     var controls: Control = SandwichControls.new()
     root.add_child(controls)
-    var offers: Array = [
+    var sample_offers: Array = [
         {"ingredient_id":"bread","cost":120,"resolved":false},
         {"ingredient_id":"liver","cost":1200,"resolved":true}
     ]
-    var view: Dictionary = {"near":true,"offers":offers,
+    var view: Dictionary = {"near":true,"offers":sample_offers,
         "cue":"Enter · Turn the liver now"}
     controls.update_view(view,false,false,false)
     check(controls.opener.visible,"nearby cooking opener must be visible")
