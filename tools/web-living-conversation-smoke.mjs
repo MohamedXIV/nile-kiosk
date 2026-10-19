@@ -108,7 +108,9 @@ try {
     check((await action('e','E6_GAME_DOOR')).location==='street','landing portal',last);
     await goX(197);check((await action('e','E6_GAME_DOOR')).location==='kiosk','street portal',last);
     await goX(117);await action('o','E6_GAME_OPEN');
-    s=await waitTo(1039);
+    // This authored remark lasts only until minute 1044; never use a J
+    // five-minute jump when approaching its first boundary.
+    s=await waitTo(1039,true);
     check(s.ambient_npc==='salma' && s.ambient_beat===0,'independent opening missing',s);
     await action('g','E6_GAME_SERVE');await action('g','E6_GAME_SERVE');
     await action('h','E6_GAME_TEA_HEAT');
