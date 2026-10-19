@@ -2,6 +2,7 @@ extends SceneTree
 ## E6/P0 acceptance: separate gameplay catalog, real portals, demand, service and disk replay.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const GameScene = preload("res://scripts/gameplay/game_scene.gd")
+const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
@@ -20,6 +21,41 @@ func check(value: bool, label: String) -> void:
     if not value: failures.append(label)
 
 func _run() -> void:
+    # Native Godot controls are input-only; their arrows never represent a
+    # second canonical character position or persisted movement state.
+    var touch: Control = WorldTouchControls.new()
+    root.add_child(touch)
+    touch.build() # SceneTree._initialize precedes the first READY frame.
+    check(touch.arrows.size()==8 and touch.actions.size()==5,
+        "on-screen traversal has eight real Godot directions and five world actions")
+    check(not touch.mode_enabled and not touch.arrows[0].visible,
+        "on-screen pad is optional rather than covering the initial scene")
+    touch._toggle()
+    touch.update_view({"location":"roof","kiosk_open":false},true,false,false,false)
+    check(touch.mode_enabled and touch.arrows[7].visible and
+        not touch.actions["door"].disabled and
+        touch.actions["sleep"].disabled==false and touch.actions["serve"].disabled,
+        "world buttons must be gated by actual room and nearby portal")
+    touch._direction_down(Vector2i(1,1))
+    check(touch.held_direction==Vector2i(1,1),
+        "holding SE produces the exact existing screen movement vector")
+    touch._direction_up(Vector2i(1,1))
+    check(touch.held_direction==Vector2i.ZERO,
+        "releasing movement must stop player input immediately")
+    touch._direction_down(Vector2i(-1,-1))
+    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,false,true)
+    check(touch.held_direction==Vector2i.ZERO and
+        not touch.arrows[0].visible and not touch.actions["serve"].visible,
+        "F7/help must hide and release held player controls")
+    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,false,false)
+    check(touch.actions["serve"].visible and not touch.actions["serve"].disabled and
+        touch.actions["shop"].text=="Close shop" and touch.actions["sleep"].disabled,
+        "service is available only near the true kitchen counter")
+    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,true,false)
+    check(not touch.toggle.visible and not touch.actions["save"].visible,
+        "Ink conversation must not leak ordinary on-screen world actions")
+    root.remove_child(touch)
+    touch.free()
     # Every authored floor corner must remain inside the visible playfield,
     # not beneath the header, tea strip or bottom action text. This camera
     # math is view-only and independent of the saved P2 actor location.
