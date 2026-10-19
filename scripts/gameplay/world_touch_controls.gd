@@ -8,9 +8,21 @@ var held_direction: Vector2i = Vector2i.ZERO
 var toggle: Button
 var arrows: Array[Button] = []
 var actions: Dictionary = {}
+var dialogue_buttons: Dictionary = {}
 
 static func controls_allowed(story_busy: bool, overlay_busy: bool) -> bool:
     return not story_busy and not overlay_busy
+
+# Prefer the closest authored opportunity already exposed by P2/P6.
+# Contextual text only; the scene rechecks before calling the original Ink entry.
+static func dialogue_target(state: Dictionary, salma_near: bool) -> String:
+    if str(state.get("location","")) != "kiosk": return ""
+    if state.get("mahmoud_invite_near",false): return "mahmoud"
+    if state.get("mona_visit_near",false): return "mona"
+    if state.get("memory_near",false): return "memory"
+    if salma_near and str(state.get("river_story_phase","")) != "finished": return "salma"
+    if state.get("conversation_near",false): return "neighbors"
+    return ""
 
 func _button(label: String, area: Rect2, tint: Color) -> Button:
     var result := Button.new()
@@ -69,7 +81,10 @@ func build() -> void:
         {"key":"serve","caption":"Serve","row":0,"col":1},
         {"key":"shop","caption":"Open/Close","row":1,"col":0},
         {"key":"sleep","caption":"Sleep","row":1,"col":1},
-        {"key":"save","caption":"Save","row":2,"col":0}
+        {"key":"save","caption":"Save","row":2,"col":0},
+        {"key":"talk","caption":"Talk","row":2,"col":1},
+        {"key":"wait","caption":"Wait 5m","row":3,"col":0},
+        {"key":"tea","caption":"Tea","row":3,"col":1}
     ]:
         var kind: String = spec["key"]
         var position: Vector2 = Vector2(728+int(spec["col"])*114,124+int(spec["row"])*75)
@@ -78,6 +93,19 @@ func build() -> void:
         button.tooltip_text = "Use real world action: %s" % kind
         button.pressed.connect(_action_pressed.bind(kind))
         actions[kind] = button
+    # Conversational controls replace world actions without a separate Ink UI.
+    for spec in [
+        {"key":"next","label":"Continue","column":0},
+        {"key":"leave","label":"Leave","column":1},
+        {"key":"choice_0","label":"Reply 1","column":0},
+        {"key":"choice_1","label":"Reply 2","column":1}
+    ]:
+        var key: String = str(spec["key"])
+        var btn: Button = _button(str(spec["label"]),
+            Rect2(Vector2(728+int(spec["column"])*114,344),Vector2(104,68)),
+            Color("#425e68"))
+        btn.pressed.connect(_action_pressed.bind(key))
+        dialogue_buttons[key] = btn
     update_view({},false,false,false,false)
 
 func _toggle() -> void:
@@ -107,13 +135,22 @@ func _notification(what: int) -> void:
         release()
 
 func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
-        story_busy: bool, overlay_busy: bool) -> void:
+        story_busy: bool, overlay_busy: bool, talk_action: String = "",
+        conversation_open: bool = false, choices: Array = []) -> void:
     if toggle == null: return
     var allowed: bool = controls_allowed(story_busy,overlay_busy)
     toggle.visible = allowed
     toggle.text = "Hide pad" if mode_enabled else "On-screen"
     if not allowed: release()
     var showing: bool = mode_enabled and allowed
+    var showing_dialogue: bool = mode_enabled and conversation_open and not overlay_busy
+    for key in dialogue_buttons:
+        var btn: Button = dialogue_buttons[key]
+        btn.visible = showing_dialogue and (
+            (key == "next" and choices.is_empty()) or
+            (key == "leave") or
+            (key == "choice_0" and choices.size() > 0) or
+            (key == "choice_1" and choices.size() > 1))
     for arrow in arrows: arrow.visible = showing
     for kind in actions:
         var button: Button = actions[kind]
@@ -125,4 +162,13 @@ func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
                 button.disabled = state.get("location","") != "kiosk"
                 button.text = "Close shop" if state.get("kiosk_open",false) else "Open shop"
             "sleep": button.disabled = state.get("location","") != "roof"
-            "save": button.disabled = false
+            "save", "wait": button.disabled = false
+            "talk":
+                button.disabled = talk_action.is_empty()
+                # The nearby speaker is given in a tooltip; keep 104px targets legible.
+                button.text = "Talk"
+                button.tooltip_text = "Talk to " + talk_action if not talk_action.is_empty() else "No one near"
+            "tea":
+                var gesture: String = str(state.get("tea_action",""))
+                button.disabled = not counter_near or not (gesture in ["H","U"])
+                button.text = "Heat / Lift" if gesture == "H" else "Pour" if gesture == "U" else "Tea"

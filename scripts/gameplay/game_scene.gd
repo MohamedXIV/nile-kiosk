@@ -172,6 +172,8 @@ func _process_clock() -> void:
             if sandwich_buttons != null and sandwich_open:
                 sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
                     story_open or story_pending,controls_open)
+            if touch_pad != null and touch_pad.mode_enabled:
+                _sync_touch_pad(game.status())
             queue_redraw()
 
 func _setup_physics() -> void:
@@ -396,8 +398,13 @@ func _sync_touch_pad(state: Dictionary) -> void:
         portal_near = unit_id.is_empty() or game.session.world.can_access_unit(unit_id)
     var counter_near: bool = game.room() == "kiosk" and \
         game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
+    var salma: Dictionary = game.npc_pose("salma")
+    var near_salma: bool = game.river_story_available() and not salma.is_empty() and \
+        game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
+    var talk_action: String = WorldTouchControls.dialogue_target(state,near_salma)
     touch_pad.update_view(state,portal_near,counter_near,
-        story_open or story_pending,controls_open or sandwich_open)
+        story_open or story_pending,controls_open or sandwich_open,talk_action,
+        story_open,_story_choices(state) if story_open else [])
 
 func _touch_move_now() -> void:
     if not initialized or story_open or story_pending or controls_open or sandwich_open:
@@ -406,20 +413,66 @@ func _touch_move_now() -> void:
     _process_movement()
 
 func _touch_action(action: String) -> void:
-    if not initialized: return
+    if not initialized or touch_pad == null: return
+    # On-screen._toggle changes mode_enabled *before* emitting this callback.
+    # Process both opening and closing; only gate subsequent world actions.
     if action == "toggle":
         _frame_current_room()
         _snap_player_visual()
         report("E6_TOUCH_TOGGLE")
         return
-    if story_open or story_pending or controls_open or sandwich_open:
+    if not touch_pad.mode_enabled: return
+    if story_open and not controls_open and not sandwich_open:
+        var choices: Array = _story_choices(game.status())
+        match action:
+            "next":
+                if choices.is_empty(): _story_action("next")
+            "choice_0", "choice_1":
+                var index: int = 0 if action == "choice_0" else 1
+                if index < choices.size():
+                    _story_action("choose",str(choices[index]["option_id"]))
+            "leave": _dismiss_story()
         return
+    if story_pending or controls_open or sandwich_open: return
     match action:
         "door": _act("door")
         "serve": _act("serve")
         "shop": _act("close" if game.status()["kiosk_open"] else "open")
         "sleep": _act("sleep")
         "save": _act("save")
+        "wait": _act("wait")
+        "tea":
+            if game.room() == "kiosk" and game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS:
+                match str(game.status().get("tea_action","")):
+                    "H": _act("tea_heat")
+                    "U": _act("tea_pour")
+        "talk":
+            var salma: Dictionary = game.npc_pose("salma")
+            var near_salma: bool = game.river_story_available() and not salma.is_empty() and \
+                game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
+            match WorldTouchControls.dialogue_target(game.status(),near_salma):
+                "neighbors":
+                    story_id = game.conversation_id()
+                    _story_action("begin")
+                "memory":
+                    story_id = game.customer_memory.session_id(game.session)
+                    _story_action("begin")
+                "mona":
+                    story_id = MONA_STORY_ID
+                    _story_action("begin")
+                "mahmoud":
+                    story_id = Game.MAHMOUD_STORY_ID
+                    _story_action("begin")
+                "salma":
+                    story_id = Game.RIVER_STORY_ID
+                    _story_action("begin")
+
+func _dismiss_story() -> void:
+    story_open = false
+    story_pending = false
+    story_line = ""
+    notice = "You can return to the conversation later."
+    report("E4_STORY_DISMISS")
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
@@ -467,12 +520,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
                     var options: Array = _story_choices(game.status())
                     var index: int = 0 if event.keycode == KEY_1 else 1
                     if index < options.size(): _story_action("choose",str(options[index]["option_id"]))
-            KEY_ESCAPE:
-                story_open = false
-                story_pending = false
-                story_line = ""
-                notice = "You can return to the conversation later."
-                report("E4_STORY_DISMISS")
+            KEY_ESCAPE: _dismiss_story()
             KEY_P: _act("save")
         return
     match event.keycode:
