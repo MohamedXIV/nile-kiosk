@@ -14,7 +14,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E6_AUDIO|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E6_AUDIO|E6_HELP|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -453,6 +453,24 @@ try {
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
     morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
+  // Exercise F1 only AFTER timed P1/P4 social beats and all core journey
+  // assertions: a live-world help test must not alter scheduled-story timing.
+  // F1 is a view-only help overlay in the actual Chromium game canvas.
+  await press("F1");
+  const help = await until("E6_HELP_TOGGLE", 0);
+  check(help.help_visible && help.location === morningRestored.location &&
+    help.money === morningRestored.money, "controls overlay changed the player world");
+  const waitsBeforeHelp = (traces.E6_GAME_WAIT || []).length;
+  await press("j");
+  check((traces.E6_GAME_WAIT || []).length === waitsBeforeHelp,
+    "help overlay allowed an invisible player action");
+  await press("Escape");
+  const helpDismissed = await until("E6_HELP_TOGGLE", 1);
+  check(!helpDismissed.help_visible, "Esc did not dismiss help");
+  await press("F1"); const helpAgain = await until("E6_HELP_TOGGLE", 2);
+  check(helpAgain.help_visible, "F1 did not reopen help");
+  await press("F1"); const helpClosed = await until("E6_HELP_TOGGLE", 3);
+  check(!helpClosed.help_visible, "F1 did not close help");
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E4_NONBUYER_CHROMIUM_PASS: Mona independently visits without order, optional Ink speech learns P2 fact, choices and hard reload persist");

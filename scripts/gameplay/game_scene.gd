@@ -7,6 +7,7 @@ const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
+const PLAYER_TWEEN_SECONDS = 0.11 # Read-only visual easing; P2 owns the actual position.
 
 var game: RefCounted
 var initialized: bool = false
@@ -16,6 +17,9 @@ var minute_elapsed: float = 0.0
 var last_marker: String = ""
 var soundscape: Node
 var player_body: CharacterBody2D
+var player_visual_position: Vector2 = Vector2.ZERO
+var player_move_tween: Tween
+var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
 var story_pending: bool = false
@@ -34,6 +38,7 @@ func _boot() -> void:
         queue_redraw()
         return
     _setup_physics()
+    _snap_player_visual()
     soundscape = Ambient.new()
     add_child(soundscape)
     initialized = true
@@ -49,6 +54,7 @@ func report(marker: String) -> void:
     var diagnostic: Dictionary = game.status()
     diagnostic["dialogue_text"] = story_line
     diagnostic["dialogue_id"] = story_id
+    diagnostic["help_visible"] = controls_open
     diagnostic["sound_enabled"] = soundscape.enabled if soundscape != null else false
     if soundscape != null:
         soundscape.set_context(str(diagnostic["location"]),not str(diagnostic["tea_stage"]).is_empty(),int(diagnostic["hour"]) >= 18 or int(diagnostic["hour"]) < 6)
@@ -70,7 +76,9 @@ func _process(delta: float) -> void:
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
     minute_elapsed += minf(delta, 0.25)
-    if move_elapsed >= MOVE_INTERVAL:
+    if controls_open:
+        move_elapsed = 0.0
+    elif move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
         if (story_open or story_pending) and not story_id.begins_with("river_neighbors:"):
             move_elapsed = 0.0
@@ -85,7 +93,9 @@ func _process_movement() -> void:
         var intended: Vector2i = Game.screen_delta(dx,dy)
         if _player_move_clear(Vector2(intended)):
             var moved: Dictionary = game.move_screen(dx, dy)
-            if moved.get("ok", false): queue_redraw()
+            if moved.get("ok", false):
+                _animate_player_visual()
+                queue_redraw()
 
 func _process_clock() -> void:
     if minute_elapsed >= MINUTE_INTERVAL:
@@ -127,6 +137,28 @@ func _player_move_clear(delta: Vector2) -> bool:
     player_body.global_position = game.position()
     return not player_body.test_move(player_body.global_transform,delta)
 
+# View-only interpolation never participates in collision, proximity, navigation,
+# command IDs or persistence. Every target comes from the committed P2 position.
+func _visual_step(position: Vector2) -> void:
+    player_visual_position = position
+    queue_redraw()
+
+func _animate_player_visual() -> void:
+    if player_move_tween != null:
+        player_move_tween.kill()
+    player_move_tween = create_tween()
+    player_move_tween.set_trans(Tween.TRANS_SINE)
+    player_move_tween.set_ease(Tween.EASE_OUT)
+    player_move_tween.tween_method(_visual_step, player_visual_position,
+        game.position(), PLAYER_TWEEN_SECONDS)
+
+func _snap_player_visual() -> void:
+    if player_move_tween != null:
+        player_move_tween.kill()
+        player_move_tween = null
+    player_visual_position = game.position()
+    queue_redraw()
+
 func _act(kind: String) -> void:
     var result: Dictionary = {}
     match kind:
@@ -153,6 +185,7 @@ func _act(kind: String) -> void:
         "supply_buy": result = game.referral_purchase()
         "supply_decline": result = game.referral_decline()
     if result.get("ok", false):
+        if kind == "door": _snap_player_visual()
         notice = {
             "door":"You step into " + game.room() + ".",
             "talk":"You heard something by the kiosk.",
@@ -254,6 +287,15 @@ func _story_choices(state: Dictionary) -> Array:
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
+    if event.keycode == KEY_F1:
+        controls_open = not controls_open
+        report("E6_HELP_TOGGLE")
+        return
+    if controls_open:
+        if event.keycode == KEY_ESCAPE:
+            controls_open = false
+            report("E6_HELP_TOGGLE")
+        return
     if event.keycode == KEY_0:
         var sound_on: bool = soundscape.toggle_sound() if soundscape != null else false
         notice = "Ambient sound on." if sound_on else "Ambient sound off."
@@ -329,6 +371,36 @@ func _unhandled_key_input(event: InputEvent) -> void:
         KEY_R: _act("radio_listen")
         KEY_Y: _act("bed_store")
 
+# Hints read existing world/player proximity only. They do not grant access,
+# initiate actions, manufacture knowledge or become save/replay authority.
+static func context_hint(state: Dictionary, exit_name: String,
+        quiet_near: bool, counter_near: bool) -> String:
+    if str(state.get("location","")) == "kiosk":
+        if counter_near and not str(state.get("tea_stage","")).is_empty():
+            var action: String = str(state.get("tea_action",""))
+            var remaining: int = int(state.get("tea_ready_in",0))
+            return "%s · Tea ready in %d world min" % [action, remaining] if remaining > 0 else \
+                "%s · %s tea step" % [action, "Finish" if state.get("tea_stage") == "active" else "Start"]
+        if state.get("conversation_near",false):
+            return "T · Join the nearby conversation"
+        if counter_near and not str(state.get("active_order","")).is_empty():
+            return "G · Continue the customer order"
+    if not exit_name.is_empty():
+        return "E · Go to " + exit_name
+    if quiet_near:
+        return "Q · Take a quiet moment"
+    if str(state.get("location","")) == "roof":
+        if state.get("bed_placed",false):
+            return "Z · Rest at home"
+        if state.get("radio_placed",false):
+            return "R · Listen to your radio"
+    if str(state.get("location","")) == "kiosk":
+        if not state.get("kiosk_open",false):
+            return "O · Open the kiosk when ready"
+        if counter_near:
+            return "J · Let a little time pass"
+    return "WASD · Explore    F1 · Controls"
+
 func _iso(point: Vector2) -> Vector2:
     # Deliberately temporary schematic 2:1 layout, NOT production sprite projection.
     return Vector2(480.0 + (point.x-point.y)*1.36, 126.0 + (point.x+point.y)*0.68)
@@ -341,8 +413,9 @@ func _floor_polygon(from_point: Vector2, to_point: Vector2) -> PackedVector2Arra
         _iso(Vector2(from_point.x,to_point.y))
     ])
 
-func _text(p: Vector2, line: String, size: int = 16, color: Color = Color("#eadfc4")) -> void:
-    draw_string(ThemeDB.fallback_font,p,line,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
+func _text(p: Vector2, line: String, size: int = 16,
+        color: Color = Color("#eadfc4"), max_width: float = -1.0) -> void:
+    draw_string(ThemeDB.fallback_font,p,line,HORIZONTAL_ALIGNMENT_LEFT,max_width,size,color)
 
 func _need(at: Vector2, name: String, value: int, color: Color) -> void:
     _text(at,name,13,Color("#d4c9b8"))
@@ -400,10 +473,14 @@ func _draw() -> void:
         draw_colored_polygon(_floor_polygon(Vector2(48,48),Vector2(104,100)),Color("#ac9078"))
         _text(_iso(Vector2(57,45))+Vector2(-10,-18),"Small apartment",12)
     # Authored quiet spots are world positions, not UI-owned activity state.
+    var quiet_near: bool = false
     for activity in game.quiet_activities():
         if activity["room_id"] != location: continue
         var center: Vector2 = _iso(Vector2(int(activity["x"]),int(activity["y"])))
         var reachable: bool = game.position().distance_to(Vector2(int(activity["x"]),int(activity["y"]))) <= int(activity["radius"])
+        if activity.get("requires_closed",false) and state["kiosk_open"]:
+            reachable = false
+        if reachable: quiet_near = true
         draw_circle(center,7,Color("#f0cb7f") if reachable else Color("#8b8c79"))
         _text(center + Vector2(-32,-17),"Q: " + str(activity["id"]).replace("_"," "),12,
             Color("#f3e1bb") if reachable else Color("#b8a89a"))
@@ -449,7 +526,7 @@ func _draw() -> void:
                 var left: float = clampf(npc_pos.x - 130.0,16.0,640.0)
                 draw_rect(Rect2(left,npc_pos.y-98.0,300.0,28.0),Color("#263a3d"))
                 _text(Vector2(left+9.0,npc_pos.y-79.0),speech,14,Color("#f0d6a2"))
-    _figure(game.position(),Color("#78a8b8"),"You")
+    _figure(player_visual_position,Color("#78a8b8"),"You")
     draw_rect(Rect2(0,0,960,64),Color("#172128"))
     _text(Vector2(24,28),"KIOSK ON THE NILE",22,Color("#efbd73"))
     _text(Vector2(480,27),"Day %d   %02d:%02d" % [state["day"],state["hour"],state["minute_of_hour"]],17)
@@ -462,6 +539,17 @@ func _draw() -> void:
     _text(Vector2(768,53),"0 Sound: " + ("On" if soundscape != null and soundscape.enabled else "Off"),13,Color("#d2b98c"))
     var counter_near: bool = location == "kiosk" and game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
     var portal_near: Dictionary = game.nearest_portal()
+    var exit_name: String = ""
+    if not portal_near.is_empty():
+        var unit_id: String = str(portal_near["unit_id"])
+        if unit_id.is_empty() or game.session.world.can_access_unit(unit_id):
+            exit_name = str(portal_near["to"])
+    if not story_open and not story_pending:
+        # One high-value hint instead of another pile of simultaneous callouts.
+        draw_rect(Rect2(24,370,640,37),Color("#20343a"))
+        draw_rect(Rect2(24,370,4,37),Color("#e8bc75"))
+        _text(Vector2(38,394),"NEARBY   " + context_hint(state,exit_name,quiet_near,counter_near),
+            16,Color("#f3e2bf"),605)
     if location == "kiosk" and not state["tea_stage"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
         var guidance: String = "Tea · %s: %s" % [state["tea_action"],
@@ -474,7 +562,7 @@ func _draw() -> void:
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
     var hints: PackedStringArray = PackedStringArray(["WASD Move", "J Wait", "P Save", "0 Sound"])
-    if not portal_near.is_empty(): hints.append("E " + str(portal_near["to"]))
+    if not exit_name.is_empty(): hints.append("E " + exit_name)
     if location == "kiosk":
         hints.append("O/C Open/Close")
         if counter_near:
@@ -523,3 +611,26 @@ func _draw() -> void:
             for i in range(mini(choices.size(),2)):
                 _text(Vector2(84,356+i*25),"%d · %s" % [i+1, str(choices[i]["text"])],16,Color("#ddbb7f"))
             _text(Vector2(610,411),"Esc · Leave   P · Save",13,Color("#ddbb7f"))
+    if controls_open:
+        # Built-in draw primitives form an intentionally provisional overlay;
+        # later approved visual assets can replace presentation independently.
+        draw_rect(Rect2(0,64,960,383),Color(0.03,0.055,0.065,0.94))
+        draw_rect(Rect2(140,86,680,344),Color("#1c3035"))
+        draw_rect(Rect2(140,86,680,4),Color("#e8bc75"))
+        _text(Vector2(168,128),"A QUIET DAY · CONTROLS",23,Color("#f3d59a"))
+        _text(Vector2(168,155),"Actions work only in the right place. World time keeps moving.",
+            14,Color("#d8c8b2"),635)
+        var guide: PackedStringArray = PackedStringArray([
+            "WASD / Arrows    Walk                  E    Nearby doorway",
+            "O / C    Open / close kiosk        J    Wait five minutes",
+            "G    Serve at counter               H / U    Prepare tea",
+            "K    Prepare / eat bread             Z    Sleep at home",
+            "Q    Quiet moment                     T / Y    Bed (roof)",
+            "B / V / X / R    Radio: buy, place, store, listen",
+            "T / N / M / L / F2    Nearby conversations",
+            "F5 / F6    Market        F3 / F4    Supplier delivery",
+            "P    Save game                         0    Ambient sound"
+        ])
+        for i in range(guide.size()):
+            _text(Vector2(168,194+i*22),guide[i],15,Color("#f1e2cd"),635)
+        _text(Vector2(168,410),"F1 or Esc · Back to the evening",15,Color("#edc27d"))

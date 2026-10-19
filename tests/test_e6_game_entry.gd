@@ -1,6 +1,7 @@
 extends SceneTree
 ## E6/P0 acceptance: separate gameplay catalog, real portals, demand, service and disk replay.
 const Game = preload("res://scripts/gameplay/game_entry.gd")
+const GameScene = preload("res://scripts/gameplay/game_scene.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
@@ -19,6 +20,24 @@ func check(value: bool, label: String) -> void:
     if not value: failures.append(label)
 
 func _run() -> void:
+    # Game-first prompts are pure presentation of canonical facts; they do
+    # not invent actions, move actors or alter the world to display guidance.
+    check(GameScene.context_hint({"location":"kiosk","tea_stage":"active",
+        "tea_action":"H","tea_ready_in":2},"landing",false,true) ==
+        "H · Tea ready in 2 world min","active tea should outrank an exit")
+    check(GameScene.context_hint({"location":"kiosk","conversation_near":true},
+        "",false,true) == "T · Join the nearby conversation",
+        "visible living talk should take precedence over idle service")
+    check(GameScene.context_hint({"location":"landing"},"roof",false,false) ==
+        "E · Go to roof","nearby accessible doorway should be discoverable")
+    check(GameScene.context_hint({"location":"roof","bed_placed":true},"",
+        true,false) == "Q · Take a quiet moment",
+        "actual quiet spot should be more contextual than generic sleep")
+    check(GameScene.context_hint({"location":"roof","bed_placed":true},"",
+        false,false) == "Z · Rest at home","owned placed bed should suggest rest")
+    check(GameScene.context_hint({"location":"kiosk","kiosk_open":false},"",
+        false,false) == "O · Open the kiosk when ready",
+        "closed kiosk should suggest voluntary opening")
     for path in [SAVE, SAVE+".tmp"]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
