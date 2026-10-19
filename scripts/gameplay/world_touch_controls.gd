@@ -165,14 +165,10 @@ func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
             "save", "wait": button.disabled = false
             "talk":
                 button.disabled = talk_action.is_empty()
-                button.text = "Talk" if talk_action.is_empty() else "Talk: " + {
-                    "mahmoud":"Mahmoud","mona":"Mona","memory":"Memory",
-                    "salma":"Salma","neighbors":"Group"
-                }.get(talk_action,"Talk")
-                # Specific names belong in tooltip; keep text within 104px.
-                button.text = "Talk" if not talk_action.is_empty() else "Talk"
+                # The nearby speaker is given in a tooltip; keep 104px targets legible.
+                button.text = "Talk"
                 button.tooltip_text = "Talk to " + talk_action if not talk_action.is_empty() else "No one near"
             "tea":
                 var gesture: String = str(state.get("tea_action",""))
-                button.disabled = not counter_near or not gesture in ["H","U"]
+                button.disabled = not counter_near or not (gesture in ["H","U"])
                 button.text = "Heat / Lift" if gesture == "H" else "Pour" if gesture == "U" else "Tea"
