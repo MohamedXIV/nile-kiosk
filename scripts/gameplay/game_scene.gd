@@ -4,6 +4,7 @@ extends Node2D
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
+const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
@@ -694,27 +695,4 @@ func _draw() -> void:
             _text(Vector2(168,194+i*22),guide[i],15,Color("#f1e2cd"),635)
         _text(Vector2(168,415),"F1 or Esc · Back to the evening",15,Color("#edc27d"))
     if sandwich_open:
-        # Display only: P5 supply receipts and P3 steps/quality own all truth.
-        var sandwich: Dictionary = state["sandwich"]
-        draw_rect(Rect2(0,64,960,383),Color(0.03,0.055,0.065,0.95))
-        draw_rect(Rect2(146,83,668,350),Color("#1c3035"))
-        draw_rect(Rect2(146,83,668,4),Color("#e8bc75"))
-        _text(Vector2(170,119),"THE SANDWICH COUNTER",22,Color("#f1cd88"))
-        _text(Vector2(170,142),"Street-market supplies · paid individually · proposed prices",13,
-            Color("#cbbba6"),618)
-        var options: Array = sandwich["offers"]
-        for i in range(mini(6,options.size())):
-            var option: Dictionary = options[i]
-            var label_line: String = "%d  %s · %d units · %d piastres · %d min" % [
-                i+1,str(option["ingredient_id"]).replace("_"," "),int(option["quantity"]),
-                int(option["cost"]),int(option["minutes"])]
-            if option["resolved"]: label_line += "   [Purchased]"
-            _text(Vector2(170,169+i*24),label_line,15,
-                Color("#a5c4a9") if option["resolved"] else Color("#e9dac1"),618)
-        draw_rect(Rect2(165,317,632,77),Color("#263f40"))
-        _text(Vector2(177,340),str(sandwich["cue"]),17,Color("#f4daa2"),602)
-        if not str(sandwich["item_id"]).is_empty():
-            _text(Vector2(177,365),"Last sandwich: %s · %d/100" % [
-                sandwich["grade"],sandwich["score"]],15,Color("#b3d3bb"),602)
-        _text(Vector2(170,417),"1–6 Buy    Enter Prepare / Turn / Finish    J Wait    P Save    F7 / Esc Close",
-            14,Color("#e8bc75"),625)
+        SandwichPanel.draw(self,state["sandwich"])
