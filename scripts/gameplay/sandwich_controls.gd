@@ -58,23 +58,39 @@ func _ready() -> void:
     size = Vector2(960,540)
     mouse_filter = Control.MOUSE_FILTER_IGNORE
     opener = _button("Open sandwich counter",Rect2(700,368,234,38),Color("#365e53"))
-    opener.pressed.connect(func() -> void: if on_toggle.is_valid(): on_toggle.call())
+    opener.pressed.connect(_toggle_pressed)
     for i in range(6):
-        var index: int = i
         var buy: Button = _button("Buy",Rect2(460,163+i*22,66,20),Color("#3c6156"))
         buy.tooltip_text = "Purchase real ingredient lot %d" % (i+1)
-        buy.pressed.connect(func() -> void:
-            if on_purchase.is_valid(): on_purchase.call(index))
+        buy.pressed.connect(_buy_pressed.bind(i))
         purchases.append(buy)
     action_button = _button("Start sandwich",Rect2(167,401,180,30),Color("#496c55"))
-    action_button.pressed.connect(func() -> void: if on_step.is_valid(): on_step.call())
+    action_button.pressed.connect(_step_pressed)
     wait_button = _button("Wait 5 min",Rect2(357,401,116,30),Color("#34515b"))
-    wait_button.pressed.connect(func() -> void: if on_wait.is_valid(): on_wait.call())
+    wait_button.pressed.connect(_wait_pressed)
     save_button = _button("Save",Rect2(485,401,90,30),Color("#34515b"))
-    save_button.pressed.connect(func() -> void: if on_save.is_valid(): on_save.call())
+    save_button.pressed.connect(_save_pressed)
     close_button = _button("Close",Rect2(587,401,118,30),Color("#5d4c45"))
-    close_button.pressed.connect(func() -> void: if on_close.is_valid(): on_close.call())
+    close_button.pressed.connect(_close_pressed)
     update_view({},false,true,false)
+
+func _toggle_pressed() -> void:
+    if on_toggle.is_valid(): on_toggle.call()
+
+func _buy_pressed(index: int) -> void:
+    if on_purchase.is_valid(): on_purchase.call(index)
+
+func _step_pressed() -> void:
+    if on_step.is_valid(): on_step.call()
+
+func _wait_pressed() -> void:
+    if on_wait.is_valid(): on_wait.call()
+
+func _save_pressed() -> void:
+    if on_save.is_valid(): on_save.call()
+
+func _close_pressed() -> void:
+    if on_close.is_valid(): on_close.call()
 
 func update_view(context: Dictionary, panel_open: bool, story_busy: bool,
         help_open: bool) -> void:
