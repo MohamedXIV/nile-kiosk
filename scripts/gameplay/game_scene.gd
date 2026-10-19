@@ -6,6 +6,7 @@ const Graph = preload("res://scripts/integration/room_traversal.gd")
 const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
+const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
@@ -29,6 +30,7 @@ var player_move_tween: Tween
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
 var sandwich_buttons: Control # Standard Godot Buttons, no UI-owned domain data.
+var touch_pad: Control # Optional pointer/touch input; no P2 state authority.
 var save_confirmation: RefCounted = WebSaveConfirmation.new() # Display-only; no save data.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
@@ -60,6 +62,10 @@ func _boot() -> void:
     sandwich_buttons.on_wait = Callable(self,"_ui_sandwich_wait")
     sandwich_buttons.on_save = Callable(self,"_ui_sandwich_save")
     sandwich_buttons.on_close = Callable(self,"_close_sandwich")
+    touch_pad = WorldTouchControls.new()
+    add_child(touch_pad)
+    touch_pad.on_move = Callable(self,"_touch_move_now")
+    touch_pad.on_action = Callable(self,"_touch_action")
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
@@ -93,6 +99,7 @@ func report(marker: String) -> void:
     if sandwich_buttons != null:
         sandwich_buttons.update_view(diagnostic["sandwich"],sandwich_open,
             story_open or story_pending,controls_open)
+    _sync_touch_pad(diagnostic)
     queue_redraw()
 
 func _process(delta: float) -> void:
@@ -129,6 +136,9 @@ func _process(delta: float) -> void:
 func _process_movement() -> void:
     var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
     var dy: int = int(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)) - int(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP))
+    if touch_pad != null and touch_pad.held_direction != Vector2i.ZERO:
+        dx = touch_pad.held_direction.x
+        dy = touch_pad.held_direction.y
     if dx != 0 or dy != 0:
         var intended: Vector2i = Game.screen_delta(dx,dy)
         if _player_move_clear(Vector2(intended)):
@@ -140,6 +150,8 @@ func _process_movement() -> void:
                 if sandwich_buttons != null:
                     sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
                         story_open or story_pending,controls_open)
+                if touch_pad != null and touch_pad.mode_enabled:
+                    _sync_touch_pad(game.status())
                 queue_redraw()
 
 func _process_clock() -> void:
@@ -369,6 +381,38 @@ func _ui_sandwich_wait() -> void:
 
 func _ui_sandwich_save() -> void:
     if sandwich_open and not story_open and not story_pending: _act("save")
+
+func _sync_touch_pad(state: Dictionary) -> void:
+    if touch_pad == null or not initialized: return
+    var portal: Dictionary = game.nearest_portal()
+    var portal_near: bool = false
+    if not portal.is_empty():
+        var unit_id: String = str(portal["unit_id"])
+        portal_near = unit_id.is_empty() or game.session.world.can_access_unit(unit_id)
+    var counter_near: bool = game.room() == "kiosk" and \
+        game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
+    touch_pad.update_view(state,portal_near,counter_near,
+        story_open or story_pending,controls_open or sandwich_open)
+
+func _touch_move_now() -> void:
+    if not initialized or story_open or story_pending or controls_open or sandwich_open:
+        return
+    move_elapsed = 0.0
+    _process_movement()
+
+func _touch_action(action: String) -> void:
+    if not initialized: return
+    if action == "toggle":
+        report("E6_TOUCH_TOGGLE")
+        return
+    if story_open or story_pending or controls_open or sandwich_open:
+        return
+    match action:
+        "door": _act("door")
+        "serve": _act("serve")
+        "shop": _act("close" if game.status()["kiosk_open"] else "open")
+        "sleep": _act("sleep")
+        "save": _act("save")
 
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
