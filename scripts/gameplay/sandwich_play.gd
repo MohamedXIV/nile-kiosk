@@ -39,9 +39,19 @@ static func active_job(session: RefCounted) -> Dictionary:
 static func context(session: RefCounted) -> Dictionary:
     var cooking: Dictionary = session.world.cooking_view()
     var job: Dictionary = active_job(session)
+    var required: Dictionary = cooking["recipes"][RECIPE]["total_inputs"]
+    var remaining: Dictionary = {}
+    var enough: bool = true
+    for ingredient_id in required:
+        remaining[ingredient_id] = int(cooking["stock"].get(ingredient_id,0))
+        if int(remaining[ingredient_id]) < int(required[ingredient_id]):
+            enough = false
     var result: Dictionary = {"near":near(session),"offers":offers(session),
         "stage":"","step_index":-1,"ready_in":0,"cue":"Enter · Begin a liver sandwich",
-        "item_id":"","grade":"","score":0}
+        "item_id":"","grade":"","score":0,"stock":remaining,"can_start":enough,
+        "phase_label":"Stock the counter","heat_state":"idle","heat_minutes":0,
+        "heat_caption":"Ingredients still need real market purchases" if not enough else
+            "Ingredients ready · Enter to season"}
     if not job.is_empty():
         var index: int = int(job["step_index"])
         var step: Dictionary = cooking["recipes"][RECIPE]["steps"][index]
@@ -49,7 +59,42 @@ static func context(session: RefCounted) -> Dictionary:
         result["stage"] = stage
         result["step_index"] = index
         result["job_id"] = str(job["job_id"])
-        result["ready_in"] = maxi(0,int(job["ready_minute"])-int(session.world.view()["world_minute"])) if stage == "active" else 0
+        var minute: int = int(session.world.view()["world_minute"])
+        result["ready_in"] = maxi(0,int(job["ready_minute"])-minute) if stage == "active" else 0
+        result["phase_label"] = ["Seasoning","Pan-searing","Assembly"][index]
+        result["heat_state"] = "inactive"
+        result["heat_caption"] = "Workstation clear · ready for the next gesture"
+        if stage == "interrupted":
+            result["heat_state"] = "paused"
+            result["heat_caption"] = "Preparation paused · resume the station"
+        elif stage == "waiting":
+            result["heat_caption"] = "Station ready · press Enter to begin"
+        elif index == 1:
+            var technique: Dictionary = step["technique"]
+            if job.has("step_action"):
+                result["heat_minutes"] = absi(int(job["ready_minute"])-minute)
+                result["heat_state"] = "turned" if minute <= int(job["ready_minute"]) else "second_face_late"
+                result["heat_caption"] = "Other side needs %d min" % result["heat_minutes"] if result["heat_state"] == "turned" else \
+                    "Second side left %d min too long" % result["heat_minutes"]
+            else:
+                var earliest: int = int(job["ready_minute"]) - int(step["work_minutes"]) + int(technique["earliest_minutes"])
+                var latest: int = int(job["ready_minute"])
+                if minute < earliest:
+                    result["heat_state"] = "warming"
+                    result["heat_minutes"] = earliest-minute
+                    result["heat_caption"] = "First side · wait %d min to turn" % result["heat_minutes"]
+                elif minute <= latest:
+                    result["heat_state"] = "turn_window"
+                    result["heat_minutes"] = latest-minute
+                    result["heat_caption"] = "Turn now · %d min left in the best window" % result["heat_minutes"]
+                else:
+                    result["heat_state"] = "overseared"
+                    result["heat_minutes"] = minute-latest
+                    result["heat_caption"] = "First side is %d min late · turn to finish" % result["heat_minutes"]
+        elif stage == "active":
+            result["heat_state"] = "working" if result["ready_in"] > 0 else "ready"
+            result["heat_caption"] = "Work in progress · %d min remaining" % result["ready_in"] if result["ready_in"] > 0 else \
+                "Ready for the next gesture"
         if stage == "interrupted":
             result["cue"] = "Enter · Resume preparation"
         elif stage == "waiting":
