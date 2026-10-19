@@ -146,6 +146,9 @@ try {
     finished.sandwich.score>=25 && finished.sandwich.score<100 &&
     ["okay","rough"].includes(finished.sandwich.grade),
     "timed real sandwich did not yield imperfect verified item quality");
+  const closedCounter=await clickControl(650,415,"E6_SANDWICH_TOGGLE");
+  check(!closedCounter.sandwich_visible,
+    "real Godot Close Button did not release the cooking overlay");
   await action("p","E6_GAME_SAVE");
   await page.waitForTimeout(1700);
   await page.reload({waitUntil:"load"});
