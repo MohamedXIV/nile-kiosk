@@ -8,7 +8,7 @@ const browser = await chromium.launch({
   args: ["--no-sandbox","--enable-webgl","--use-gl=angle",
     "--use-angle=swiftshader","--enable-unsafe-swiftshader"]
 });
-const context = await browser.newContext({viewport:{width:1100,height:760}});
+const context = await browser.newContext({viewport:{width:1100,height:760},hasTouch:true});
 const page = await context.newPage();
 const traces = {};
 const errors = [];
@@ -50,6 +50,40 @@ async function action(key, marker) {
   await press(key);
   return until(marker,index);
 }
+async function saveDurably() {
+  const marker="E6_GAME_SAVE_CONFIRMED";
+  const index=(traces[marker]||[]).length;
+  const saved=await action("p","E6_GAME_SAVE");
+  check(saved.save_storage_status==="pending" || saved.save_storage_status==="confirmed",
+    "Web save did not start browser durability verification");
+  const acknowledged=await until(marker,index);
+  check(acknowledged.save_storage_status==="confirmed" &&
+    acknowledged.save_storage_revision===saved.revision,
+    "IndexedDB confirmed a different P0 world revision");
+  return saved;
+}
+async function clickControl(x, y, marker, useTouch=false) {
+  const index=(traces[marker]||[]).length;
+  // Godot's logical 960x540 viewport is aspect-fitted inside the
+  // responsive browser canvas. Convert draw/UI coordinates to CSS pixels.
+  const canvas=page.locator("canvas").first();
+  const bounds=await canvas.evaluate(element => {
+    const r=element.getBoundingClientRect();
+    return {left:r.left,top:r.top,width:r.width,height:r.height};
+  });
+  const scale=Math.min(bounds.width/960,bounds.height/540);
+  const position={
+    x:(bounds.width-960*scale)/2+x*scale,
+    y:(bounds.height-540*scale)/2+y*scale
+  };
+  if(useTouch) {
+    // Real browser touchscreen event, not a synthesized Godot JS action.
+    await page.touchscreen.tap(bounds.left+position.x,bounds.top+position.y);
+  } else {
+    await canvas.click({position});
+  }
+  return until(marker,index);
+}
 try {
   const base=process.argv[2]||"http://127.0.0.1:8765";
   await page.goto(base+"/game/index.html",{waitUntil:"load",timeout:30000});
@@ -74,11 +108,13 @@ try {
   const kiosk=await action("e","E6_GAME_DOOR");
   check(kiosk.location==="kiosk","cannot reach real kiosk");
   await moveDiagonal(520);
-  opened=await action("F7","E6_SANDWICH_TOGGLE");
+  opened=await clickControl(812,387,"E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
-    "sandwich counter is not reachable");
+    "actual Godot Button failed to open reachable sandwich counter");
   for(let i=1;i<=6;i++) {
-    const bought=await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
+    const bought=i===1
+      ? await clickControl(494,174,"E6_GAME_SANDWICH_PURCHASE",true)
+      : await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
     check(bought.sandwich.offers[i-1].resolved,
       "real purchase missing for ingredient "+i);
   }
@@ -87,7 +123,7 @@ try {
   check(paid.sandwich.can_start && paid.sandwich.stock.liver===400 &&
     paid.sandwich.offers.every(offer=>offer.unit),
     "paid stock, units and recipe readiness must be drawn from P3");
-  let started=await action("Enter","E6_GAME_SANDWICH_STEP");
+  let started=await clickControl(251,415,"E6_GAME_SANDWICH_STEP");
   check(started.sandwich.stage==="waiting" && started.sandwich.step_index===0,
     "sandwich job not canonically started");
   let seasoned=await action("Enter","E6_GAME_SANDWICH_STEP");
@@ -99,20 +135,19 @@ try {
     "pan stage missing");
   check(pan.sandwich.heat_state==="warming" && pan.sandwich.heat_minutes===2,
     "pan illustration did not receive canonical lead-in timing");
-  await action("j","E6_GAME_WAIT"); // Five real minutes on first face.
+  await clickControl(414,414,"E6_GAME_WAIT"); // Godot Button, real P1 clock.
   const turnWindow=traces.E6_GAME_WAIT.at(-1);
   check(turnWindow.sandwich.heat_state==="turn_window",
     "pan did not show the real turn window");
-  const turned=await action("Enter","E6_GAME_SANDWICH_STEP");
+  const turned=await clickControl(251,414,"E6_GAME_SANDWICH_STEP");
   check(turned.sandwich.step_index===1 && turned.sandwich.stage==="active",
     "turn skipped or ended frying instead of changing same active step");
   check(turned.sandwich.heat_state==="turned" &&
     turned.sandwich.heat_minutes===2,
     "post-turn other-side window not projected from P3");
-  const saved=await action("p","E6_GAME_SAVE");
+  const saved=await saveDurably();
   check(saved.sandwich.stage==="active" && saved.sandwich.step_index===1,
     "mid-pan save missing P3 state");
-  await page.waitForTimeout(1800);
   await page.reload({waitUntil:"load"});
   const restored=await until("E6_GAME_RESTORED");
   check(restored.location==="kiosk" && restored.money===4440 &&
@@ -122,9 +157,9 @@ try {
   check(restored.sandwich.heat_state==="turned" &&
     restored.sandwich.heat_minutes===2,
     "visual turn readiness not reconstructed after hard browser reload");
-  opened=await action("F7","E6_SANDWICH_TOGGLE");
+  opened=await clickControl(810,385,"E6_SANDWICH_TOGGLE");
   check(opened.sandwich_visible && opened.sandwich.near,
-    "workstation not usable after reload");
+    "clickable workstation did not restore after browser hard reload");
   const overcooked=await action("j","E6_GAME_WAIT");
   check(overcooked.sandwich.heat_state==="second_face_late" &&
     overcooked.sandwich.heat_minutes>=3,
@@ -138,8 +173,10 @@ try {
     finished.sandwich.score>=25 && finished.sandwich.score<100 &&
     ["okay","rough"].includes(finished.sandwich.grade),
     "timed real sandwich did not yield imperfect verified item quality");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  const closedCounter=await clickControl(650,415,"E6_SANDWICH_TOGGLE");
+  check(!closedCounter.sandwich_visible,
+    "real Godot Close Button did not release the cooking overlay");
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const completed=await until("E6_GAME_RESTORED",1);
   check(completed.sandwich.item_id===finished.sandwich.item_id &&
@@ -196,8 +233,7 @@ try {
   check((await action("e","E6_GAME_DOOR")).location==="kiosk",
     "cannot enter kiosk on day two");
   await moveDiagonal(520);
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const paidAgain=await until("E6_GAME_RESTORED",2);
   check(paidAgain.money===4990 && paidAgain.order_payment==="settled" &&
@@ -211,7 +247,7 @@ try {
   check(dayTwo.sandwich.offers.length===6 &&
     dayTwo.sandwich.offers.every(offer=>!offer.resolved),
     "same six public lots did not reopen on the next canonical day");
-  const reopen=await action("F7","E6_SANDWICH_TOGGLE");
+  const reopen=await clickControl(810,385,"E6_SANDWICH_TOGGLE");
   check(reopen.sandwich_visible && reopen.sandwich.near,
     "player lost kitchen access after next-day travel through time");
   for(let i=1;i<=6;i++) {
@@ -225,8 +261,7 @@ try {
   const duplicate=await action("5","E6_GAME_SANDWICH_PURCHASE");
   check(duplicate.money===3430 && duplicate.sandwich.stock.liver===700,
     "same-day repeat key minted free or double-bought supplies");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(1700);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const secondDayReplay=await until("E6_GAME_RESTORED",3);
   check(secondDayReplay.money===3430 && secondDayReplay.sandwich.stock.liver===700 &&
@@ -266,8 +301,7 @@ try {
   const paidTwo=await action("g","E6_GAME_SERVE"); // Settle
   check(paidTwo.money===3980 && paidTwo.order_payment==="settled",
     "two-day cashflow must equal 6000 - 2*1560 + 2*550");
-  await action("p","E6_GAME_SAVE");
-  await page.waitForTimeout(2400);
+  await saveDurably();
   await page.reload({waitUntil:"load"});
   const finalReplay=await until("E6_GAME_RESTORED",4);
   check(finalReplay.money===3980 && finalReplay.sandwich.stock.liver===600 &&

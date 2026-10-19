@@ -5,6 +5,7 @@ const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
+const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
@@ -27,6 +28,7 @@ var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
 var player_move_tween: Tween
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
+var sandwich_buttons: Control # Standard Godot Buttons, no UI-owned domain data.
 var save_confirmation: RefCounted = WebSaveConfirmation.new() # Display-only; no save data.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
@@ -50,6 +52,14 @@ func _boot() -> void:
     _snap_player_visual()
     soundscape = Ambient.new()
     add_child(soundscape)
+    sandwich_buttons = SandwichControls.new()
+    add_child(sandwich_buttons)
+    sandwich_buttons.on_toggle = Callable(self,"_toggle_sandwich")
+    sandwich_buttons.on_purchase = Callable(self,"_buy_sandwich")
+    sandwich_buttons.on_step = Callable(self,"_ui_sandwich_step")
+    sandwich_buttons.on_wait = Callable(self,"_ui_sandwich_wait")
+    sandwich_buttons.on_save = Callable(self,"_ui_sandwich_save")
+    sandwich_buttons.on_close = Callable(self,"_close_sandwich")
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
@@ -80,6 +90,9 @@ func report(marker: String) -> void:
         diagnostic["sound_room"] = soundscape.room_id
         diagnostic["sound_kettle"] = soundscape.kitchen_active
     print(marker + " " + JSON.stringify(diagnostic))
+    if sandwich_buttons != null:
+        sandwich_buttons.update_view(diagnostic["sandwich"],sandwich_open,
+            story_open or story_pending,controls_open)
     queue_redraw()
 
 func _process(delta: float) -> void:
@@ -122,6 +135,11 @@ func _process_movement() -> void:
             var moved: Dictionary = game.move_screen(dx, dy)
             if moved.get("ok", false):
                 _animate_player_visual()
+                # Movement redraws don't issue debug status reports. Refresh
+                # the actual Godot opener at the canonical P2 near boundary.
+                if sandwich_buttons != null:
+                    sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                        story_open or story_pending,controls_open)
                 queue_redraw()
 
 func _process_clock() -> void:
@@ -132,6 +150,11 @@ func _process_clock() -> void:
             if soundscape != null:
                 var state: Dictionary = game.status()
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
+            # This is display-only: heat cues follow the actual P1 tick,
+            # without a UI-owned timer or extra simulation command.
+            if sandwich_buttons != null and sandwich_open:
+                sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                    story_open or story_pending,controls_open)
             queue_redraw()
 
 func _setup_physics() -> void:
@@ -322,6 +345,31 @@ func _story_choices(state: Dictionary) -> Array:
     if story_id.begins_with("memory:"): return state["memory_story_choices"]
     return state["mona_story_choices"] if story_id == MONA_STORY_ID else (state["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else state["river_story_choices"])
 
+func _toggle_sandwich() -> void:
+    if story_open or story_pending or controls_open: return
+    sandwich_open = not sandwich_open
+    notice = "The sandwich counter is ready." if sandwich_open else "Back to the kiosk."
+    report("E6_SANDWICH_TOGGLE")
+
+func _close_sandwich() -> void:
+    if not sandwich_open: return
+    sandwich_open = false
+    notice = "Back to the kiosk."
+    report("E6_SANDWICH_TOGGLE")
+
+func _buy_sandwich(index: int) -> void:
+    if sandwich_open and not story_open and not story_pending:
+        _act("sandwich_purchase",index)
+
+func _ui_sandwich_step() -> void:
+    if sandwich_open and not story_open and not story_pending: _act("sandwich_step")
+
+func _ui_sandwich_wait() -> void:
+    if sandwich_open and not story_open and not story_pending: _act("wait")
+
+func _ui_sandwich_save() -> void:
+    if sandwich_open and not story_open and not story_pending: _act("save")
+
 func _unhandled_key_input(event: InputEvent) -> void:
     if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
         return
@@ -335,15 +383,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
             report("E6_HELP_TOGGLE")
         return
     if event.keycode == KEY_F7 and not (story_open or story_pending):
-        sandwich_open = not sandwich_open
-        notice = "The sandwich counter is ready." if sandwich_open else "Back to the kiosk."
-        report("E6_SANDWICH_TOGGLE")
+        _toggle_sandwich()
         return
     if sandwich_open:
         match event.keycode:
-            KEY_ESCAPE:
-                sandwich_open = false
-                report("E6_SANDWICH_TOGGLE")
+            KEY_ESCAPE: _close_sandwich()
             KEY_ENTER, KEY_KP_ENTER: _act("sandwich_step")
             KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
                 _act("sandwich_purchase",event.keycode - KEY_1)
