@@ -5,6 +5,7 @@ const Game = preload("res://scripts/gameplay/game_entry.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const Ambient = preload("res://scripts/gameplay/ambient_soundscape.gd")
 const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
+const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
@@ -26,6 +27,7 @@ var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
 var player_move_tween: Tween
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
+var save_confirmation: RefCounted = WebSaveConfirmation.new() # Display-only; no save data.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
 var story_pending: bool = false
@@ -63,6 +65,8 @@ func report(marker: String) -> void:
     diagnostic["dialogue_id"] = story_id
     diagnostic["help_visible"] = controls_open
     diagnostic["sandwich_visible"] = sandwich_open
+    diagnostic["save_storage_status"] = save_confirmation.status
+    diagnostic["save_storage_revision"] = save_confirmation.revision
     if not visual_frame.is_empty():
         diagnostic["view_zoom"] = visual_frame["zoom"]
         diagnostic["view_origin_x"] = visual_frame["origin"].x
@@ -80,6 +84,14 @@ func report(marker: String) -> void:
 
 func _process(delta: float) -> void:
     if not initialized: return
+    if save_confirmation.status == "pending":
+        match save_confirmation.poll():
+            "confirmed":
+                notice = "Saved in this browser (revision %d)." % save_confirmation.revision
+                report("E6_GAME_SAVE_CONFIRMED")
+            "unconfirmed":
+                notice = "Saved locally; browser persistence could not be confirmed."
+                report("E6_GAME_SAVE_UNCONFIRMED")
     if story_pending and (game.memory_story_ready() if story_id.begins_with("memory:") else game.session.ink_ready(story_id)):
         _story_action("begin")
     if story_open and story_id.begins_with("river_neighbors:") and not game.conversation.near(game.session,game.graph):
@@ -233,6 +245,11 @@ func _act(kind: String, offer_index: int = -1) -> void:
         }.get(kind, "Done")
     else:
         notice = str(result.get("caption",kind.capitalize() + ": " + str(result.get("code","UNKNOWN"))))
+    if kind == "save" and result.get("ok",false) and OS.has_feature("web"):
+        save_confirmation.begin(game.session.save_path, int(result["revision"]),
+            str(game.status()["digest"]))
+        notice = "Verifying the browser save..." if save_confirmation.status == "pending" else \
+            "Saved locally; browser persistence could not be confirmed."
     report("E6_GAME_" + kind.to_upper())
 
 func _story_action(kind: String, option_id: String = "") -> void:
