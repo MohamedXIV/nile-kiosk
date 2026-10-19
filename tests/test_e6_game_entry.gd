@@ -3,6 +3,7 @@ extends SceneTree
 const Game = preload("res://scripts/gameplay/game_entry.gd")
 const GameScene = preload("res://scripts/gameplay/game_scene.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
+const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
@@ -83,6 +84,45 @@ func _run() -> void:
     check(GameScene.frame_for_room(Vector2.ZERO).is_empty() and
         GameScene.frame_for_room(Vector2(-10,160)).is_empty(),
         "invalid room extents acquired a camera frame")
+    # Read-only guided day: zero synthetic objectives or saved completion.
+    var guide: Dictionary = NextStepGuide.describe({"location":"roof","minute":1020})
+    check(guide["phase"]=="head_to_shop","opening roof needs physical travel")
+    check(NextStepGuide.describe({"location":"kiosk","kiosk_open":false})["phase"]=="open_kiosk",
+        "closed shop must suggest actual opening")
+    check(NextStepGuide.describe({"location":"kiosk","kiosk_open":true,
+        "sandwich":{"can_start":false,"offers":[{"resolved":true},{"resolved":false}]}})["phase"]=="stock_counter",
+        "shop supply guidance must depend on real paid receipts")
+    var order: Dictionary = {"location":"kiosk","minute":1084,
+        "order_created_minute":1080,"order_recipe":"liver_sandwich",
+        "order_status":"offered","order_payment":"none","sandwich":{"can_start":true,
+            "item_status":"","stage":""}}
+    check(NextStepGuide.describe(order)["phase"]=="accept_order",
+        "authentic offered P4 order takes precedence over market hints")
+    order["order_status"]="accepted"
+    check(NextStepGuide.describe(order)["phase"]=="prepare_liver",
+        "accepted P4 sandwich needs the real P3 technique")
+    order["sandwich"]["stage"]="active"
+    order["sandwich"]["heat_caption"]="First side · turn now"
+    check(NextStepGuide.describe(order)["text"]=="First side · turn now",
+        "active P3 heat feedback should be projected without UI timers")
+    order["sandwich"]["stage"]=""
+    order["sandwich"]["item_status"]="ready"
+    check(NextStepGuide.describe(order)["phase"]=="deliver_order",
+        "already prepared genuine ready item must be served, not cooked again")
+    order["order_status"]="delivered"
+    check(NextStepGuide.describe(order)["phase"]=="collect_payment",
+        "delivered but unpaid P4 order must prompt real P5 settlement")
+    order["order_payment"]="settled"
+    order["kiosk_open"]=true
+    check(NextStepGuide.describe(order)["phase"]=="close_after_sale",
+        "P5 paid sale should lead into closing the real shop")
+    order["kiosk_open"]=false
+    order["location"]="roof"
+    check(NextStepGuide.describe(order)["phase"]=="sleep_after_sale",
+        "return home after a real sale should suggest P1 sleep")
+    order["minute"]=1920 # Next morning, old settled order remains in history.
+    check(NextStepGuide.describe(order)["phase"]=="head_to_shop",
+        "yesterday's settled order must not become an eternal tutorial flag")
     # Game-first prompts are pure presentation of canonical facts; they do
     # not invent actions, move actors or alter the world to display guidance.
     check(GameScene.context_hint({"location":"kiosk","tea_stage":"active",
