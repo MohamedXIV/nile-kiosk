@@ -26,7 +26,7 @@ static func action_label(context: Dictionary) -> String:
     return "Start sandwich"
 
 func _style(btn: Button, background: Color) -> void:
-    btn.add_theme_font_size_override("font_size",13)
+    btn.add_theme_font_size_override("font_size",16)
     btn.add_theme_color_override("font_color",Color("#f5e5c8"))
     btn.add_theme_color_override("font_hover_color",Color("#ffffff"))
     btn.add_theme_color_override("font_disabled_color",Color("#bfc5bf"))
@@ -63,20 +63,29 @@ func build() -> void:
     if opener != null: return
     size = Vector2(960,540)
     mouse_filter = Control.MOUSE_FILTER_IGNORE
-    opener = _button("Open sandwich counter",Rect2(700,368,234,38),Color("#365e53"))
+    # All actionable surfaces stay >= 68 logical px in compact landscape:
+    # 640x360 Web maps 70 logical px to ~46.7 physical CSS pixels.
+    # The opener lives below the guidance and away from the P10/P11 pad.
+    opener = _button("Sandwich counter",Rect2(366,455,228,70),Color("#365e53"))
     opener.pressed.connect(_toggle_pressed)
+    # Six honest P5 lots, arranged in two 3-row columns beside the pan.
+    # Every button remains attached to its original offer index.
     for i in range(6):
-        var buy: Button = _button("Buy",Rect2(460,163+i*22,66,20),Color("#3c6156"))
+        var column: int = int(i / 3)
+        var row: int = i % 3
+        var buy: Button = _button("BUY",
+            Rect2(204+column*300,153+row*78,104,70),Color("#3c6156"))
         buy.tooltip_text = "Purchase real ingredient lot %d" % (i+1)
         buy.pressed.connect(_buy_pressed.bind(i))
         purchases.append(buy)
-    action_button = _button("Start sandwich",Rect2(167,401,180,30),Color("#496c55"))
+    # Four full-sized controls occupy the bottom action bar, with no overlap.
+    action_button = _button("Start sandwich",Rect2(22,454,218,70),Color("#496c55"))
     action_button.pressed.connect(_step_pressed)
-    wait_button = _button("Wait 5 min",Rect2(357,401,116,30),Color("#34515b"))
+    wait_button = _button("Wait 5 min",Rect2(252,454,218,70),Color("#34515b"))
     wait_button.pressed.connect(_wait_pressed)
-    save_button = _button("Save",Rect2(485,401,90,30),Color("#34515b"))
+    save_button = _button("Save",Rect2(482,454,218,70),Color("#34515b"))
     save_button.pressed.connect(_save_pressed)
-    close_button = _button("Close",Rect2(587,401,118,30),Color("#5d4c45"))
+    close_button = _button("Close",Rect2(712,454,218,70),Color("#5d4c45"))
     close_button.pressed.connect(_close_pressed)
     update_view({},false,true,false)
 
