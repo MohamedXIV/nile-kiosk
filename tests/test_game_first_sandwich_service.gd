@@ -49,7 +49,7 @@ func _run() -> void:
     check(game.status()["money"]==starting_cash-1560,"all six lots debited")
     wait_until(game,1080)
     var orders: Dictionary = game.session.world.orders_view()["orders"]
-    var id: String = "demand:evening:salma:liver-sandwich:0"
+    var id: String = "demand:evening:salma:liver-sandwich:1"
     check(orders.has(id),"P4 scheduler emitted authentic Salma demand")
     if not orders.has(id): game.dispose();return
     check(orders[id]["status"]=="offered" and orders[id]["recipe_id"]=="liver_sandwich",
