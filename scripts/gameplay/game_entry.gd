@@ -3,6 +3,7 @@ extends RefCounted
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
+const TravelTime = preload("res://scripts/gameplay/travel_time_policy.gd")
 const Procurement = preload("res://scripts/gameplay/procurement_play.gd")
 const LivingConversation = preload("res://scripts/gameplay/living_conversation_play.gd")
 const TeaTechnique = preload("res://scripts/gameplay/tea_technique_play.gd")
@@ -15,6 +16,7 @@ const Sandwich = preload("res://scripts/gameplay/sandwich_play.gd")
 const SandwichService = preload("res://scripts/gameplay/sandwich_service_play.gd")
 const CONTENT = "res://content/world/nile_opening.v1.json"
 const ROUTES = "res://content/navigation/nile_opening_routes.v1.json"
+const COMMUTE = "res://content/navigation/nile_commute.v1.json"
 const VISITS = "res://content/navigation/nile_kiosk_visit_spots.v1.json"
 const WALKABLE = "res://content/navigation/nile_kiosk_walkable.v1.json"
 const DEMAND = "res://content/service/nile_opening_demand.v1.json"
@@ -38,6 +40,7 @@ var procurement: RefCounted = Procurement.new()
 var conversation: RefCounted = LivingConversation.new()
 var session: RefCounted
 var graph: RefCounted
+var travel_minutes: Dictionary = {}
 var quiet_captions: Dictionary = {}
 var radio_pack: Dictionary = {}
 var bed_pack: Dictionary = {}
@@ -70,6 +73,10 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var parsed: Dictionary = Graph.from_data(session.world.spatial_view()["graph"])
     if not parsed.get("ok", false): return parsed
     graph = parsed["graph"]
+    var time_policy: Dictionary = TravelTime.load_packaged(
+        COMMUTE,session.world.spatial_view()["graph"]["portals"])
+    if not time_policy.get("ok",false): return time_policy
+    travel_minutes = time_policy["durations"].duplicate(true)
     if not FileAccess.file_exists(VISITS):
         return {"ok":false,"code":"VISIT_SPOTS_NOT_FOUND"}
     var visit_data: Variant = JSON.parse_string(FileAccess.get_file_as_string(VISITS))
@@ -254,7 +261,25 @@ func nearest_portal() -> Dictionary:
 func travel_near() -> Dictionary:
     var portal: Dictionary = nearest_portal()
     if portal.is_empty(): return {"ok": false, "code": "NO_NEARBY_DOOR"}
-    return session.command(_id("travel"), "player", "spatial.player.travel", {"portal_id":portal["id"]})
+    var minutes: int = TravelTime.minutes_for(travel_minutes,str(portal["id"]))
+    # Check the P1 rate/overflow BEFORE committing the one-way P2 portal.
+    # Both effects are ordinary serial, replayable WorldKernel events.
+    var planned: Dictionary = TravelTime.preflight(session.world.view(),minutes)
+    if not planned.get("ok",false): return planned
+    var arrival: Dictionary = session.command(_id("travel"),"player",
+        "spatial.player.travel",{"portal_id":portal["id"]})
+    if not arrival.get("ok",false): return arrival
+    if minutes > 0:
+        var elapsed: Dictionary = session.advance(int(planned["steps"]),_id("commute"))
+        if not elapsed.get("ok",false):
+            # Should be unreachable after preflight with a healthy WorldKernel.
+            # Make an integrity failure conspicuous rather than lying about
+            # a completed 30-minute trip; never synthesize an arrival clock.
+            push_error("COMMUTE_CLOCK_REJECTED " + str(elapsed))
+            return {"ok":false,"code":"COMMUTE_CLOCK_REJECTED"}
+    arrival["travel_minutes"] = minutes
+    arrival["arrival_minute"] = int(session.world.view()["world_minute"])
+    return arrival
 
 func listen_near() -> Dictionary:
     return graph.overhear(session, position(), _id("listen"))
