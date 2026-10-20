@@ -792,6 +792,8 @@ func status() -> Dictionary:
         "mahmoud_invitation": mahmoud_invitation(),
         "mahmoud_invite_near": mahmoud_invite_near(),
         "mahmoud_story_phase": str(mahmoud_story_session().get("phase","")),
+        "mahmoud_story_deadline": int(mahmoud_story_session().get("reply_deadline_minute",-1)),
+        "mahmoud_story_outcome": str(mahmoud_story_session().get("outcome","")),
         "mahmoud_story_choices": session.ink_choices(MAHMOUD_STORY_ID) if session.ink_ready(MAHMOUD_STORY_ID) else [],
         "mona_visit_near": mona_visit_near(),
         "mona_story_phase": str(mona_story_session().get("phase","")),
