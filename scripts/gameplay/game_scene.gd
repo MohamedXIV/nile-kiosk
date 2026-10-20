@@ -8,6 +8,7 @@ const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
+const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
 const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
@@ -37,6 +38,9 @@ var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
 var camera_visual_focus: Vector2 = Vector2.ZERO
 var camera_zoom: float = CAMERA_DEFAULT_ZOOM
 var camera_target_zoom: float = CAMERA_DEFAULT_ZOOM
+# Read-only projection cache, updated only after a canonical world change.
+# Never changes P2/Ink, saves, command IDs, or game domain state.
+var render_state: Dictionary = {}
 var pinch_points: Dictionary = {}
 var pinch_distance: float = 0.0
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
@@ -114,6 +118,7 @@ func report(marker: String) -> void:
         diagnostic["sound_room"] = soundscape.room_id
         diagnostic["sound_kettle"] = soundscape.kitchen_active
     print(marker + " " + JSON.stringify(diagnostic))
+    render_state = diagnostic
     if sandwich_buttons != null:
         sandwich_buttons.update_view(diagnostic["sandwich"],sandwich_open,
             story_open or story_pending,controls_open)
@@ -182,11 +187,12 @@ func _process_movement() -> void:
                 # Visual animation advances every rendered frame above.
                 # Movement redraws don't issue debug status reports. Refresh
                 # the actual Godot opener at the canonical P2 near boundary.
+                render_state = game.status()
                 if sandwich_buttons != null:
-                    sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                    sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
                         story_open or story_pending,controls_open)
                 if touch_pad != null and touch_pad.mode_enabled:
-                    _sync_touch_pad(game.status())
+                    _sync_touch_pad(render_state)
                 queue_redraw()
 
 func _process_clock() -> void:
@@ -194,16 +200,17 @@ func _process_clock() -> void:
         minute_elapsed = fmod(minute_elapsed, MINUTE_INTERVAL)
         var tick: Dictionary = game.wait_minutes(1)
         if tick.get("ok", false):
+            render_state = game.status()
             if soundscape != null:
-                var state: Dictionary = game.status()
+                var state: Dictionary = render_state
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
             # This is display-only: heat cues follow the actual P1 tick,
             # without a UI-owned timer or extra simulation command.
             if sandwich_buttons != null and sandwich_open:
-                sandwich_buttons.update_view(game.sandwich_context(),sandwich_open,
+                sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
                     story_open or story_pending,controls_open)
             if touch_pad != null and touch_pad.mode_enabled:
-                _sync_touch_pad(game.status())
+                _sync_touch_pad(render_state)
             queue_redraw()
 
 func _setup_physics() -> void:
@@ -463,7 +470,57 @@ func _sync_touch_pad(state: Dictionary) -> void:
     var talk_action: String = WorldTouchControls.dialogue_target(state,near_salma)
     touch_pad.update_view(state,portal_near,counter_near,
         story_open or story_pending,controls_open or sandwich_open,talk_action,
-        story_open,_story_choices(state) if story_open else [])
+        story_open,_story_choices(state) if story_open else [],
+        _context_actions(state))
+
+# Input-only read of authoritative P2 proximity, service and narrative state.
+# Called again on each press: a stale hint never grants a command.
+func _context_actions(state: Dictionary) -> Array[Dictionary]:
+    var portal: Dictionary = game.nearest_portal()
+    var destination: String = ""
+    if not portal.is_empty():
+        var unit_id: String = str(portal["unit_id"])
+        if unit_id.is_empty() or game.session.world.can_access_unit(unit_id):
+            destination = str(portal["to"])
+    var counter_near: bool = game.room() == "kiosk" and \
+        game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
+    var salma: Dictionary = game.npc_pose("salma")
+    var near_salma: bool = game.river_story_available() and not salma.is_empty() and \
+        game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
+    var target: String = WorldTouchControls.dialogue_target(state,near_salma)
+    var quiet_near: bool = false
+    for activity in game.quiet_activities():
+        if activity["room_id"] != game.room(): continue
+        if activity.get("requires_closed",false) and bool(state.get("kiosk_open",false)):
+            continue
+        if game.position().distance_to(Vector2(int(activity["x"]),int(activity["y"]))) <= int(activity["radius"]):
+            quiet_near = true
+            break
+    return Contextual.resolve(state,destination,counter_near,quiet_near,target,
+        bool(state.get("sandwich",{}).get("near",false)))
+
+func _begin_context_talk() -> void:
+    var state: Dictionary = game.status()
+    var salma: Dictionary = game.npc_pose("salma")
+    var near_salma: bool = game.river_story_available() and not salma.is_empty() and \
+        game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
+    match WorldTouchControls.dialogue_target(state,near_salma):
+        "neighbors": story_id = game.conversation_id()
+        "memory": story_id = game.customer_memory.session_id(game.session)
+        "mona": story_id = MONA_STORY_ID
+        "mahmoud": story_id = Game.MAHMOUD_STORY_ID
+        "salma": story_id = Game.RIVER_STORY_ID
+        _: return
+    _story_action("begin")
+
+func _context_action(index: int) -> void:
+    if story_open or story_pending or sandwich_open or controls_open: return
+    var choices: Array[Dictionary] = _context_actions(game.status())
+    if index < 0 or index >= choices.size(): return
+    var kind: String = str(choices[index]["kind"])
+    if kind == "talk": _begin_context_talk()
+    elif kind == "sandwich": _toggle_sandwich()
+    else: _act(kind)
 
 func _touch_move_now() -> void:
     if not initialized or story_open or story_pending or controls_open or sandwich_open:
@@ -480,6 +537,9 @@ func _touch_action(action: String) -> void:
         _snap_player_visual()
         report("E6_TOUCH_TOGGLE")
         return
+    if action == "menu":
+        report("E6_TOUCH_MENU")
+        return
     if not touch_pad.mode_enabled: return
     if story_open and not controls_open and not sandwich_open:
         var choices: Array = _story_choices(game.status())
@@ -494,37 +554,10 @@ func _touch_action(action: String) -> void:
         return
     if story_pending or controls_open or sandwich_open: return
     match action:
-        "door": _act("door")
-        "serve": _act("serve")
-        "shop": _act("close" if game.status()["kiosk_open"] else "open")
-        "sleep": _act("sleep")
+        "primary": _context_action(0)
+        "alternate": _context_action(1)
         "save": _act("save")
         "wait": _act("wait")
-        "tea":
-            if game.room() == "kiosk" and game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS:
-                match str(game.status().get("tea_action","")):
-                    "H": _act("tea_heat")
-                    "U": _act("tea_pour")
-        "talk":
-            var salma: Dictionary = game.npc_pose("salma")
-            var near_salma: bool = game.river_story_available() and not salma.is_empty() and \
-                game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
-            match WorldTouchControls.dialogue_target(game.status(),near_salma):
-                "neighbors":
-                    story_id = game.conversation_id()
-                    _story_action("begin")
-                "memory":
-                    story_id = game.customer_memory.session_id(game.session)
-                    _story_action("begin")
-                "mona":
-                    story_id = MONA_STORY_ID
-                    _story_action("begin")
-                "mahmoud":
-                    story_id = Game.MAHMOUD_STORY_ID
-                    _story_action("begin")
-                "salma":
-                    story_id = Game.RIVER_STORY_ID
-                    _story_action("begin")
 
 func _dismiss_story() -> void:
     story_open = false
@@ -609,8 +642,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
             var declined: Dictionary = game.mahmoud_story_decline()
             notice = "You let Mahmoud return to his evening." if declined.get("ok",false) else "Invitation: " + str(declined.get("code","UNKNOWN"))
             report("E4_NPC_DECLINED" if declined.get("ok",false) else "E4_NPC_REJECTED")
-        KEY_E: _act("door")
-        KEY_F: _act("talk")
+        KEY_E: _context_action(0)
+        KEY_F: _context_action(1)
         KEY_G: _act("serve")
         KEY_H: _act("tea_heat")
         KEY_U: _act("tea_pour")
@@ -734,7 +767,9 @@ func _draw() -> void:
     if not initialized:
         _text(Vector2(45,260),notice,20)
         return
-    var state: Dictionary = game.status()
+    # Never reconstruct/rehash the entire event-sourced world for every
+    # animation frame. Only P2 moves, P1 ticks and explicit actions refresh it.
+    var state: Dictionary = render_state if not render_state.is_empty() else game.status()
     var location: String = state["location"]
     var room: Dictionary = game.graph.rooms[location]
     var max_point: Vector2 = Vector2(room["width"],room["height"])
@@ -781,9 +816,10 @@ func _draw() -> void:
         if activity.get("requires_closed",false) and state["kiosk_open"]:
             reachable = false
         if reachable: quiet_near = true
-        draw_circle(center,7,Color("#f0cb7f") if reachable else Color("#8b8c79"))
-        _text(center + Vector2(-32,-17),"Q: " + str(activity["id"]).replace("_"," "),12,
-            Color("#f3e1bb") if reachable else Color("#b8a89a"))
+        if reachable:
+            draw_circle(center,7,Color("#f0cb7f"))
+            _text(center + Vector2(-32,-17),str(activity["id"]).replace("_"," "),12,
+                Color("#f3e1bb"))
     if location == "roof":
         var radio_spot: Dictionary = game.radio_pack.get("activity",{})
         if not radio_spot.is_empty():
@@ -844,16 +880,6 @@ func _draw() -> void:
         var unit_id: String = str(portal_near["unit_id"])
         if unit_id.is_empty() or game.session.world.can_access_unit(unit_id):
             exit_name = str(portal_near["to"])
-    if not story_open and not story_pending:
-        # Next-step and nearby guidance are independent read-only projections
-        # of the same P1–P5 world. No quest flags or HUD-driven progression.
-        draw_rect(Rect2(24,354,640,53),Color("#20343a"))
-        draw_rect(Rect2(24,354,4,53),Color("#e8bc75"))
-        var guide: Dictionary = NextStepGuide.describe(state)
-        _text(Vector2(38,375),"NEXT   " + str(guide["text"]),
-            14,Color("#f3d39a"),607)
-        _text(Vector2(38,396),"NEARBY   " + context_hint(state,exit_name,quiet_near,counter_near),
-            14,Color("#f3e2bf"),607)
     if location == "kiosk" and not state["tea_stage"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
         var guidance: String = "Tea · %s: %s" % [state["tea_action"],
@@ -865,36 +891,16 @@ func _draw() -> void:
         _text(Vector2(28,431),"Last tea: " + str(state["tea_quality"]) + " · timing stays with the prepared cup",17,Color("#f0d6a2"))
     draw_rect(Rect2(0,447,960,93),Color("#172128"))
     _text(Vector2(28,472),notice,17)
-    var hints: PackedStringArray = PackedStringArray(["WASD Move", "J Wait", "P Save", "0 Sound"])
-    if not exit_name.is_empty(): hints.append("E " + exit_name)
-    if location == "kiosk":
-        hints.append("O/C Open/Close")
-        if counter_near:
-            hints.append("F7 Sandwich")
-            hints.append("G Service")
-            hints.append("K Eat")
-            if not str(state["tea_stage"]).is_empty(): hints.append(str(state["tea_action"]) + " Tea")
-            elif not state["active_order"].is_empty(): hints.append("H/U Tea")
-        if state["conversation_near"]: hints.append("T Join conversation")
-    elif location == "roof":
-        hints.append("T Bed")
-        if state["radio_placed"]: hints.append("R Listen")
-        else: hints.append("B/V Radio")
-    _text(Vector2(28,500),"   ".join(hints),13,Color("#e2c18b"))
+    # Only nearby currently actionable verbs are shown. Save and audio
+    # remain utilities, not permanent world-interaction buttons.
+    var available: Array[Dictionary] = _context_actions(state)
+    var prompts: PackedStringArray = PackedStringArray()
+    for i in range(available.size()):
+        prompts.append(("%s  %s" % ["E" if i == 0 else "F",str(available[i]["label"])]))
+    if not prompts.is_empty():
+        _text(Vector2(28,502),"     ".join(prompts),16,Color("#e2c18b"),904)
     if not state["active_order"].is_empty():
         _text(Vector2(555,526),str(state["order_recipe"]).replace("_"," ") + " · " + str(state["order_status"]),14,Color("#d2b98c"))
-    if state["conversation_near"] and not story_open:
-        _text(Vector2(50,245),"T · Join Salma and Mahmoud (or keep working)",16,Color("#f0d8a8"))
-    if game.river_story_available() and state["river_story_phase"] != "finished" and location == "kiosk":
-        var salma: Dictionary = game.npc_pose("salma")
-        if not salma.is_empty() and game.position().distance_to(salma["position"]) <= Graph.RADIUS:
-            _text(Vector2(710,395),"N · Talk to Salma",15,Color("#f1ca80"))
-    if state["mahmoud_invite_near"] and state["mahmoud_story_phase"] != "finished" and not story_open:
-        _text(Vector2(690,369),"Mahmoud: A word?  M · Listen   I · Ignore",13,Color("#f1ca80"))
-    if state["mona_visit_near"] and state["mona_story_phase"] != "finished" and not story_open:
-        _text(Vector2(705,348),"L · Talk to Mona (social visit)",13,Color("#f1ca80"))
-    if state["memory_near"] and not story_open:
-        _text(Vector2(665,326),"F2 · Catch up with Mahmoud",14,Color("#f1ca80"))
     var market: Dictionary = state["market_offer"]
     if counter_near and not story_open and not state["conversation_near"] and state["tea_stage"].is_empty() and not market.is_empty():
         var buyable: bool = market["status"] == "available"
@@ -926,16 +932,15 @@ func _draw() -> void:
         _text(Vector2(168,155),"Actions work only in the right place. World time keeps moving.",
             14,Color("#d8c8b2"),635)
         var guide: PackedStringArray = PackedStringArray([
-            "WASD / Arrows    Walk                  E    Nearby doorway",
-            "O / C    Open / close kiosk        J    Wait five minutes",
-            "G    Serve at counter               H / U    Prepare tea",
-            "K    Prepare / eat bread             Z    Sleep at home",
-            "Q    Quiet moment                     T / Y    Bed (roof)",
-            "B / V / X / R    Radio: buy, place, store, listen",
-            "T / N / M / L / F2    Nearby conversations",
-            "F5 / F6    Market        F3 / F4    Supplier delivery",
-            "P    Save game                         0    Ambient sound",
-            "F7    Sandwich counter (kiosk; paid ingredients and preparation)"
+            "WASD / Arrows    Move around the isometric scene",
+            "E    Primary nearby action     F    Alternate nearby action",
+            "Mouse wheel / Pinch    Camera zoom",
+            "On-screen    Optional touch movement pad",
+            "Menu    Save and wait (touchscreen utility panel)",
+            "P    Save game     0    Toggle ambient sound",
+            "Only reachable actions appear. World time keeps moving.",
+            "Some early-game furniture/supplier shortcuts are still available",
+            "during the gameplay transition; they will join E/F in P1b."
         ])
         for i in range(guide.size()):
             _text(Vector2(168,194+i*22),guide[i],15,Color("#f1e2cd"),635)

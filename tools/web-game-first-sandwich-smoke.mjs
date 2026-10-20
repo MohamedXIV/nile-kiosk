@@ -165,8 +165,8 @@ try {
     restored.sandwich.stage==="active" && restored.sandwich.step_index===1 &&
     restored.sandwich.offers.every(offer=>offer.resolved),
     "hard Web reload lost paid stock/turn stage");
-  // The real P1 clock keeps ticking between turning and the durable save.
-  // Assert byte-equivalent saved cook timing, not a fabricated frozen 2m window.
+  // Actual P1 minutes can pass between turning and saving. Prove exact
+  // stored/restored timing, not an impossible frozen two-minute snapshot.
   check(restored.minute===saved.minute &&
     restored.sandwich.heat_state===saved.sandwich.heat_state &&
     restored.sandwich.heat_minutes===saved.sandwich.heat_minutes &&

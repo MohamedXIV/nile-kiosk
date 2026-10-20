@@ -47,6 +47,10 @@ async function touch(x,y,marker){
   await page.touchscreen.tap(loc.x,loc.y);
   return until(marker,index);
 }
+async function utility(kind, marker) {
+  await touch(720,490,"E6_TOUCH_MENU");
+  return touch(kind==="save"?785:897,257,marker);
+}
 async function hold(x,y,durationMs){
   const loc=await pixel(x,y);
   await page.mouse.move(loc.x,loc.y);
@@ -118,12 +122,10 @@ try{
   check(nearby.location==="kiosk"&&nearby.sandwich.near&&nearby.x>=95,
     "touch taps did not reach canonical P3 kitchen proximity");
   await touch(890,477,"E6_TOUCH_TOGGLE");
-  const opened=await touch(785,231,"E6_GAME_OPEN");
+  const opened=await touch(785,157,"E6_GAME_OPEN");
   check(opened.kiosk_open,"touch Open/Close did not call real E1 shop action");
-  const served=await touch(897,157,"E6_GAME_SERVE");
-  check(served.money===6000&&served.location==="kiosk",
-    "touch service action created unsupported player money");
-  const saved=await touch(785,306,"E6_GAME_SAVE");
+  // No phantom Serve button before a real customer order exists.
+  const saved=await utility("save","E6_GAME_SAVE");
   check(saved.save_storage_status==="pending"||saved.save_storage_status==="confirmed",
     "touch Save did not initiate canonical Web save verification");
   const ack=await until("E6_GAME_SAVE_CONFIRMED");
@@ -141,32 +143,32 @@ try{
   await touch(890,476,"E6_TOUCH_TOGGLE");
   let offer=replay;
   for(let i=0;i<8 && offer.order_status!=="offered";i++){
-    offer=await touch(785,383,"E6_GAME_WAIT");
+    offer=await utility("wait","E6_GAME_WAIT");
   }
   check(offer.order_status==="offered" && offer.order_recipe==="tea" &&
     offer.npc_mahmoud==="kiosk","touch Wait did not expose genuine P4 tea demand");
-  let accepted=await touch(897,158,"E6_GAME_SERVE");
+  let accepted=await touch(785,158,"E6_GAME_SERVE");
   check(accepted.order_status==="accepted","touch Serve did not accept real P4 order");
-  let tea=await touch(897,158,"E6_GAME_SERVE");
+  let tea=await touch(785,158,"E6_GAME_SERVE");
   check(tea.tea_stage==="waiting" && tea.tea_action==="H",
     "touch Serve failed to begin real P3 tea");
-  tea=await touch(897,383,"E6_GAME_TEA_HEAT");
+  tea=await touch(785,158,"E6_GAME_TEA_HEAT");
   check(tea.tea_stage==="active" && tea.tea_ready_in>0,
     "touch Heat bypassed canonical hot-kettle stage");
-  await touch(785,383,"E6_GAME_WAIT");
-  tea=await touch(897,383,"E6_GAME_TEA_HEAT");
+  await utility("wait","E6_GAME_WAIT");
+  tea=await touch(785,158,"E6_GAME_TEA_HEAT");
   check(tea.tea_action==="U","touch Lift did not advance genuine recipe");
-  tea=await touch(897,383,"E6_GAME_TEA_POUR");
+  tea=await touch(785,158,"E6_GAME_TEA_POUR");
   check(tea.tea_stage==="active","touch Pour did not begin real finishing step");
-  await touch(785,383,"E6_GAME_WAIT");
-  tea=await touch(897,383,"E6_GAME_TEA_POUR");
+  await utility("wait","E6_GAME_WAIT");
+  tea=await touch(785,158,"E6_GAME_TEA_POUR");
   check(tea.tea_stage==="" && tea.tea_quality_item,
     "touch tea did not finish an authentic prepared item");
-  const delivered=await touch(897,158,"E6_GAME_SERVE");
+  const delivered=await touch(785,158,"E6_GAME_SERVE");
   check(delivered.order_status==="delivered" && delivered.customer_reaction_npc==="mahmoud",
     "touch service did not deliver a canonical P3 item to P4 customer");
   check(delivered.mahmoud_invite_near,"touch player is outside real invitation range");
-  let conversation=await touch(897,308,"E4_NPC_STARTED");
+  let conversation=await touch(785,158,"E4_NPC_STARTED");
   check(conversation.mahmoud_story_phase==="" || conversation.mahmoud_story_phase==="running",
     "touch Talk did not open authored Ink");
   conversation=await touch(785,378,"E4_NPC_LINE");
@@ -184,7 +186,7 @@ try{
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
   check(errors.length===0,"Godot scripting errors");
-  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P10 landscape and IndexedDB; P11 touch-only P3 tea, P4 delivery, authored NPC Ink choice");
+  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P1 contextual E/F, utility Save/Wait and touch-only P3 tea, P4 delivery, authored NPC Ink choice");
 }finally{
   await context.close();
   await browser.close();

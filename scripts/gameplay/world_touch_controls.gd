@@ -9,6 +9,9 @@ var toggle: Button
 var arrows: Array[Button] = []
 var actions: Dictionary = {}
 var dialogue_buttons: Dictionary = {}
+var menu_button: Button
+var utility_buttons: Dictionary = {}
+var utility_open: bool = false
 
 static func controls_allowed(story_busy: bool, overlay_busy: bool) -> bool:
     return not story_busy and not overlay_busy
@@ -76,23 +79,32 @@ func build() -> void:
         b.button_down.connect(_direction_down.bind(directions[i]))
         b.button_up.connect(_direction_up.bind(directions[i]))
         arrows.append(b)
+    # Only two proximity-resolved actions: E primary, F alternate.
+    # No permanently visible wall of disabled world-command buttons.
     for spec in [
-        {"key":"door","caption":"Door","row":0,"col":0},
-        {"key":"serve","caption":"Serve","row":0,"col":1},
-        {"key":"shop","caption":"Open/Close","row":1,"col":0},
-        {"key":"sleep","caption":"Sleep","row":1,"col":1},
-        {"key":"save","caption":"Save","row":2,"col":0},
-        {"key":"talk","caption":"Talk","row":2,"col":1},
-        {"key":"wait","caption":"Wait 5m","row":3,"col":0},
-        {"key":"tea","caption":"Tea","row":3,"col":1}
+        {"kind":"primary","key":"E","column":0},
+        {"kind":"alternate","key":"F","column":1}
     ]:
-        var kind: String = spec["key"]
-        var position: Vector2 = Vector2(728+int(spec["col"])*114,124+int(spec["row"])*75)
-        var button: Button = _button(str(spec["caption"]),
+        var kind: String = str(spec["kind"])
+        var position := Vector2(728+int(spec["column"])*114,124)
+        var button: Button = _button(str(spec["key"]),
             Rect2(position,Vector2(104,68)),Color("#426251"))
-        button.tooltip_text = "Use real world action: %s" % kind
         button.pressed.connect(_action_pressed.bind(kind))
         actions[kind] = button
+    # Utilities are deliberately separate from nearby world actions.
+    # Save/Wait are reachable on phones without adding permanent world verbs.
+    menu_button = _button("Menu",Rect2(650,455,136,70),Color("#34515b"))
+    menu_button.pressed.connect(_utility_toggle)
+    for spec in [
+        {"kind":"save","label":"Save","column":0},
+        {"kind":"wait","label":"Wait 5m","column":1}
+    ]:
+        var kind: String = str(spec["kind"])
+        var button: Button = _button(str(spec["label"]),
+            Rect2(Vector2(728+int(spec["column"])*114,222),Vector2(104,68)),
+            Color("#34515b"))
+        button.pressed.connect(_utility_pressed.bind(kind))
+        utility_buttons[kind] = button
     # Conversational controls replace world actions without a separate Ink UI.
     for spec in [
         {"key":"next","label":"Continue","column":0},
@@ -110,6 +122,7 @@ func build() -> void:
 
 func _toggle() -> void:
     mode_enabled = not mode_enabled
+    utility_open = false
     held_direction = Vector2i.ZERO
     update_view({},false,false,false,false) # Scene sync supplies the real context.
     if on_action.is_valid(): on_action.call("toggle")
@@ -124,7 +137,18 @@ func _direction_up(direction: Vector2i) -> void:
         held_direction = Vector2i.ZERO
 
 func _action_pressed(kind: String) -> void:
-    if on_action.is_valid() and mode_enabled:
+    if on_action.is_valid() and mode_enabled and not utility_open:
+        on_action.call(kind)
+
+func _utility_toggle() -> void:
+    if not mode_enabled: return
+    utility_open = not utility_open
+    release()
+    if on_action.is_valid(): on_action.call("menu")
+
+func _utility_pressed(kind: String) -> void:
+    if on_action.is_valid() and mode_enabled and utility_open:
+        utility_open = false
         on_action.call(kind)
 
 func release() -> void:
@@ -134,9 +158,21 @@ func _notification(what: int) -> void:
     if what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
         release()
 
+# Existing call signature retains canonical P2/Ink inputs. The new final
+# parameter is the *read-only*, press-time-verified two-slot action list.
+static func touch_caption(kind: String) -> String:
+    return {
+        "door":"Door", "serve":"Serve","open":"Open","close":"Close",
+        "talk":"Talk", "tea_heat":"Heat / Lift", "tea_pour":"Pour",
+        "wait":"Wait 5m", "sleep":"Sleep", "sandwich":"Cook",
+        "quiet":"Quiet", "market_buy":"Buy leaves", "market_decline":"Decline",
+        "supply_buy":"Order leaves", "supply_decline":"Decline"
+    }.get(kind,"Interact")
+
 func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
         story_busy: bool, overlay_busy: bool, talk_action: String = "",
-        conversation_open: bool = false, choices: Array = []) -> void:
+        conversation_open: bool = false, choices: Array = [],
+        contextual: Array = []) -> void:
     if toggle == null: return
     var allowed: bool = controls_allowed(story_busy,overlay_busy)
     toggle.visible = allowed
@@ -144,6 +180,9 @@ func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
     if not allowed: release()
     var showing: bool = mode_enabled and allowed
     var showing_dialogue: bool = mode_enabled and conversation_open and not overlay_busy
+    menu_button.visible = showing
+    for kind in utility_buttons:
+        utility_buttons[kind].visible = showing and utility_open
     for key in dialogue_buttons:
         var btn: Button = dialogue_buttons[key]
         btn.visible = showing_dialogue and (
@@ -151,24 +190,13 @@ func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
             (key == "leave") or
             (key == "choice_0" and choices.size() > 0) or
             (key == "choice_1" and choices.size() > 1))
-    for arrow in arrows: arrow.visible = showing
-    for kind in actions:
-        var button: Button = actions[kind]
-        button.visible = showing
-        match kind:
-            "door": button.disabled = not portal_near
-            "serve": button.disabled = not counter_near
-            "shop":
-                button.disabled = state.get("location","") != "kiosk"
-                button.text = "Close shop" if state.get("kiosk_open",false) else "Open shop"
-            "sleep": button.disabled = state.get("location","") != "roof"
-            "save", "wait": button.disabled = false
-            "talk":
-                button.disabled = talk_action.is_empty()
-                # The nearby speaker is given in a tooltip; keep 104px targets legible.
-                button.text = "Talk"
-                button.tooltip_text = "Talk to " + talk_action if not talk_action.is_empty() else "No one near"
-            "tea":
-                var gesture: String = str(state.get("tea_action",""))
-                button.disabled = not counter_near or not (gesture in ["H","U"])
-                button.text = "Heat / Lift" if gesture == "H" else "Pour" if gesture == "U" else "Tea"
+    for arrow in arrows: arrow.visible = showing and not utility_open
+    for i in range(2):
+        var button: Button = actions["primary" if i == 0 else "alternate"]
+        button.visible = showing and not utility_open and i < contextual.size()
+        button.disabled = false
+        if i < contextual.size():
+            var action: Dictionary = contextual[i]
+            button.text = ("%s  %s" % ["E" if i==0 else "F",
+                touch_caption(str(action.get("kind","")))])
+            button.tooltip_text = str(action.get("label",""))

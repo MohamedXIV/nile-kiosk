@@ -116,7 +116,11 @@ try {
     await action('h','E6_GAME_TEA_HEAT');
     s=await waitTo(1049,true);
     check(s.ambient_npc==='mahmoud' && s.ambient_beat===1 && s.conversation_near,'actual exchange boundary missing',s);
-    s=await action('f','E6_GAME_TALK');check(!s.supplier_known && !s.conversation_fact_known,'generic listen bypassed authored information',s);
+    // P1 reassigns F to a genuine *secondary contextual* action, never
+    // the old remote generic overhear shortcut. Mere proximity and ambient
+    // NPC speech must not mint knowledge before authored Ink dialogue.
+    check(!s.supplier_known && !s.conversation_fact_known,
+      'ambient encounter bypassed authored information',s);
     if(outcome!=='ignore') {
       const startedCount=count('E4_CONVERSATION_STARTED');await page.keyboard.press('t');s=await until('E4_CONVERSATION_STARTED',startedCount);
       s=await action('Enter','E4_CONVERSATION_LINE');
