@@ -83,6 +83,33 @@ func _run() -> void:
         "order_status":"offered"},"",true,false,"",false)
     check(closed_ctx.size()==1 and closed_ctx[0]["kind"]=="open",
         "closed kiosk cannot expose unavailable P4 service")
+    # Regression from Chromium P1: Mahmoud's post-delivery invitation
+    # is brief and must survive an otherwise buyable market+decline pair.
+    var invitation_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,"tea_stage":"",
+        "active_order":"order:1","order_status":"delivered",
+        "market_offer":{"status":"available"},
+        "referral_offer":{"status":"available"}},
+        "",true,false,"mahmoud",true)
+    check(invitation_ctx.size()==2 and
+        invitation_ctx[0]["kind"]=="talk" and
+        invitation_ctx[1]["kind"]=="market_buy",
+        "nearby Mahmoud invitation must outrank passive market offers")
+    var open_market_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,
+        "market_offer":{"status":"available"}},"",true,false,"",true)
+    check(open_market_ctx.size()==2 and
+        open_market_ctx[0]["kind"]=="market_buy" and
+        open_market_ctx[1]["kind"]=="market_decline",
+        "without a nearby person, market purchase and decline stay available")
+    var live_tea_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,"tea_stage":"active",
+        "tea_action":"U","tea_ready_in":0,
+        "market_offer":{"status":"available"}},"",true,false,"mahmoud",true)
+    check(live_tea_ctx.size()==2 and
+        live_tea_ctx[0]["kind"]=="tea_pour" and
+        live_tea_ctx[1]["kind"]=="talk",
+        "active cooking and an in-range NPC both outrank market offers")
     var bed_ctx: Array[Dictionary] = Contextual.resolve({
         "location":"roof","bed_placed":true},"landing",false,false,"",false)
     check(bed_ctx.size()==2 and bed_ctx[0]["kind"]=="door" and
