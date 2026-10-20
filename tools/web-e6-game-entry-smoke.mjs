@@ -283,13 +283,10 @@ try {
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
   check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
-  // Respond to the NPC's brief, physically proximity-gated invitation
-  // immediately after delivery, before browser assertions consume time and
-  // the independent P1 schedule moves Mahmoud out of speaking distance.
-  // Both are real sequential keyboard inputs, not injected world state.
-  const npcStarted = (traces.E4_NPC_STARTED || []).length;
+  // Mahmoud initiates his own Ink greeting at genuine P4 delivery, without
+  // pressing M/Talk. Observe the real authoring/clock, not a fake dialogue.
+  const npcInitiatedIndex = (traces.E4_NPC_INITIATED || []).length;
   await press("g");
-  await press("m");
   const deliveredTea = await until("E6_GAME_SERVE",3);
   check(deliveredTea.order_status === "delivered" && deliveredTea.ambient_line === "" &&
     deliveredTea.customer_reaction_npc === "mahmoud" &&
@@ -301,18 +298,16 @@ try {
     "customer snapped back before he left the counter");
   check(deliveredTea.mahmoud_invitation?.source_event_id === deliveredTea.customer_reaction_event &&
     deliveredTea.mahmoud_invitation?.initiator_npc_id === "mahmoud" &&
-    deliveredTea.mahmoud_invite_near && deliveredTea.mahmoud_story_phase === "",
-    "Mahmoud didn't originate an optional proximity-gated call after HIS real delivery");
-  // Starting Ink remains opt-in; the actual invitation appeared because
-  // the player served real prepared tea and then chose to listen.
-  await until("E4_NPC_STARTED",npcStarted);
-  await press("Enter");
+    deliveredTea.mahmoud_invite_near,
+    "Mahmoud didn't originate a real proximity-gated call after HIS delivery");
+  const npcChoices = await until("E4_NPC_INITIATED",npcInitiatedIndex);
+  check(npcChoices.mahmoud_story_phase === "choice" &&
+    npcChoices.mahmoud_story_choices?.length === 2 &&
+    npcChoices.mahmoud_story_deadline > npcChoices.minute,
+    "automatic NPC initiative did not commit the genuine timed Ink choices");
   const npcLine = await until("E4_NPC_LINE");
-  check(npcLine.mahmoud_story_phase === "running", "Mahmoud's real Ink line didn't commit");
-  await press("Enter");
-  const npcChoices = await until("E4_NPC_WAITING");
-  check(npcChoices.mahmoud_story_phase === "choice" && npcChoices.mahmoud_story_choices?.length === 2,
-    "NPC initiation skipped player choice");
+  check(npcLine.dialogue_text.includes("Before I go"),
+    "NPC initiation did not speak the genuine authored Ink opening line");
   await press("2"); // Stable option ID order: busy, listen.
   const npcChoice = await until("E4_NPC_CHOICE");
   check(npcChoice.mahmoud_story_phase === "running", "accepting NPC dialogue didn't commit Ink choice");

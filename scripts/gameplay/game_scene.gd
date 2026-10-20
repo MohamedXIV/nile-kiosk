@@ -56,6 +56,8 @@ var story_pending: bool = false
 var story_line: String = ""
 var story_speaker: String = "" # View-only position hint from the authored P6 line.
 var story_id: String = Game.RIVER_STORY_ID
+var npc_auto_start: bool = false # View driver only; P6 owns story and deadline.
+var npc_led_active: bool = false # Allow ordinary movement while NPC speaks.
 
 func _ready() -> void:
     call_deferred("_boot")
@@ -129,7 +131,7 @@ func report(marker: String) -> void:
     render_state = diagnostic
     if sandwich_buttons != null:
         sandwich_buttons.update_view(diagnostic["sandwich"],sandwich_open,
-            story_open or story_pending,controls_open)
+            (story_open or story_pending) and not npc_led_active,controls_open)
     _sync_touch_pad(diagnostic)
     queue_redraw()
 
@@ -145,6 +147,15 @@ func _process(delta: float) -> void:
                 report("E6_GAME_SAVE_UNCONFIRMED")
     if story_pending and (game.memory_story_ready() if story_id.begins_with("memory:") else game.session.ink_ready(story_id)):
         _story_action("begin")
+        if npc_auto_start and story_open:
+            _advance_npc_invitation()
+    if npc_led_active and story_open and not game.mahmoud_story_exchange_available():
+        # A departing NPC or expired canonical P6 deadline dismisses the view.
+        # Brief movement outside Talk radius alone cannot cancel a reply;
+        # the NPC's schedule continues without pausing.
+        _dismiss_story()
+        notice = "Mahmoud carries on with his evening."
+        report("E4_NPC_LEFT")
     if story_open and story_id.begins_with("river_neighbors:") and not game.conversation.near(game.session,game.graph):
         story_open=false
         story_pending=false
@@ -158,7 +169,7 @@ func _process(delta: float) -> void:
         move_elapsed = 0.0
     elif move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
-        if (story_open or story_pending) and not story_id.begins_with("river_neighbors:"):
+        if (story_open or story_pending) and not (story_id.begins_with("river_neighbors:") or npc_led_active):
             move_elapsed = 0.0
         else:
             _process_movement()
@@ -198,7 +209,7 @@ func _process_movement() -> void:
                 render_state = game.status()
                 if sandwich_buttons != null:
                     sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
-                        story_open or story_pending,controls_open)
+                        (story_open or story_pending) and not npc_led_active,controls_open)
                 if touch_pad != null and touch_pad.mode_enabled:
                     _sync_touch_pad(render_state)
                 queue_redraw()
@@ -216,6 +227,8 @@ func _process_clock() -> void:
                     render_state.get("mahmoud_story_outcome","") == "silence":
                 story_open = false
                 story_pending = false
+                npc_auto_start = false
+                npc_led_active = false
                 story_line = ""
                 story_speaker = ""
                 notice = "Mahmoud waits a little, then carries on with his evening."
@@ -224,11 +237,14 @@ func _process_clock() -> void:
             if soundscape != null:
                 var state: Dictionary = render_state
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
+            # A true P1 advance (never a wall-clock pop-up timer) makes an
+            # authored NPC opportunity eligible. NPCs may initiate without E.
+            _try_npc_initiated_conversation()
             # This is display-only: heat cues follow the actual P1 tick,
             # without a UI-owned timer or extra simulation command.
             if sandwich_buttons != null and sandwich_open:
                 sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
-                    story_open or story_pending,controls_open)
+                    (story_open or story_pending) and not npc_led_active,controls_open)
             if touch_pad != null and touch_pad.mode_enabled:
                 _sync_touch_pad(render_state)
             queue_redraw()
@@ -297,7 +313,7 @@ func _pinch_distance() -> float:
     return Vector2(points[0]).distance_to(Vector2(points[1]))
 
 func _input(event: InputEvent) -> void:
-    if not initialized or controls_open or sandwich_open or story_open: return
+    if not initialized or controls_open or sandwich_open or (story_open and not npc_led_active): return
     if event is InputEventMouseButton and event.pressed:
         if event.button_index == MOUSE_BUTTON_WHEEL_UP: _apply_camera_zoom(1.12)
         elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN: _apply_camera_zoom(1.0 / 1.12)
@@ -407,6 +423,36 @@ func _act(kind: String, offer_index: int = -1) -> void:
         notice = "Verifying the browser save..." if save_confirmation.status == "pending" else \
             "Saved locally; browser persistence could not be confirmed."
     report("E6_GAME_" + kind.to_upper())
+    # A genuine delivered P4 order can open Mahmoud's own authored
+    # invitation before his autonomous return route takes him out of reach.
+    # All Ink/world mutations still go through the existing command path.
+    if kind == "serve" and result.get("ok",false):
+        _try_npc_initiated_conversation()
+
+func _try_npc_initiated_conversation() -> void:
+    if story_open or story_pending or sandwich_open or controls_open or \
+            (room_fade != null and room_fade.fading):
+        return
+    if not game.mahmoud_npc_initiation_ready(): return
+    story_id = Game.MAHMOUD_STORY_ID
+    npc_auto_start = true
+    npc_led_active = true
+    _story_action("begin")
+    if story_open:
+        _advance_npc_invitation()
+
+func _advance_npc_invitation() -> void:
+    if not npc_auto_start or not story_open or story_id != Game.MAHMOUD_STORY_ID:
+        return
+    npc_auto_start = false
+    # The actual authored Ink opening line is spoken first. Reaching the
+    # real choice.wait commits the P4b deadline in the canonical P6 session.
+    # No scene-generated dialogue, choices, relationship changes or clock.
+    if game.mahmoud_story_session().get("phase","") == "running":
+        _story_action("next")
+    if story_open and game.mahmoud_story_session().get("phase","") == "running":
+        _story_action("next")
+    report("E4_NPC_INITIATED")
 
 func _story_action(kind: String, option_id: String = "") -> void:
     var result: Dictionary = {}
@@ -459,9 +505,12 @@ func _story_action(kind: String, option_id: String = "") -> void:
             if not story_line.begins_with(speaker): story_line = speaker + story_line
         "WAITING":
             story_open = true
-            story_line = "What would you like to say?"
+            if story_line.is_empty() or not npc_led_active:
+                story_line = "What would you like to say?"
         "FINISHED":
             story_open = false
+            npc_led_active = false
+            npc_auto_start = false
             story_line = ""
             story_speaker = ""
             notice = "The conversation settles. You return to the evening."
@@ -523,7 +572,7 @@ func _sync_touch_pad(state: Dictionary) -> void:
         game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
     var talk_action: String = WorldTouchControls.dialogue_target(state,near_salma)
     touch_pad.update_view(state,portal_near,counter_near,
-        story_open or story_pending,controls_open or sandwich_open,talk_action,
+        (story_open or story_pending) and not npc_led_active,controls_open or sandwich_open,talk_action,
         story_open,_story_choices(state) if story_open else [],
         _context_actions(state))
 
@@ -568,7 +617,7 @@ func _begin_context_talk() -> void:
     _story_action("begin")
 
 func _context_action(index: int) -> void:
-    if story_open or story_pending or sandwich_open or controls_open: return
+    if ((story_open or story_pending) and not npc_led_active) or sandwich_open or controls_open: return
     var choices: Array[Dictionary] = _context_actions(game.status())
     if index < 0 or index >= choices.size(): return
     var kind: String = str(choices[index]["kind"])
@@ -577,7 +626,7 @@ func _context_action(index: int) -> void:
     else: _act(kind)
 
 func _touch_move_now() -> void:
-    if not initialized or story_open or story_pending or controls_open or sandwich_open or (room_fade != null and room_fade.fading):
+    if not initialized or ((story_open or story_pending) and not npc_led_active) or controls_open or sandwich_open or (room_fade != null and room_fade.fading):
         return
     move_elapsed = 0.0
     _process_movement()
@@ -595,7 +644,8 @@ func _touch_action(action: String) -> void:
         report("E6_TOUCH_MENU")
         return
     # Direct dialogue Buttons remain usable even with the optional pad Off.
-    if story_open and not controls_open and not sandwich_open:
+    if story_open and not controls_open and not sandwich_open and \
+            (not npc_led_active or action not in ["primary","alternate","save","wait"]):
         var choices: Array = _story_choices(game.status())
         match action:
             "next":
@@ -617,6 +667,8 @@ func _touch_action(action: String) -> void:
 func _dismiss_story() -> void:
     story_open = false
     story_pending = false
+    npc_auto_start = false
+    npc_led_active = false
     story_line = ""
     story_speaker = ""
     notice = "You can return to the conversation later."
@@ -654,13 +706,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
         report("E6_AUDIO_TOGGLE")
         return
     if story_open or story_pending:
-        if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_3,KEY_4,KEY_ESCAPE,KEY_P]:
-            # Keep the actual cooking/movement controls usable while listening.
+        if (story_id.begins_with("river_neighbors:") or npc_led_active) and \
+                event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_3,KEY_4,KEY_ESCAPE,KEY_P]:
+            # NPC-initiated speech is non-modal; the kitchen, payment,
+            # contextual actions and player movement never freeze.
             if event.keycode == KEY_H: _act("tea_heat")
             elif event.keycode == KEY_U: _act("tea_pour")
             elif event.keycode == KEY_G: _act("serve")
             elif event.keycode == KEY_J: _act("wait")
-            elif event.keycode == KEY_E: _act("door")
+            elif event.keycode == KEY_E:
+                if npc_led_active: _context_action(0)
+                else: _act("door")
+            elif event.keycode == KEY_F and npc_led_active: _context_action(1)
             return
         match event.keycode:
             KEY_ENTER, KEY_KP_ENTER:

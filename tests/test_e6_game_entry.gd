@@ -635,6 +635,32 @@ func _run() -> void:
     check(restored.npc_pose("mahmoud").get("mode","")=="returning" and
         restored.npc_pose("mahmoud").get("position",Vector2.ZERO)==Vector2(145,85),
         "visitor jumped to anchor on delivery")
+    # P4c: a real delivery unlocks the NPC-led opportunity. P1 time and
+    # physical proximity decide initiative, not a scene wall-clock timer.
+    var npc_offer: Dictionary = restored.mahmoud_invitation()
+    check(not npc_offer.is_empty() and npc_offer.get("initiator_npc_id","")=="mahmoud" and
+        str(npc_offer.get("source_event_id","")).begins_with("evt:"),
+        "Mahmoud greeting must derive from his own delivered P4 order")
+    var offer_minute: int = int(npc_offer.get("world_minute",-1))
+    check(restored.mahmoud_npc_initiation_ready() and
+        Game.npc_initiation_window(offer_minute,offer_minute,0,8) and
+        Game.npc_initiation_window(offer_minute,offer_minute+7,0,8) and
+        not Game.npc_initiation_window(offer_minute,offer_minute+8,0,8) and
+        not Game.npc_initiation_window(offer_minute,offer_minute-1,0,8),
+        "Mahmoud should speak while still close on authentic delivery, with a bounded authored window")
+    check(restored.save_game().get("ok",false),"save true post-delivery greeting opportunity")
+    var greeting: RefCounted = Game.new()
+    check(greeting.start(SAVE).get("code","")=="RESTORED",
+        "NPC greeting may not rely on scene-local unsaved opportunity state")
+    check(greeting.status().get("mahmoud_npc_initiation_ready",false),
+        "genuine delivery should make physically reachable NPC invitation immediately eligible")
+    check(greeting.wait_minutes(1).get("ok",false),
+        "world and NPC schedules advance normally after the opportunity")
+    check(not greeting.mahmoud_npc_initiation_ready(),
+        "NPC should not start a late conversation after actually walking out of reach")
+    check(greeting.session.world.narrative_session(Game.MAHMOUD_STORY_ID).is_empty(),
+        "checking NPC initiative cannot automatically forge a P6 session")
+    greeting.dispose()
     check(restored.service_near().get("kind","")=="economy.order.quote","quote")
     check(restored.service_near().get("kind","")=="economy.order.settle","settle")
     check(restored.status()["money"]==6200,"no duplicate payment")
