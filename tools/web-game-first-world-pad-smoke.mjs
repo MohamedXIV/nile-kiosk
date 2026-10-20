@@ -168,8 +168,8 @@ try{
   check(delivered.order_status==="delivered" && delivered.customer_reaction_npc==="mahmoud",
     "touch service did not deliver a canonical P3 item to P4 customer");
   check(delivered.mahmoud_invite_near,"touch player is outside real invitation range");
-  // No Talk/E is pressed. After one genuine P1 minute, Mahmoud must
-  // initiate the opportunity, say his real Ink line and offer both replies.
+  // No Talk/E is pressed. Mahmoud starts on his actual P4 delivery while
+  // he is still nearby, speaking his authored Ink line and offering replies.
   // The world clock keeps ticking; this is not a UI-owned delayed callback.
   let conversation=await until("E4_NPC_INITIATED");
   check(conversation.mahmoud_story_phase==="choice" &&
