@@ -464,8 +464,12 @@ func _story_choices(state: Dictionary) -> Array:
 
 func _toggle_sandwich() -> void:
     if story_open or story_pending or controls_open: return
+    if not sandwich_open and not bool(game.sandwich_context().get("near",false)):
+        notice = "Move within reach of the sandwich counter."
+        report("E6_SANDWICH_TOGGLE")
+        return
     sandwich_open = not sandwich_open
-    notice = "The sandwich counter is ready." if sandwich_open else "Back to the kiosk."
+    notice = "Working at the counter." if sandwich_open else "Back to the kiosk."
     report("E6_SANDWICH_TOGGLE")
 
 func _close_sandwich() -> void:
@@ -978,4 +982,5 @@ func _draw() -> void:
             _text(Vector2(168,194+i*22),guide[i],15,Color("#f1e2cd"),635)
         _text(Vector2(168,415),"F1 or Esc · Back to the evening",15,Color("#edc27d"))
     if sandwich_open:
-        SandwichPanel.draw(self,state["sandwich"])
+        SandwichPanel.draw(self,state["sandwich"],
+            sandwich_buttons.selected_offer_index if sandwich_buttons != null else -1)
