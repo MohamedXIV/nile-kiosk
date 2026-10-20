@@ -2,6 +2,12 @@
 
 *A quiet Egyptian life simulation about finding enough.*
 
+## Try the early playtest
+
+- **[Play in your browser or on a phone (landscape)](https://nile-kiosk-playtest.vercel.app/)** — hosted Web export; enable the `On-screen` touch pad in-game.
+- **[Download Windows x64](https://github.com/MohamedXIV/nile-kiosk/releases/download/playtest-8dfb28ffac36/Nile-Kiosk-Windows-x64-playtest.zip)** — extract ZIP and run `NileKiosk.exe`; unsigned pre-release.
+- [Full instructions, save behavior and known limitations](docs/PLAYTEST.md) — no final art, accessibility or human-phone approval implied.
+
 **Status:** pre-production; **SYS P0–P7 production gameplay systems and whole-world Godot/Web persistence are verified and merged**, plus [CONTENT C0 transactional world imports](https://github.com/MohamedXIV/nile-kiosk/pull/42) and [PLAY C1/C2 Godot/Web room traversal](https://github.com/MohamedXIV/nile-kiosk/pull/46) (QA-only presentation, **canonical saved room/XY**, NPC hearing and rental-gated doors, verified v7→v8 save compatibility), plus [PLAY C3 player-operated kiosk service](https://github.com/MohamedXIV/nile-kiosk/pull/48) (multi-step recipe, real customer order, ledger settlement and mid-cook Web reload), and [PLAY C4 independent NPC demand](https://github.com/MohamedXIV/nile-kiosk/pull/50) (world-timed policy, offscreen order and expiry, Web save/reload), plus [PLAY C5 NPC social demand](https://github.com/MohamedXIV/nile-kiosk/pull/52) (actual heard facts and trusted-peer relations influencing demand, replay-verified), plus [PLAY C6 repeat-customer experiences](https://github.com/MohamedXIV/nile-kiosk/pull/54) (canonical actual paid service or missed wait changes future customer demand without a reputation meter). A dedicated production integration/QA scene runs, but this is **not yet a finished playable game** and V001 visual art is not approved.
 
 Set in an intentionally unnamed early-2000s Egypt (roughly 2000–2005), Nile Kiosk follows a person who runs a modest riverside food-and-tea kiosk and returns home to a **4×6m rented rooftop room** in a graceful, aging Cairo residential building; a modest **~60m² private flat one floor below** is a possible later step.
