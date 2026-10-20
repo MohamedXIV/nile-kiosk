@@ -618,12 +618,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
         _toggle_sandwich()
         return
     if sandwich_open:
+        # The same primary/alternate E/F keys operate the hands-on station.
+        # No six ingredient hotkeys or Enter-Enter micro-menu progression.
         match event.keycode:
             KEY_ESCAPE: _close_sandwich()
-            KEY_ENTER, KEY_KP_ENTER: _act("sandwich_step")
-            KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
-                _act("sandwich_purchase",event.keycode - KEY_1)
-            KEY_J: _act("wait")
+            KEY_E:
+                if sandwich_buttons != null: sandwich_buttons._primary_pressed()
+            KEY_F:
+                if sandwich_buttons != null: sandwich_buttons._secondary_pressed()
             KEY_P: _act("save")
         return
     if event.keycode == KEY_0:
