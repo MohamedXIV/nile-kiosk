@@ -2,6 +2,7 @@ extends RefCounted
 ## E6/P0: game entry adapter over the one canonical WorldSession.
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
+const WorldState = preload("res://scripts/core/world_state.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const TravelTime = preload("res://scripts/gameplay/travel_time_policy.gd")
 const Procurement = preload("res://scripts/gameplay/procurement_play.gd")
@@ -207,11 +208,9 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     var initiative: Variant = mahmoud_raw.get("npc_initiation")
     if typeof(initiative) != TYPE_DICTIONARY or initiative.size() != 2 or \
             not initiative.has("after_minutes") or not initiative.has("within_minutes") or \
-            typeof(initiative["after_minutes"]) != TYPE_INT or \
-            typeof(initiative["within_minutes"]) != TYPE_INT or \
-            initiative["after_minutes"] < 0 or initiative["after_minutes"] > 120 or \
-            initiative["within_minutes"] <= initiative["after_minutes"] or \
-            initiative["within_minutes"] > 120:
+            not WorldState.integral(initiative["after_minutes"],0,120) or \
+            not WorldState.integral(initiative["within_minutes"],1,120) or \
+            int(initiative["within_minutes"]) <= int(initiative["after_minutes"]):
         return {"ok":false,"code":"INVALID_MAHMOUD_NPC_INITIATION"}
     mahmoud_story_pack = mahmoud_raw.duplicate(true)
     if not session.world.narrative_view()["stories"].has(MAHMOUD_STORY_ID):
