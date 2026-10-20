@@ -12,7 +12,13 @@ const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmatio
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
 const MINUTE_INTERVAL = 2.0
-const PLAYER_TWEEN_SECONDS = 0.11 # Read-only visual easing; P2 owns the actual position.
+# Continuous, constant-speed visual traversal of each *authoritative* P2 step.
+# Never tween/ease-out anew on every 130ms input tick.
+const VISUAL_WORLD_UNITS_PER_SECOND = 17.0 / MOVE_INTERVAL
+const CAMERA_MIN_ZOOM = 1.0
+const CAMERA_MAX_ZOOM = 3.2
+const CAMERA_DEFAULT_ZOOM = 2.0
+const CAMERA_FOLLOW_RATE = 9.0
 const ISO_X = 1.36 # Current schematic 2:1 basis, not the unapproved V001 art projection.
 const ISO_Y = 0.68
 const PLAYFIELD = Rect2(100.0,114.0,760.0,238.0) # Reserve HUD, guidance and notices.
@@ -28,7 +34,11 @@ var soundscape: Node
 var player_body: CharacterBody2D
 var player_visual_position: Vector2 = Vector2.ZERO
 var visual_frame: Dictionary = {} # Read-only projection of the current P2 room.
-var player_move_tween: Tween
+var camera_visual_focus: Vector2 = Vector2.ZERO
+var camera_zoom: float = CAMERA_DEFAULT_ZOOM
+var camera_target_zoom: float = CAMERA_DEFAULT_ZOOM
+var pinch_points: Dictionary = {}
+var pinch_distance: float = 0.0
 var controls_open: bool = false # Local view-only overlay; does not pause P1 world time.
 var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
 var sandwich_buttons: Control # Standard Godot Buttons, no UI-owned domain data.
@@ -137,6 +147,24 @@ func _process(delta: float) -> void:
         else:
             _process_movement()
     _process_clock()
+    _advance_visual_camera(delta)
+
+# The renderer may run at any frame rate; P2 world commands still execute
+# exactly once per MOVE_INTERVAL and never depend on this frame rate.
+func _advance_visual_camera(delta: float) -> void:
+    var old_actor: Vector2 = player_visual_position
+    var old_focus: Vector2 = camera_visual_focus
+    var old_zoom: float = camera_zoom
+    player_visual_position = player_visual_position.move_toward(
+        game.position(), VISUAL_WORLD_UNITS_PER_SECOND * minf(delta, 0.1))
+    var t: float = 1.0 - exp(-CAMERA_FOLLOW_RATE * minf(delta,0.1))
+    camera_visual_focus = camera_visual_focus.lerp(player_visual_position,t)
+    camera_zoom = lerpf(camera_zoom,camera_target_zoom,t)
+    if old_actor.distance_to(player_visual_position) > 0.001 or
+            old_focus.distance_to(camera_visual_focus) > 0.001 or
+            absf(camera_zoom - old_zoom) > 0.0001:
+        _frame_current_room()
+        queue_redraw()
 
 func _process_movement() -> void:
     var dx: int = int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
@@ -149,7 +177,7 @@ func _process_movement() -> void:
         if _player_move_clear(Vector2(intended)):
             var moved: Dictionary = game.move_screen(dx, dy)
             if moved.get("ok", false):
-                _animate_player_visual()
+                # Visual animation advances every rendered frame above.
                 # Movement redraws don't issue debug status reports. Refresh
                 # the actual Godot opener at the canonical P2 near boundary.
                 if sandwich_buttons != null:
@@ -206,27 +234,49 @@ func _player_move_clear(delta: Vector2) -> bool:
     player_body.global_position = game.position()
     return not player_body.test_move(player_body.global_transform,delta)
 
-# View-only interpolation never participates in collision, proximity, navigation,
-# command IDs or persistence. Every target comes from the committed P2 position.
-func _visual_step(position: Vector2) -> void:
-    player_visual_position = position
-    queue_redraw()
-
-func _animate_player_visual() -> void:
-    if player_move_tween != null:
-        player_move_tween.kill()
-    player_move_tween = create_tween()
-    player_move_tween.set_trans(Tween.TRANS_SINE)
-    player_move_tween.set_ease(Tween.EASE_OUT)
-    player_move_tween.tween_method(_visual_step, player_visual_position,
-        game.position(), PLAYER_TWEEN_SECONDS)
-
+# World P2 owns positions; view snap is reserved for boot/actual room changes.
 func _snap_player_visual() -> void:
-    if player_move_tween != null:
-        player_move_tween.kill()
-        player_move_tween = null
     player_visual_position = game.position()
+    camera_visual_focus = player_visual_position
+    camera_zoom = camera_target_zoom
+    _frame_current_room()
     queue_redraw()
+
+# Input is presentation-only zoom. Wheel on desktop, multi-touch pinch on
+# phones, and platform magnify gestures change *only* camera parameters.
+static func clamped_camera_zoom(current: float, factor: float) -> float:
+    if not is_finite(current) or not is_finite(factor) or factor <= 0.0:
+        return CAMERA_DEFAULT_ZOOM
+    return clampf(current * factor,CAMERA_MIN_ZOOM,CAMERA_MAX_ZOOM)
+
+func _apply_camera_zoom(factor: float) -> void:
+    var next: float = clamped_camera_zoom(camera_target_zoom,factor)
+    if not is_equal_approx(next,camera_target_zoom):
+        camera_target_zoom = next
+        report("E6_CAMERA_ZOOM")
+
+func _pinch_distance() -> float:
+    if pinch_points.size() != 2: return 0.0
+    var points: Array = pinch_points.values()
+    return Vector2(points[0]).distance_to(Vector2(points[1]))
+
+func _input(event: InputEvent) -> void:
+    if not initialized or controls_open or sandwich_open or story_open: return
+    if event is InputEventMouseButton and event.pressed:
+        if event.button_index == MOUSE_BUTTON_WHEEL_UP: _apply_camera_zoom(1.12)
+        elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN: _apply_camera_zoom(1.0 / 1.12)
+    elif event is InputEventMagnifyGesture:
+        _apply_camera_zoom(event.factor)
+    elif event is InputEventScreenTouch:
+        if event.pressed: pinch_points[event.index] = event.position
+        else: pinch_points.erase(event.index)
+        pinch_distance = _pinch_distance()
+    elif event is InputEventScreenDrag and pinch_points.has(event.index):
+        pinch_points[event.index] = event.position
+        var distance: float = _pinch_distance()
+        if distance > 0.0 and pinch_distance > 0.0:
+            _apply_camera_zoom(distance / pinch_distance)
+        pinch_distance = distance
 
 func _act(kind: String, offer_index: int = -1) -> void:
     var result: Dictionary = {}
@@ -621,10 +671,22 @@ static func project_in_frame(point: Vector2, frame: Dictionary) -> Vector2:
     return frame["origin"] + Vector2((point.x-point.y)*ISO_X,
         (point.x+point.y)*ISO_Y) * float(frame["zoom"])
 
+# Keep the player's smoothed *visual* feet in the safe center, not the
+# room's center. This is a closer dolly which never moves canonical P2 state.
+static func camera_frame(room_size: Vector2, focus: Vector2, factor: float,
+        pad_visible: bool = false) -> Dictionary:
+    var frame: Dictionary = frame_for_room(room_size,pad_visible)
+    if frame.is_empty() or not focus.is_finite(): return {}
+    var safe: Rect2 = TOUCH_PLAYFIELD if pad_visible else PLAYFIELD
+    frame["zoom"] = float(frame["zoom"]) * clampf(factor,CAMERA_MIN_ZOOM,CAMERA_MAX_ZOOM)
+    frame["origin"] = safe.get_center() - Vector2(
+        (focus.x - focus.y)*ISO_X,(focus.x + focus.y)*ISO_Y) * float(frame["zoom"])
+    return frame
+
 func _frame_current_room() -> void:
     var dimensions: Dictionary = game.graph.rooms[game.room()]
-    visual_frame = frame_for_room(Vector2(dimensions["width"],dimensions["height"]),
-        touch_pad != null and touch_pad.mode_enabled)
+    visual_frame = camera_frame(Vector2(dimensions["width"],dimensions["height"]),
+        camera_visual_focus,camera_zoom,touch_pad != null and touch_pad.mode_enabled)
 
 func _iso(point: Vector2) -> Vector2:
     return project_in_frame(point, visual_frame)
@@ -648,10 +710,15 @@ func _need(at: Vector2, name: String, value: int, color: Color) -> void:
 
 func _figure(at: Vector2, color: Color, label: String) -> void:
     var foot: Vector2 = _iso(at)
-    draw_ellipse(foot+Vector2(0,2),13.0,5.0,Color(0,0,0,0.3))
-    draw_rect(Rect2(foot+Vector2(-7,-27),Vector2(14,20)),color)
-    draw_circle(foot+Vector2(0,-32),8,Color("#dcae7d"))
-    _text(foot+Vector2(-22,-46),label,12,Color("#fff2d5"))
+    var size_factor: float = clampf(float(visual_frame.get("zoom",1.0)),0.75,3.2)
+    draw_ellipse(foot+Vector2(0,2)*size_factor,13.0*size_factor,
+        5.0*size_factor,Color(0,0,0,0.3))
+    draw_rect(Rect2(foot+Vector2(-7,-27)*size_factor,
+        Vector2(14,20)*size_factor),color)
+    draw_circle(foot+Vector2(0,-32)*size_factor,8*size_factor,
+        Color("#dcae7d"))
+    _text(foot+Vector2(-22,-46)*size_factor,label,
+        maxi(12,roundi(12.0*size_factor)),Color("#fff2d5"))
 
 func _draw() -> void:
     draw_rect(Rect2(0,0,960,540),Color("#101a21"))
