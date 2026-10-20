@@ -181,7 +181,7 @@ try{
   check(conversation.mahmoud_story_phase==="running",
     "touch Reply 2 did not commit the real authored option");
   await touch(270,405,"E4_NPC_LINE");
-  await touch(785,378,"E4_NPC_LINE");
+  await touch(270,405,"E4_NPC_LINE");
   conversation=await touch(270,405,"E4_NPC_FINISHED");
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
