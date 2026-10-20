@@ -165,9 +165,13 @@ try {
     restored.sandwich.stage==="active" && restored.sandwich.step_index===1 &&
     restored.sandwich.offers.every(offer=>offer.resolved),
     "hard Web reload lost paid stock/turn stage");
-  check(restored.sandwich.heat_state==="turned" &&
-    restored.sandwich.heat_minutes===2,
-    "visual turn readiness not reconstructed after hard browser reload");
+  // The real P1 clock keeps ticking between turning and the durable save.
+  // Assert byte-equivalent saved cook timing, not a fabricated frozen 2m window.
+  check(restored.minute===saved.minute &&
+    restored.sandwich.heat_state===saved.sandwich.heat_state &&
+    restored.sandwich.heat_minutes===saved.sandwich.heat_minutes &&
+    restored.sandwich.heat_state==="turned",
+    "visual turn readiness not reconstructed from exact saved world minute");
   opened=await clickControl(480,490,"E6_SANDWICH_TOGGLE",true);
   check(opened.sandwich_visible && opened.sandwich.near,
     "clickable workstation did not restore after browser hard reload");
