@@ -639,6 +639,19 @@ func mahmoud_npc_initiation_ready() -> bool:
         int(session.world.view()["world_minute"]),
         int(initiative["after_minutes"]),int(initiative["within_minutes"]))
 
+# Beginning requires genuine P2 speaking reach. After Mahmoud speaks,
+# listening/answering may continue while he walks across the SAME kiosk;
+# neither a UI radius change nor player motion freezes the P1 schedule.
+# Leaving the room or the canonical deadline ends that chance.
+func mahmoud_story_exchange_available() -> bool:
+    var active: Dictionary = mahmoud_story_session()
+    if active.get("phase","") not in ["running","choice"]:
+        return false
+    if room() != "kiosk" or session.world.npc("mahmoud").get("location_id","") != "kiosk":
+        return false
+    var deadline: int = int(active.get("reply_deadline_minute",-1))
+    return deadline < 0 or int(session.world.view()["world_minute"]) < deadline
+
 func mahmoud_story_begin() -> Dictionary:
     var offer: Dictionary = mahmoud_invitation()
     if offer.is_empty(): return {"ok":false,"code":"STORY_NOT_UNLOCKED"}
@@ -664,12 +677,12 @@ func mahmoud_story_decline() -> Dictionary:
         {"opportunity_id":MAHMOUD_STORY_ID})
 
 func mahmoud_story_next() -> Dictionary:
-    if not mahmoud_invite_near(): return {"ok":false,"code":"MAHMOUD_TOO_FAR"}
+    if not mahmoud_story_exchange_available(): return {"ok":false,"code":"MAHMOUD_LEFT_OR_TIMED_OUT"}
     if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_next(MAHMOUD_STORY_ID,_id("mahmoud_next"))
 
 func mahmoud_story_choose(option_id: String) -> Dictionary:
-    if not mahmoud_invite_near(): return {"ok":false,"code":"MAHMOUD_TOO_FAR"}
+    if not mahmoud_story_exchange_available(): return {"ok":false,"code":"MAHMOUD_LEFT_OR_TIMED_OUT"}
     if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_choose(MAHMOUD_STORY_ID,option_id,_id("mahmoud_choose"))
 
@@ -824,6 +837,7 @@ func status() -> Dictionary:
         "mahmoud_invitation": mahmoud_invitation(),
         "mahmoud_invite_near": mahmoud_invite_near(),
         "mahmoud_npc_initiation_ready": mahmoud_npc_initiation_ready(),
+        "mahmoud_story_exchange_available": mahmoud_story_exchange_available(),
         "mahmoud_story_phase": str(mahmoud_story_session().get("phase","")),
         "mahmoud_story_deadline": int(mahmoud_story_session().get("reply_deadline_minute",-1)),
         "mahmoud_story_outcome": str(mahmoud_story_session().get("outcome","")),
