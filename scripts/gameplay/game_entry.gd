@@ -32,7 +32,7 @@ const RIVER_STORY_ID = "river_watch_reflection"
 const MAHMOUD_STORY_POLICY = "res://content/social/nile_mahmoud_after_tea.v1.json"
 const MAHMOUD_STORY_ID = "mahmoud_after_tea"
 const DEFAULT_SAVE = "user://nile-kiosk-game-v1.json"
-const START_MINUTE = 17 * 60  # Provisional opening moment, not an agreed schedule.
+const START_MINUTE = 16 * 60 + 30  # Start at home before the 30-minute commute; kiosk demand still opens at 17:00.
 const COUNTER = Vector2(115, 80)
 const COUNTER_RADIUS = 48.0
 
