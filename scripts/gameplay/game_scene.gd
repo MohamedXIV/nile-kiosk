@@ -160,9 +160,9 @@ func _advance_visual_camera(delta: float) -> void:
     var t: float = 1.0 - exp(-CAMERA_FOLLOW_RATE * minf(delta,0.1))
     camera_visual_focus = camera_visual_focus.lerp(player_visual_position,t)
     camera_zoom = lerpf(camera_zoom,camera_target_zoom,t)
-    if old_actor.distance_to(player_visual_position) > 0.001 or
+    if (old_actor.distance_to(player_visual_position) > 0.001 or
             old_focus.distance_to(camera_visual_focus) > 0.001 or
-            absf(camera_zoom - old_zoom) > 0.0001:
+            absf(camera_zoom - old_zoom) > 0.0001):
         _frame_current_room()
         queue_redraw()
 
