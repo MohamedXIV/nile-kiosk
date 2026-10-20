@@ -17,7 +17,7 @@ const traces = {};
 const errors = [];
 page.on("console", message => {
   const line = message.text();
-  const match = /^((?:E6_GAME|E6_AUDIO|E6_HELP|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const match = /^((?:E6_GAME|E6_TRAVEL|E6_AUDIO|E6_HELP|E4_STORY|E4_NPC|E4_VISITOR)_[A-Z_]+) (\{.*\})$/.exec(line);
   if (match) {
     try {
       (traces[match[1]] ??= []).push(JSON.parse(match[2]));
@@ -162,9 +162,14 @@ try {
   await press("t");
   const replacedBed = await until("E6_GAME_BED",2);
   check(replacedBed.bed_placed && replacedBed.money === boughtBed.money, "bed restore charged again");
+  const fadeIndex=(traces.E6_TRAVEL_FADE_START||[]).length;
   await press("e");
+  const fading=await until("E6_TRAVEL_FADE_START",fadeIndex);
+  check(fading.location==="roof" && fading.x===175 && fading.y===70,
+    "fade started after silently teleporting the canonical player");
   const landing = await until("E6_GAME_DOOR",0);
-  check(landing.location === "landing", "roof/landing portal");
+  check(landing.location === "landing" && landing.x===40,
+    "real roof/landing portal must commit between fade-out and fade-in");
   checkRoomFrame(landing,"roof-to-landing");
   await moveDiagonal(1260);
   await press("e");
