@@ -32,7 +32,10 @@ static func action_label(context: Dictionary) -> String:
     return "Start sandwich"
 
 static func shopping(context: Dictionary) -> bool:
-    return str(context.get("stage","")).is_empty() and not bool(context.get("can_start",false))
+    if not str(context.get("stage","")).is_empty(): return false
+    for offer in context.get("offers",[]):
+        if not bool(offer.get("resolved",false)): return true
+    return false
 
 static func next_offer(offers: Array, current: int, include_current: bool = false) -> int:
     if offers.is_empty(): return -1
@@ -108,11 +111,14 @@ func _primary_pressed() -> void:
 func _secondary_pressed() -> void:
     if not panel_active or utility_open: return
     if action_kind == "buy":
-        var offers: Array = view_context.get("offers",[])
-        var next: int = next_offer(offers,selected_offer_index)
-        if next >= 0:
-            selected_offer_index = next
-            update_view(view_context,true,false,false)
+        if bool(view_context.get("can_start",false)):
+            if on_step.is_valid(): on_step.call()
+        else:
+            var offers: Array = view_context.get("offers",[])
+            var next: int = next_offer(offers,selected_offer_index)
+            if next >= 0:
+                selected_offer_index = next
+                update_view(view_context,true,false,false)
     elif action_kind == "step" and on_wait.is_valid():
         on_wait.call()
 
@@ -156,8 +162,10 @@ func update_view(context: Dictionary, panel_open: bool, story_busy: bool,
     else:
         action_button.text = action_label(context)
     wait_button.visible = visible and not utility_open and (
-        (buy_mode and next_offer(offers,offer_index)>=0 and
-            next_offer(offers,offer_index)!=offer_index) or
+        (buy_mode and (bool(context.get("can_start",false)) or
+            (next_offer(offers,offer_index)>=0 and
+            next_offer(offers,offer_index)!=offer_index))) or
         (not buy_mode and not str(context.get("stage","")).is_empty()))
-    wait_button.text = "Next ingredient" if buy_mode else "Wait 5 min"
+    wait_button.text = ("Start cooking" if bool(context.get("can_start",false))
+        else "Next ingredient") if buy_mode else "Wait 5 min"
     wait_button.disabled = not near
