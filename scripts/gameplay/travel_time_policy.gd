@@ -17,10 +17,14 @@ static func load_packaged(path: String, portals: Array) -> Dictionary:
     var durations: Dictionary = {}
     for portal_id in raw["portal_minutes"]:
         var minutes: Variant = raw["portal_minutes"][portal_id]
-        if not valid_ids.has(portal_id) or typeof(minutes) != TYPE_INT or \
-                minutes < 1 or minutes > MAX_COMMUTE_MINUTES:
+        # Godot JSON can deserialize integral literals as float; enforce
+        # true integral semantics rather than relying on TYPE_INT alone.
+        if not valid_ids.has(portal_id) or (typeof(minutes) != TYPE_INT and
+                typeof(minutes) != TYPE_FLOAT) or not is_finite(float(minutes)) or \
+                float(minutes) != float(int(minutes)) or \
+                int(minutes) < 1 or int(minutes) > MAX_COMMUTE_MINUTES:
             return {"ok":false,"code":"INVALID_COMMUTE_COST"}
-        durations[portal_id] = minutes
+        durations[portal_id] = int(minutes)
     return {"ok":true,"durations":durations}
 
 static func minutes_for(durations: Dictionary, portal_id: String) -> int:
