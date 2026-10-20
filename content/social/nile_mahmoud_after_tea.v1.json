@@ -40,6 +40,12 @@
           "speaker_id": ""
         }
       }
+    },
+    "choice_windows": {
+      "mahmoud_choice": {
+        "minutes": 12,
+        "outcome": "silence"
+      }
     }
   }
 }
