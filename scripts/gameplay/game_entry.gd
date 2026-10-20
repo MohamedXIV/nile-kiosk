@@ -689,6 +689,12 @@ func mahmoud_story_choose(option_id: String) -> Dictionary:
 func mona_story_begin() -> Dictionary:
     return social_visitor.begin(session,graph,_id("mona_begin"))
 
+func mona_npc_initiation_ready() -> bool:
+    return social_visitor.initiation_ready(session,graph)
+
+func mona_story_exchange_available() -> bool:
+    return social_visitor.exchange_available(session)
+
 func mona_story_next() -> Dictionary:
     return social_visitor.next(session,_id("mona_next"))
 
@@ -843,6 +849,10 @@ func status() -> Dictionary:
         "mahmoud_story_outcome": str(mahmoud_story_session().get("outcome","")),
         "mahmoud_story_choices": session.ink_choices(MAHMOUD_STORY_ID) if session.ink_ready(MAHMOUD_STORY_ID) else [],
         "mona_visit_near": mona_visit_near(),
+        "mona_npc_initiation_ready": mona_npc_initiation_ready(),
+        "mona_story_exchange_available": mona_story_exchange_available(),
+        "mona_story_outcome": str(mona_story_session().get("outcome","")),
+        "mona_story_deadline": int(mona_story_session().get("reply_deadline_minute",-1)),
         "mona_story_phase": str(mona_story_session().get("phase","")),
         "mona_story_choices": session.ink_choices(SocialVisitor.STORY_ID) if session.ink_ready(SocialVisitor.STORY_ID) else [],
         "npc_mona": str(session.world.npc("mona").get("location_id","")),
