@@ -642,24 +642,22 @@ func _run() -> void:
         str(npc_offer.get("source_event_id","")).begins_with("evt:"),
         "Mahmoud greeting must derive from his own delivered P4 order")
     var offer_minute: int = int(npc_offer.get("world_minute",-1))
-    check(not restored.mahmoud_npc_initiation_ready() and
-        not Game.npc_initiation_window(offer_minute,offer_minute,1,8) and
-        Game.npc_initiation_window(offer_minute,offer_minute+1,1,8) and
-        Game.npc_initiation_window(offer_minute,offer_minute+7,1,8) and
-        not Game.npc_initiation_window(offer_minute,offer_minute+8,1,8) and
-        not Game.npc_initiation_window(offer_minute,offer_minute-1,1,8),
-        "NPC self-start window must be bounded by authored P1 world minutes")
+    check(restored.mahmoud_npc_initiation_ready() and
+        Game.npc_initiation_window(offer_minute,offer_minute,0,8) and
+        Game.npc_initiation_window(offer_minute,offer_minute+7,0,8) and
+        not Game.npc_initiation_window(offer_minute,offer_minute+8,0,8) and
+        not Game.npc_initiation_window(offer_minute,offer_minute-1,0,8),
+        "Mahmoud should speak while still close on authentic delivery, with a bounded authored window")
     check(restored.save_game().get("ok",false),"save true post-delivery greeting opportunity")
     var greeting: RefCounted = Game.new()
     check(greeting.start(SAVE).get("code","")=="RESTORED",
         "NPC greeting may not rely on scene-local unsaved opportunity state")
-    check(greeting.status().get("mahmoud_npc_initiation_ready",false)==false,
-        "NPC must not initiate in the instant of delivery")
+    check(greeting.status().get("mahmoud_npc_initiation_ready",false),
+        "genuine delivery should make physically reachable NPC invitation immediately eligible")
     check(greeting.wait_minutes(1).get("ok",false),
-        "NPC initiative must observe actual P1 advancement and NPC movement")
-    check(greeting.mahmoud_npc_initiation_ready() and
-        greeting.status().get("mahmoud_npc_initiation_ready",false),
-        "reachable NPC should initiate after authored delay without pressing Talk")
+        "world and NPC schedules advance normally after the opportunity")
+    check(not greeting.mahmoud_npc_initiation_ready(),
+        "NPC should not start a late conversation after actually walking out of reach")
     check(greeting.session.world.narrative_session(Game.MAHMOUD_STORY_ID).is_empty(),
         "checking NPC initiative cannot automatically forge a P6 session")
     greeting.dispose()
