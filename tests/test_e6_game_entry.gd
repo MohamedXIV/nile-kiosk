@@ -56,6 +56,7 @@ func _run() -> void:
     # P2a view-only transition owns no world time, portal, or save state.
     var fade: CanvasLayer = RoomFade.new()
     root.add_child(fade)
+    fade.build()
     check(fade.shade != null and fade.shade.size == Vector2(960,540) and
         not fade.shade.visible and not fade.fading and
         fade.shade.mouse_filter == Control.MOUSE_FILTER_STOP,
