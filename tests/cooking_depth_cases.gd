@@ -69,7 +69,9 @@ func production_sandwich() -> void:
     var path: String="user://nk-cooking-depth-game.json"
     if FileAccess.file_exists(path): DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
     var g: RefCounted=Game.new()
-    check(g.start(path).get("ok",false),"real starter world")
+    var boot: Dictionary = g.start(path)
+    check(boot.get("ok",false),"real starter world: " + str(boot))
+    if not boot.get("ok",false): return
     var k: RefCounted=g.session.world
     var stock_before: Dictionary=k.cooking_view()["stock"]
     var money_before: int=k.balance_minor()
