@@ -54,7 +54,7 @@ async function saveDurably(viaStationTouch=false) {
   const marker="E6_GAME_SAVE_CONFIRMED";
   const index=(traces[marker]||[]).length;
   const saved=viaStationTouch
-    ? await clickControl(591,490,"E6_GAME_SAVE",true)
+    ? (await clickControl(834,414,"",true),await clickControl(660,490,"E6_GAME_SAVE",true))
     : await action("p","E6_GAME_SAVE");
   check(saved.save_storage_status==="pending" || saved.save_storage_status==="confirmed",
     "Web save did not start browser durability verification");
@@ -65,7 +65,7 @@ async function saveDurably(viaStationTouch=false) {
   return saved;
 }
 async function clickControl(x, y, marker, useTouch=false) {
-  const index=(traces[marker]||[]).length;
+  const index=marker ? (traces[marker]||[]).length : 0;
   // Godot's logical 960x540 viewport is aspect-fitted inside the
   // responsive browser canvas. Convert draw/UI coordinates to CSS pixels.
   const canvas=page.locator("canvas").first();
@@ -84,7 +84,7 @@ async function clickControl(x, y, marker, useTouch=false) {
   } else {
     await canvas.click({position});
   }
-  return until(marker,index);
+  return marker ? until(marker,index) : null;
 }
 try {
   const base=process.argv[2]||"http://127.0.0.1:8765";
@@ -100,11 +100,8 @@ try {
   check(initial.next_step_phase==="head_to_shop",
     "initial guide must follow the actual roof-to-kiosk route");
   let opened=await action("F7","E6_SANDWICH_TOGGLE");
-  check(opened.sandwich_visible,"F7 overlay not visible");
-  let remote=await action("1","E6_GAME_SANDWICH_PURCHASE");
-  check(remote.money===6000 && !remote.sandwich.offers[0].resolved,
-    "remote purchase invented stock");
-  await action("F7","E6_SANDWICH_TOGGLE");
+  check(!opened.sandwich_visible && !opened.sandwich.near,
+    "offsite F7 must not open an unusable cooking overlay or remote shopping");
   await action("e","E6_GAME_DOOR");
   await moveDiagonal(1260);
   await action("e","E6_GAME_DOOR");
@@ -117,14 +114,13 @@ try {
   opened=await clickControl(480,490,"E6_SANDWICH_TOGGLE",true);
   check(opened.sandwich_visible && opened.sandwich.near,
     "actual Godot Button failed to open reachable sandwich counter");
-  // On actual compact phone landscape, all six real P5 receipts are purchased
-  // by six distinct native Godot touch targets (no keyboard shortcuts).
+  // Real paid P5 lots remain individually authorized by the player, but
+  // the strip automatically offers the next missing item via ONE touch target.
   const sceneCanvas=await page.locator("canvas").first().boundingBox();
   const cssScale=Math.min(sceneCanvas.width/960,sceneCanvas.height/540);
   check(cssScale*70>=44,"sandwich buttons are not thumb-sized at 640x360");
   for(let i=1;i<=6;i++) {
-    const col=Math.floor((i-1)/3), row=(i-1)%3;
-    const bought=await clickControl(256+col*300,188+row*78,
+    const bought=await clickControl(660,490,
       "E6_GAME_SANDWICH_PURCHASE",true);
     check(bought.sandwich.offers[i-1].resolved,
       "real touchscreen ingredient purchase missing for lot "+i);
@@ -134,23 +130,23 @@ try {
   check(paid.sandwich.can_start && paid.sandwich.stock.liver===400 &&
     paid.sandwich.offers.every(offer=>offer.unit),
     "paid stock, units and recipe readiness must be drawn from P3");
-  let started=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  let started=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(started.sandwich.stage==="waiting" && started.sandwich.step_index===0,
     "sandwich job not canonically started");
-  let seasoned=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  let seasoned=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(seasoned.sandwich.stage==="active","seasoning did not begin");
-  await clickControl(361,490,"E6_GAME_WAIT",true);
-  await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true); // Finish seasoning
-  const pan=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  await clickControl(840,490,"E6_GAME_WAIT",true);
+  await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true); // Finish seasoning
+  const pan=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(pan.sandwich.step_index===1 && pan.sandwich.stage==="active",
     "pan stage missing");
   check(pan.sandwich.heat_state==="warming" && pan.sandwich.heat_minutes===2,
     "pan illustration did not receive canonical lead-in timing");
-  await clickControl(361,490,"E6_GAME_WAIT",true); // Godot Button, real P1 clock.
+  await clickControl(840,490,"E6_GAME_WAIT",true); // Godot Button, real P1 clock.
   const turnWindow=traces.E6_GAME_WAIT.at(-1);
   check(turnWindow.sandwich.heat_state==="turn_window",
     "pan did not show the real turn window");
-  const turned=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  const turned=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(turned.sandwich.step_index===1 && turned.sandwich.stage==="active",
     "turn skipped or ended frying instead of changing same active step");
   check(turned.sandwich.heat_state==="turned" &&
@@ -175,20 +171,20 @@ try {
   opened=await clickControl(480,490,"E6_SANDWICH_TOGGLE",true);
   check(opened.sandwich_visible && opened.sandwich.near,
     "clickable workstation did not restore after browser hard reload");
-  const overcooked=await clickControl(361,490,"E6_GAME_WAIT",true);
+  const overcooked=await clickControl(840,490,"E6_GAME_WAIT",true);
   check(overcooked.sandwich.heat_state==="second_face_late" &&
     overcooked.sandwich.heat_minutes>=3,
     "real overcooking warning missing despite elapsed canonical world time");
-  let lifted=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  let lifted=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(lifted.sandwich.stage==="waiting" && lifted.sandwich.step_index===2,
     "second face did not finish");
-  await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true); // Assembly begin
-  const finished=await clickControl(131,490,"E6_GAME_SANDWICH_STEP",true);
+  await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true); // Assembly begin
+  const finished=await clickControl(660,490,"E6_GAME_SANDWICH_STEP",true);
   check(finished.sandwich.stage==="" && finished.sandwich.item_id.startsWith("item:player:sandwich:") &&
     finished.sandwich.score>=25 && finished.sandwich.score<100 &&
     ["okay","rough"].includes(finished.sandwich.grade),
     "timed real sandwich did not yield imperfect verified item quality");
-  const closedCounter=await clickControl(821,490,"E6_SANDWICH_TOGGLE",true);
+  const closedCounter=await clickControl(916,417,"E6_SANDWICH_TOGGLE",true);
   check(!closedCounter.sandwich_visible,
     "real Godot Close Button did not release the cooking overlay");
   await saveDurably();
@@ -277,17 +273,21 @@ try {
   const reopen=await clickControl(480,490,"E6_SANDWICH_TOGGLE",true);
   check(reopen.sandwich_visible && reopen.sandwich.near,
     "player lost kitchen access after next-day travel through time");
+  // The same small, real touch Buy target handles each refreshed P5 lot
+  // on day two. Removed numeric shortcuts must NEVER be needed for shopping.
   for(let i=1;i<=6;i++) {
-    const fresh=await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
+    const fresh=await clickControl(660,490,"E6_GAME_SANDWICH_PURCHASE",true);
     check(fresh.sandwich.offers[i-1].resolved,
-      "next-day market repeat didn't issue a second receipt for "+i);
+      "next-day contextual Buy didn't issue a second receipt for "+i);
   }
   const restocked=traces.E6_GAME_SANDWICH_PURCHASE.at(-1);
   check(restocked.money===3430 && restocked.sandwich.stock.liver===700,
     "next-day real market should debit 1560 and only add 400g liver");
-  const duplicate=await action("5","E6_GAME_SANDWICH_PURCHASE");
-  check(duplicate.money===3430 && duplicate.sandwich.stock.liver===700,
-    "same-day repeat key minted free or double-bought supplies");
+  const receiptsBefore=traces.E6_GAME_SANDWICH_PURCHASE.length;
+  await press("5"); // Old numbered purchase shortcut is deliberately gone.
+  await page.waitForTimeout(150);
+  check(traces.E6_GAME_SANDWICH_PURCHASE.length===receiptsBefore,
+    "retired number shortcut unexpectedly issued a duplicate paid order");
   await saveDurably();
   await page.reload({waitUntil:"load"});
   const secondDayReplay=await until("E6_GAME_RESTORED",3);
@@ -309,17 +309,17 @@ try {
   check(acceptedDayTwo.next_step_phase==="prepare_liver",
     "day-two accepted order must follow real P3 stock and preparation");
   await action("F7","E6_SANDWICH_TOGGLE");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Start
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Season
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Finish seasoning
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Pan
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Actual turn
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Lift
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Assemble
-  const secondDish=await action("Enter","E6_GAME_SANDWICH_STEP");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Start (contextual primary)
+  await action("e","E6_GAME_SANDWICH_STEP"); // Season
+  await action("f","E6_GAME_WAIT"); // Contextual secondary, canonical 5min
+  await action("e","E6_GAME_SANDWICH_STEP"); // Finish seasoning
+  await action("e","E6_GAME_SANDWICH_STEP"); // Pan
+  await action("f","E6_GAME_WAIT");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Actual turn
+  await action("f","E6_GAME_WAIT");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Lift
+  await action("e","E6_GAME_SANDWICH_STEP"); // Assemble
+  const secondDish=await action("e","E6_GAME_SANDWICH_STEP");
   check(secondDish.sandwich.item_id!==finished.sandwich.item_id &&
     secondDish.sandwich.stock.liver===600,
     "returning customer did not receive an independently cooked dish");

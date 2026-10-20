@@ -26,30 +26,69 @@ func _run() -> void:
     controls.build() # SceneTree._initialize runs before root's first READY.
     var sample_offers: Array = [
         {"ingredient_id":"bread","cost":120,"resolved":false},
-        {"ingredient_id":"liver","cost":1200,"resolved":true}
+        {"ingredient_id":"liver","cost":1200,"resolved":false}
     ]
-    var view: Dictionary = {"near":true,"offers":sample_offers,
-        "cue":"Enter · Turn the liver now"}
-    controls.update_view(view,false,false,false)
+    var stock_view: Dictionary = {"near":true,"offers":sample_offers,
+        "stage":"","can_start":false,"cue":"Get cooking ingredients"}
+    controls.update_view(stock_view,false,false,false)
     check(controls.opener.visible,"nearby cooking opener must be visible")
-    controls.update_view(view,true,false,false)
-    check(not controls.opener.visible and controls.purchases[0].visible and
-        not controls.purchases[0].disabled,"open counter has clickable paid offer")
-    check(controls.purchases[1].disabled and controls.purchases[1].text=="BOUGHT",
-        "already purchased ingredient cannot be charged twice by clicking")
-    check(controls.action_button.text=="Turn liver" and
-        not controls.action_button.disabled,"native cooking action matches P3 turn")
-    var far: Dictionary = view.duplicate(true)
+    controls.update_view(stock_view,true,false,false)
+    check(not controls.opener.visible and controls.action_button.visible and
+        controls.action_button.text.contains("bread") and
+        controls.wait_button.visible and controls.wait_button.text=="Next ingredient",
+        "in-reach bottom strip must expose one Buy and optional Next only")
+    check(controls.selected_offer_index==0,"first unpaid lot selected")
+    controls._secondary_pressed()
+    check(controls.selected_offer_index==1 and
+        controls.action_button.text.contains("liver"),
+        "player can freely browse offered ingredients without buying")
+    stock_view["offers"][1]["resolved"]=true
+    controls.update_view(stock_view,true,false,false)
+    check(controls.selected_offer_index==0 and
+        not controls.wait_button.visible,
+        "buy cursor must skip purchased lots and hide unavailable Next")
+    # A recipe can become cookable before all optional P5 lots are bought.
+    # The player decides: E can still buy the remaining lot, F can start.
+    var ready_with_optional: Dictionary = stock_view.duplicate(true)
+    ready_with_optional["can_start"]=true
+    controls.update_view(ready_with_optional,true,false,false)
+    check(controls.action_kind=="buy" and
+        controls.action_button.text.contains("bread") and
+        controls.wait_button.visible and controls.wait_button.text=="Start cooking",
+        "remaining stock must not disappear just because cooking is ready")
+    # No supplies and no active P3 recipe is not an actionable context.
+    var unavailable: Dictionary = stock_view.duplicate(true)
+    for offer in unavailable["offers"]:
+        offer["resolved"]=true
+    unavailable["can_start"]=false
+    controls.update_view(unavailable,true,false,false)
+    check(not controls.action_button.visible and not controls.wait_button.visible,
+        "sold-out unready workstation must not render a bogus Start action")
+    var cooking: Dictionary = stock_view.duplicate(true)
+    cooking["stage"]="active"
+    cooking["can_start"]=true
+    cooking["cue"]="Enter · Turn the liver now"
+    controls.update_view(cooking,true,false,false)
+    check(controls.action_button.visible and
+        controls.action_button.text=="Turn liver" and
+        controls.wait_button.visible and
+        controls.action_kind=="step",
+        "ongoing cooking switches contextual Buy to Step / Wait")
+    controls._utility_toggle()
+    check(controls.save_button.visible and not controls.action_button.visible and
+        not controls.wait_button.visible,"Save utility cannot crowd cooking verbs")
+    controls._utility_toggle()
+    var far: Dictionary = stock_view.duplicate(true)
     far["near"] = false
     controls.update_view(far,true,false,false)
-    check(controls.purchases[0].disabled and controls.action_button.disabled,
-        "distant player cannot purchase or cook via pointer")
-    controls.update_view(view,true,true,false)
-    check(not controls.purchases[0].visible and not controls.action_button.visible,
-        "F7 pointer controls cannot overlap Ink conversations")
-    controls.update_view(view,true,false,true)
+    check(not controls.action_button.visible and not controls.close_button.visible,
+        "distant player cannot act through the strip")
+    controls.update_view(cooking,true,true,false)
+    check(not controls.action_button.visible and not controls.menu_button.visible,
+        "Ink conversations suppress all competing cooking controls")
+    controls.update_view(cooking,true,false,true)
     check(not controls.wait_button.visible and not controls.close_button.visible,
-        "F1 help hides competing pointer controls")
+        "F1 help hides the workstation overlay")
     root.remove_child(controls)
     controls.free()
     if FileAccess.file_exists(SAVE):
