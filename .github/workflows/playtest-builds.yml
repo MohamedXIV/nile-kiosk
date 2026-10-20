@@ -1,0 +1,154 @@
+name: Nile Kiosk playtest builds
+
+on:
+  pull_request:
+    paths:
+      - "export_presets.cfg"
+      - ".github/workflows/playtest-builds.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/playtest-builds.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nile-playtest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch pinned inkgd
+        uses: actions/checkout@v4
+        with:
+          repository: ephread/inkgd
+          ref: fea9098ee18d6cdbe9a5e25f8f0296bcdf0fd96a
+          path: _upstream_inkgd
+          persist-credentials: false
+      - name: Fetch pinned Dialogue Manager
+        uses: actions/checkout@v4
+        with:
+          repository: nathanhoad/godot_dialogue_manager
+          ref: 5487c524b9eac303b059e5859e2980b134c59d79
+          path: _upstream_dialogue_manager
+          persist-credentials: false
+      - name: Install both pinned narrative runtimes
+        run: |
+          mkdir -p addons
+          cp -R _upstream_dialogue_manager/addons/dialogue_manager addons/dialogue_manager
+          cp -R _upstream_inkgd/addons/inkgd addons/inkgd
+          rm -rf _upstream_dialogue_manager _upstream_inkgd
+      - name: Compile authored Ink with pinned compiler
+        run: |
+          curl -fL --retry 3 --output /tmp/inklecate_linux.zip https://github.com/inkle/ink/releases/download/v1.2.1/inklecate_linux.zip
+          echo "1997ff5bca618c90003ecd5fecb286e7468abb955005a2a185042949642f8fb5  /tmp/inklecate_linux.zip" | sha256sum --check
+          mkdir -p /tmp/inklecate
+          unzip -q /tmp/inklecate_linux.zip -d /tmp/inklecate
+          INKLECATE="$(find /tmp/inklecate -type f -name inklecate | head -n 1)"
+          test -n "$INKLECATE"
+          chmod +x "$INKLECATE"
+          INKLECATE="$INKLECATE" bash tools/compile-ink.sh
+      - name: Install Godot 4.6.3 and export templates
+        uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.6.3
+          use-dotnet: false
+          include-templates: true
+      - name: Import production game
+        run: godot --headless --path . --import
+      - name: Export playable Web and Windows x64
+        run: |
+          set -euo pipefail
+          mkdir -p build/playtest/web build/playtest/windows
+          godot --headless --path . --export-release Web build/playtest/web/index.html
+          godot --headless --path . --export-release "Windows Desktop" build/playtest/windows/NileKiosk.exe
+          test -s build/playtest/web/index.html
+          test -s build/playtest/web/index.wasm
+          test -s build/playtest/web/index.pck
+          test -s build/playtest/windows/NileKiosk.exe
+          find build/playtest -maxdepth 2 -type f -printf '%P (%s bytes)\\n'
+      - name: Package downloadable playtests
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          (
+            cd build/playtest/windows
+            zip -q -r ../../../dist/Nile-Kiosk-Windows-x64-playtest.zip .
+          )
+          (
+            cd build/playtest/web
+            zip -q -r ../../../dist/Nile-Kiosk-Web-playtest.zip .
+          )
+          sha256sum dist/*.zip > dist/SHA256SUMS.txt
+          ls -lh dist
+      - name: Attach downloadable builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: nile-kiosk-playtest-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Attach Web site for optional Pages publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: nile-kiosk-web-site
+          path: build/playtest/web/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: github.event_name != 'pull_request'
+    needs: export
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nile-kiosk-playtest-${{ github.sha }}
+          path: dist/
+      - name: Create public prerelease for PC downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tag="playtest-${BUILD_SHA:0:12}"
+          gh release create "$tag" dist/Nile-Kiosk-Windows-x64-playtest.zip dist/Nile-Kiosk-Web-playtest.zip dist/SHA256SUMS.txt \
+            --target "$BUILD_SHA" \
+            --title "Nile Kiosk — early playtest ${BUILD_SHA:0:12}" \
+            --notes "Unpolished gameplay test of the existing Godot default scene, not final art. Windows ZIP: extract and run NileKiosk.exe (unsigned). Web ZIP: host the extracted files over HTTP(S), not file://. Compiled Ink included; Web save remains browser-local. No actual phone/user acceptance yet." \
+            --prerelease \
+            --latest=false
+
+  pages:
+    if: github.event_name != 'pull_request' && github.event.repository.has_pages == true
+    needs: export
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nile-kiosk-web-site
+          path: public/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/
+      - id: deploy
+        uses: actions/deploy-pages@v4
