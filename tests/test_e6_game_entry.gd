@@ -6,6 +6,7 @@ const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
+const TravelTime = preload("res://scripts/gameplay/travel_time_policy.gd")
 const RoomFade = preload("res://scripts/gameplay/room_fade.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
@@ -343,7 +344,18 @@ func _run() -> void:
     var started: Dictionary = g.start(SAVE)
     check(started.get("ok",false) and started.get("code","")=="NEW_WORLD","new session "+JSON.stringify(started))
     if not started.get("ok",false): return
-    check(g.room()=="roof" and g.status()["minute"]==1020,"initial roof at authored opening time")
+    check(g.room()=="roof" and g.status()["minute"]==990,
+        "player starts at 16:30 to allow the authored half-hour kiosk commute")
+    check(TravelTime.minutes_for(g.travel_minutes,"roof_to_landing")==0 and
+        TravelTime.minutes_for(g.travel_minutes,"landing_to_street")==0 and
+        TravelTime.minutes_for(g.travel_minutes,"street_to_kiosk")==30 and
+        TravelTime.minutes_for(g.travel_minutes,"kiosk_to_street")==30,
+        "only the outdoor street/kiosk journey must cost 30 canonical minutes")
+    var invalid_rate: Dictionary = TravelTime.preflight({
+        "world_minute":990,"minutes_per_step":7,"sequence":10},30)
+    check(not invalid_rate.get("ok",false) and
+        invalid_rate.get("code","")=="COMMUTE_RATE_MISMATCH",
+        "an altered world clock rate must not create a partial commute")
     check(g.status()["money"]==6000 and g.status()["roof_access"],"world content vs QA economics")
     check(g.status()["npc_mahmoud"]=="street","visitor not pre-teleported")
     check(g.npc_pose("mahmoud").is_empty(),"absent visitor cannot be drawn")
@@ -353,15 +365,27 @@ func _run() -> void:
     check(g.move_world(60,0)["code"]=="INVALID_DELTA","no movement teleport")
     check(g.status()["digest"]==digest_before,"invalid move wrote event")
     check(g.move_world(18,0).get("ok",false),"roof move")
-    check(g.travel_near().get("ok",false) and g.room()=="landing","roof/landing")
-    check(g.travel_near().get("ok",false) and g.room()=="roof","return to roof")
-    check(g.travel_near().get("ok",false) and g.room()=="landing","return to landing")
+    check(g.travel_near().get("ok",false) and g.room()=="landing" and
+        g.status()["minute"]==990,"roof/landing must not charge travel time")
+    check(g.travel_near().get("ok",false) and g.room()=="roof" and
+        g.status()["minute"]==990,"return to roof must not charge travel time")
+    check(g.travel_near().get("ok",false) and g.room()=="landing" and
+        g.status()["minute"]==990,"return to landing remains instantaneous")
     for i in range(9):
         check(g.move_world(18,0).get("ok",false),"landing walk %d" % i)
-    check(g.travel_near().get("ok",false) and g.room()=="street","landing/street")
+    check(g.travel_near().get("ok",false) and g.room()=="street" and
+        g.status()["minute"]==990,"landing/street is nearby, not another commute")
     for i in range(9):
         check(g.move_world(18,0).get("ok",false),"street walk %d" % i)
-    check(g.travel_near().get("ok",false) and g.room()=="kiosk","street/kiosk")
+    var before_commute: Dictionary = g.session.world.view()
+    var arrived: Dictionary = g.travel_near()
+    check(arrived.get("ok",false) and arrived.get("travel_minutes",-1)==30 and
+        arrived.get("arrival_minute",-1)==1020 and g.room()=="kiosk",
+        "street/kiosk must commit a genuine 30-minute commute")
+    check(g.session.world.view()["sequence"]==int(before_commute["sequence"])+2,
+        "commute must be exactly one P2 portal event and one P1 time event")
+    check(g.status()["minute"]==1020,
+        "world clock must reach 17:00 rather than increment a UI-only timer")
     check(g.service_near()["code"]=="KIOSK_CLOSED","closed store rejects service")
     for i in range(4):
         check(g.move_world(18,0).get("ok",false),"kiosk counter approach %d" % i)

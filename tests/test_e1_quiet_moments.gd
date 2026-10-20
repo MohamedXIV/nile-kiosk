@@ -36,8 +36,8 @@ func run() -> void:
     check(g.session.command("e1:resume","system:clock","time.resume",{}).get("ok",false),"resume")
     var breeze: Dictionary = g.quiet_near()
     check(breeze.get("ok",false) and breeze.get("activity_id","")=="roof_breeze","roof quiet action")
-    check(g.status()["minute"]==1030 and g.status()["quiet_count"]==1 and g.status()["last_quiet"]=="roof_breeze","canonical quiet duration and marker")
-    check(g.status()["npc_mahmoud"]=="kiosk","offscreen NPC moved during quiet roof moment")
+    check(g.status()["minute"]==1000 and g.status()["quiet_count"]==1 and g.status()["last_quiet"]=="roof_breeze","canonical quiet duration and marker")
+    check(g.status()["npc_mahmoud"]=="street","Mahmoud remains on his independent schedule before 17:15")
     check(g.status()["money"]==6000 and g.status()["offer_count"]==0,"quiet moment minted money/order")
     var breeze_id: String = str(g.session.world.view()["events"][-1]["command_id"])
     var breeze_state: String = g.status()["digest"]

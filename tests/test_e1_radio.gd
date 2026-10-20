@@ -63,8 +63,8 @@ func run() -> void:
     check(g.place_radio().get("code")=="OBJECT_NOT_STORED","duplicate place")
     check(g.listen_radio().get("ok",false),"listen placed radio")
     check(g.status()["radio_uses"]==1 and g.status()["quiet_count"]==1,"single radio use and event")
-    check(g.status()["money"]==4800 and g.status()["minute"]==1032,"radio cost and authored minutes")
-    check(g.status()["npc_mahmoud"]=="kiosk" and g.status()["offer_count"]==0,"scheduled NPC continues but closed demand suppressed")
+    check(g.status()["money"]==4800 and g.status()["minute"]==1002,"radio cost and authored minutes")
+    check(g.status()["npc_mahmoud"]=="street" and g.status()["offer_count"]==0,"scheduled NPC does not arrive before 17:15 while radio plays at home")
     var listened_id: String = str(g.session.world.view()["events"][-1]["command_id"])
     var listened_digest: String = g.status()["digest"]
     check(g.session.command(listened_id,"player","life.activity",{"activity_id":"radio_listen"}).get("ok",false),"listen receipt")

@@ -138,7 +138,7 @@ try {
   await page.goto(base + "/game/index.html", { waitUntil: "load", timeout: 30000 });
   await page.locator("canvas").first().click({ position: {x:500,y:290} });
   const initial = await until("E6_GAME_READY");
-  check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
+  check(initial.location === "roof" && initial.minute === 990 && initial.money === 6000, "not starter world");
   checkRoomFrame(initial,"fresh rooftop");
   check(initial.sound_enabled === true && initial.sound_room === "roof" && !initial.sound_kettle,
     "roof ambience not initialized in real playable scene");
@@ -198,6 +198,8 @@ try {
   const kiosk = await until("E6_GAME_DOOR",2);
   check(kiosk.location === "kiosk" && kiosk.sound_room === "kiosk",
     "street/kiosk portal or location-based ambient transition missing");
+  check(kiosk.minute >= street.minute+30 && kiosk.minute <= street.minute+33,
+    "30 canonical travel minutes must elapse across street/kiosk portal");
   checkRoomFrame(kiosk,"street-to-kiosk");
   await moveDiagonal(520);
   await press("o");
@@ -531,7 +533,10 @@ try {
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
-    morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
+    morningRestored.location === "roof" && morningRestored.day === 2,
+    "sleep/day save replay failed: " + JSON.stringify({
+      saved:{revision:morningSaved.revision,digest:morningSaved.digest,minute:morningSaved.minute,day:morningSaved.day,radio_uses:morningSaved.radio_uses,quiet_count:morningSaved.quiet_count,save_storage_status:morningSaved.save_storage_status},
+      restored:{revision:morningRestored.revision,digest:morningRestored.digest,minute:morningRestored.minute,day:morningRestored.day,radio_uses:morningRestored.radio_uses,quiet_count:morningRestored.quiet_count,sleep_count:morningRestored.sleep_count,bed_placed:morningRestored.bed_placed,location:morningRestored.location}}));
   // Exercise F1 only AFTER timed P1/P4 social beats and all core journey
   // assertions: a live-world help test must not alter scheduled-story timing.
   // F1 is a view-only help overlay in the actual Chromium game canvas.

@@ -28,10 +28,12 @@ func run() -> void:
     check(g.close_kiosk().get("code")=="NOT_AT_KIOSK","cannot remotely close")
     var before: String = g.status()["digest"]
     check(g.status()["offer_count"]==0,"unexpected starting orders")
-    check(g.wait_minutes(5).get("ok",false),"quiet 1")
-    check(g.wait_minutes(5).get("ok",false),"quiet 2")
-    check(g.wait_minutes(5).get("ok",false),"quiet 3")
-    check(g.status()["npc_mahmoud"]=="kiosk","NPC arrival while player stays home")
+    # Fresh start is now 16:30, not 17:00; the NPC still appears at
+    # the same independent authored 17:15 time even if the player never opens.
+    for n in range(9):
+        check(g.wait_minutes(5).get("ok",false),"quiet closed-hour %d" % n)
+    check(g.status()["minute"]==1035 and g.status()["npc_mahmoud"]=="kiosk",
+        "NPC arrival at 17:15 while player stays home")
     check(g.status()["offer_count"]==0,"closed kiosk should suppress scheduled customer intent")
     check(g.save_game().get("ok",false),"quiet day saved")
     var quiet: String = g.status()["digest"]
@@ -96,7 +98,9 @@ func run() -> void:
     check(next.open_kiosk().get("ok",false),"reopen next day")
     # Deliberately advance canonical time in one chunk; all due NPC firings
     # must remain identical to sequential world steps.
-    check(next.session.advance(555,"e1:test:day2:afternoon").get("ok",false),"canonical afternoon advance")
+    # Second-day commute already consumed 30 genuine P1 minutes after 08:00.
+    check(next.session.advance(525,"e1:test:day2:afternoon").get("ok",false),
+        "canonical afternoon advance to original customer schedule")
     check(next.status()["npc_mahmoud"]=="kiosk" and next.status()["order_status"]=="offered",
         "next-day independently scheduled customer")
     var chunk: RefCounted = Kernel.new()

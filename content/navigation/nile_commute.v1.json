@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "description": "First playable commute: the street-to-kiosk crossing and the return leg each consume 30 canonical P1 minutes. Building stairs and doorways are instantaneous.",
+  "portal_minutes": {
+    "street_to_kiosk": 30,
+    "kiosk_to_street": 30
+  }
+}
