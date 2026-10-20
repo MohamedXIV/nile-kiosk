@@ -273,17 +273,21 @@ try {
   const reopen=await clickControl(480,490,"E6_SANDWICH_TOGGLE",true);
   check(reopen.sandwich_visible && reopen.sandwich.near,
     "player lost kitchen access after next-day travel through time");
+  // The same small, real touch Buy target handles each refreshed P5 lot
+  // on day two. Removed numeric shortcuts must NEVER be needed for shopping.
   for(let i=1;i<=6;i++) {
-    const fresh=await action(String(i),"E6_GAME_SANDWICH_PURCHASE");
+    const fresh=await clickControl(660,490,"E6_GAME_SANDWICH_PURCHASE",true);
     check(fresh.sandwich.offers[i-1].resolved,
-      "next-day market repeat didn't issue a second receipt for "+i);
+      "next-day contextual Buy didn't issue a second receipt for "+i);
   }
   const restocked=traces.E6_GAME_SANDWICH_PURCHASE.at(-1);
   check(restocked.money===3430 && restocked.sandwich.stock.liver===700,
     "next-day real market should debit 1560 and only add 400g liver");
-  const duplicate=await action("5","E6_GAME_SANDWICH_PURCHASE");
-  check(duplicate.money===3430 && duplicate.sandwich.stock.liver===700,
-    "same-day repeat key minted free or double-bought supplies");
+  const receiptsBefore=traces.E6_GAME_SANDWICH_PURCHASE.length;
+  await press("5"); // Old numbered purchase shortcut is deliberately gone.
+  await page.waitForTimeout(150);
+  check(traces.E6_GAME_SANDWICH_PURCHASE.length===receiptsBefore,
+    "retired number shortcut unexpectedly issued a duplicate paid order");
   await saveDurably();
   await page.reload({waitUntil:"load"});
   const secondDayReplay=await until("E6_GAME_RESTORED",3);
@@ -305,17 +309,17 @@ try {
   check(acceptedDayTwo.next_step_phase==="prepare_liver",
     "day-two accepted order must follow real P3 stock and preparation");
   await action("F7","E6_SANDWICH_TOGGLE");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Start
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Season
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Finish seasoning
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Pan
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Actual turn
-  await action("j","E6_GAME_WAIT");
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Lift
-  await action("Enter","E6_GAME_SANDWICH_STEP"); // Assemble
-  const secondDish=await action("Enter","E6_GAME_SANDWICH_STEP");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Start (contextual primary)
+  await action("e","E6_GAME_SANDWICH_STEP"); // Season
+  await action("f","E6_GAME_WAIT"); // Contextual secondary, canonical 5min
+  await action("e","E6_GAME_SANDWICH_STEP"); // Finish seasoning
+  await action("e","E6_GAME_SANDWICH_STEP"); // Pan
+  await action("f","E6_GAME_WAIT");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Actual turn
+  await action("f","E6_GAME_WAIT");
+  await action("e","E6_GAME_SANDWICH_STEP"); // Lift
+  await action("e","E6_GAME_SANDWICH_STEP"); // Assemble
+  const secondDish=await action("e","E6_GAME_SANDWICH_STEP");
   check(secondDish.sandwich.item_id!==finished.sandwich.item_id &&
     secondDish.sandwich.stock.liver===600,
     "returning customer did not receive an independently cooked dish");
