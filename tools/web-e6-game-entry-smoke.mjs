@@ -160,18 +160,15 @@ try {
   await press("v");
   const placedRadio = await until("E6_GAME_RADIO_PLACE");
   check(placedRadio.radio_placed && placedRadio.money === 4800, "radio not placed in home");
-  await press("r");
-  const listenedRadio = await until("E6_GAME_RADIO_LISTEN",1);
-  check(listenedRadio.radio_uses === 1 && listenedRadio.quiet_count === 1 &&
-    listenedRadio.last_quiet === "radio_listen" && listenedRadio.minute === 1032,
-    "radio use did not advance canonical time and housing usage");
-  check(listenedRadio.mood > placedRadio.mood, "actual radio use has no contextual E2 effect");
+  // Going straight to the shop is a player choice. Spending 12 minutes on
+  // rooftop radio first can genuinely miss the first closed-demand slot.
+  // Exercise radio use after the shift, without holding NPCs for this test.
   check(!listenedRadio.bed_owned && !listenedRadio.bed_placed, "bed gifted at boot");
   await press("t");
   const boughtBed = await until("E6_GAME_BED",0);
-  check(boughtBed.bed_owned && !boughtBed.bed_placed && boughtBed.money === listenedRadio.money - boughtBed.bed_price,
+  check(boughtBed.bed_owned && !boughtBed.bed_placed && boughtBed.money === placedRadio.money - boughtBed.bed_price,
     "secondhand bed did not debit P5 ledger");
-  check(boughtBed.mood === listenedRadio.mood && boughtBed.rest === listenedRadio.rest,
+  check(boughtBed.mood === placedRadio.mood && boughtBed.rest === placedRadio.rest,
     "purchasing a bed gave free Mood/Rest");
   await press("t");
   const placedBed = await until("E6_GAME_BED",1);
@@ -326,7 +323,7 @@ try {
   await moveDiagonal(480);
   await press("q");
   const riverMoment = await until("E6_GAME_QUIET");
-  check(riverMoment.quiet_count === 2 && riverMoment.last_quiet === "river_watch" &&
+  check(riverMoment.quiet_count === 1 && riverMoment.last_quiet === "river_watch" &&
     riverMoment.order_status === "delivered", "quiet moment lost the delivered customer order");
   check(riverMoment.npc_mahmoud_mode === "standing" && riverMoment.npc_mahmoud_x === 200 &&
     riverMoment.npc_mahmoud_y === 110, "NPC couldn't return home as player enjoyed quiet moment");
@@ -474,7 +471,7 @@ try {
     restored.npc_mahmoud_x === saved.npc_mahmoud_x && restored.npc_mahmoud_y === saved.npc_mahmoud_y,
     "NPC position changed on Chromium hard reload");
   check(restored.digest === saved.digest && restored.bed_placed && restored.bed_owned &&
-    restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 2 && restored.radio_uses === 1 && restored.radio_placed &&
+    restored.location === "kiosk" && restored.order_status === "delivered" && restored.quiet_count === 1 && restored.radio_uses === 0 && restored.radio_placed &&
     restored.river_story_phase === "choice" && restored.mahmoud_story_phase === "finished" && restored.mona_story_phase === "finished" && restored.player_knows_mona_visit, "browser reload lost game state or either canonical Ink story");
   await press("n");
   const resumedStory = await until("E4_STORY_RESUMED");
@@ -507,6 +504,14 @@ try {
   check(backLanding.location === "landing", "street-to-landing return");
   const backHome = await walkBackThroughDoor("roof", 35);
   check(backHome.location === "roof", "landing-to-home return");
+  await press("r");
+  const listenedRadio = await until("E6_GAME_RADIO_LISTEN",1);
+  check(listenedRadio.radio_uses === 1 && listenedRadio.quiet_count === 2 &&
+    listenedRadio.last_quiet === "radio_listen" &&
+    listenedRadio.minute >= backHome.minute + 12,
+    "late radio use did not advance canonical P1 time and housing usage");
+  check(listenedRadio.mood > backHome.mood,
+    "actual local radio use had no positive contextual mood effect");
   await press("q");
   const rooftopMoment = await until("E6_GAME_QUIET",1);
   check(rooftopMoment.quiet_count === 3 && rooftopMoment.last_quiet === "roof_breeze" &&
