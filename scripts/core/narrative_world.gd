@@ -111,6 +111,7 @@ func available(session_id: String, society: RefCounted) -> Array[Dictionary]:
 func _validate_story(p: Dictionary) -> Dictionary:
     var story_keys: Array = ["story_id", "beats", "choice_points", "customer_memory"] if p.has("customer_memory") else ["story_id", "beats", "choice_points"]
     if p.has("conversation"): story_keys.append("conversation")
+    if p.has("choice_windows"): story_keys.append("choice_windows")
     if not exact(p, story_keys) or not id(p.get("story_id")) or typeof(p.get("beats")) != TYPE_DICTIONARY or typeof(p.get("choice_points")) != TYPE_DICTIONARY:
         return fail("INVALID_PAYLOAD")
     if p["beats"].is_empty() or p["beats"].size() > 128 or p["choice_points"].size() > 32:
@@ -130,6 +131,17 @@ func _validate_story(p: Dictionary) -> Dictionary:
                 return fail("INVALID_MEMORY_BEAT")
         if not beat["fact_id"].is_empty() and not id(beat["fact_id"]):
             return fail("INVALID_BEAT")
+    # Windows are authored per choice point and never inferred from wall time.
+    # Missing windows preserve existing untimed Ink stories unchanged.
+    if p.has("choice_windows"):
+        if typeof(p["choice_windows"]) != TYPE_DICTIONARY or p["choice_windows"].size() > p["choice_points"].size():
+            return fail("INVALID_CHOICE_WINDOWS")
+        for point_id in p["choice_windows"]:
+            var window: Variant = p["choice_windows"][point_id]
+            if not p["choice_points"].has(point_id) or typeof(window) != TYPE_DICTIONARY or not exact(window,["minutes","outcome"]):
+                return fail("INVALID_CHOICE_WINDOWS")
+            if typeof(window["minutes"]) != TYPE_INT or window["minutes"] < 1 or window["minutes"] > 1440 or window["outcome"] != "silence":
+                return fail("INVALID_CHOICE_WINDOWS")
     for point_id in p["choice_points"]:
         var options: Variant = p["choice_points"][point_id]
         if not id(point_id) or typeof(options) != TYPE_DICTIONARY or options.is_empty() or options.size() > 16:
@@ -163,6 +175,23 @@ func _speech(society: RefCounted, speaker: String, fact_id: String, mode: String
     return {"ok": true, "request": request, "effect": planned["effect"]}
 
 func observe_event(event: Dictionary, world: RefCounted) -> void:
+    # A missed reply is settled by the same authoritative P1 elapsed event
+    # that advances NPCs, cooking, needs and the rest of the living world.
+    # No UI clock, asynchronous mutation or synthetic follow-up command.
+    if event["kind"] in ["time.advanced","life.slept","life.activity_done","supply.purchased"]:
+        var pending_ids: Array = sessions.keys()
+        pending_ids.sort()
+        for session_id in pending_ids:
+            var session: Dictionary = sessions[session_id]
+            if session.get("phase","") != "choice" or not session.has("reply_deadline_minute"):
+                continue
+            var deadline: int = int(session["reply_deadline_minute"])
+            if int(world.world_minute) < deadline: continue
+            session["phase"] = "finished"
+            session["point_id"] = ""
+            session["outcome"] = "silence"
+            session["silence_minute"] = deadline
+            session["last_event_id"] = str(event["event_id"])
     OpportunityRules.unlock(opportunity_rules, opportunities, event, world)
 
 func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs: Dictionary, minute: int, world: RefCounted = null) -> Dictionary:
@@ -286,7 +315,12 @@ func plan(kind: String, p: Dictionary, actor: String, society: RefCounted, jobs:
             return fail("INVALID_PAYLOAD")
         if s["phase"] != "running" or not stories[s["story_id"]]["choice_points"].has(p["point_id"]):
             return fail("INVALID_CHOICE_POINT")
-        return {"ok": true, "effect": {"point_id": p["point_id"]}}
+        var wait_effect: Dictionary = {"point_id":p["point_id"]}
+        var window: Dictionary = stories[s["story_id"]].get("choice_windows",{}).get(p["point_id"],{})
+        if not window.is_empty():
+            if minute > MAX_INT - int(window["minutes"]): return fail("TIME_OVERFLOW")
+            wait_effect["reply_deadline_minute"] = minute + int(window["minutes"])
+        return {"ok": true, "effect": wait_effect}
     if kind == "narrative.choice.select":
         if not exact(p, ["session_id", "point_id", "option_id", "ink_state"]) or not id(p.get("point_id")) or not id(p.get("option_id")):
             return fail("INVALID_PAYLOAD")
@@ -346,6 +380,8 @@ func apply_command(kind: String, p: Dictionary, effect: Dictionary, minute: int,
             var s: Dictionary = sessions[p["session_id"]]
             s["phase"] = "choice"
             s["point_id"] = p["point_id"]
+            if effect.has("reply_deadline_minute"):
+                s["reply_deadline_minute"] = int(effect["reply_deadline_minute"])
             s["ink_state"] = p["ink_state"].duplicate(true)
             s["last_event_id"] = event_id
         "narrative.choice.select":
