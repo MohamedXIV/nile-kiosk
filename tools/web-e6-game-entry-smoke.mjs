@@ -347,43 +347,34 @@ try {
     visitorClock.story_opportunities?.mona_visits_salma &&
     !visitorClock.player_knows_mona_visit,
     "Mona opportunity didn't unlock on canonical time.advanced with player present");
-  // The riverside rail is physically near Mona's P2/schedule-derived visit
-  // spot. She is not an order: the player explicitly opts into her Ink story.
-  const visitorStartedIndex = (traces.E4_VISITOR_STARTED || []).length;
-  let visitorJoined = false;
-  for (let attempt=0; attempt<12; attempt++) {
-    const loading = (traces.E4_VISITOR_LOADING || []).length;
-    const rejected = (traces.E4_VISITOR_REJECTED || []).length;
-    await press("l");
-    for(let i=0;i<35;i++) {
-      if((traces.E4_VISITOR_STARTED || []).length > visitorStartedIndex || (traces.E4_VISITOR_LOADING || []).length > loading) {
-        await until("E4_VISITOR_STARTED",visitorStartedIndex);visitorJoined=true;break;
-      }
-      if((traces.E4_VISITOR_REJECTED || []).length > rejected)break;
-      await page.waitForTimeout(50);
+  // Genuine independent nonbuyer Mona initiates her own P6 greeting
+  // without L/Talk when the player approaches the authored P2 meeting spot.
+  // A scheduled P1 minute, not a frontend timeout, commits her Ink beats.
+  const visitorInitiatedIndex=(traces.E4_VISITOR_INITIATED||[]).length;
+  let visitorJoined=false;
+  for(let attempt=0;attempt<12;attempt++){
+    if((traces.E4_VISITOR_INITIATED||[]).length>visitorInitiatedIndex){
+      visitorJoined=true;break;
     }
-    if(visitorJoined)break;
-    const latest=(traces.E4_VISITOR_REJECTED || []).at(-1);
-    check(latest && !latest.player_knows_mona_visit && !latest.mona_visit_near,
-      "Mona rejected a physically nearby player or leaked unheard knowledge");
-    // Correct the actual player pose toward the authored, stationary meeting
-    // point instead of assuming a timed walk ended within the hearing radius.
-    const dx=monaMeeting[0]-latest.x, dy=monaMeeting[1]-latest.y;
-    if(Math.abs(dy)>12)await nudgeY(dy>0);
-    else if(dx>0)await moveDiagonal(155);
-    else await walkBack(155);
+    const latest=await action("p","E6_GAME_SAVE");
+    if(!latest.mona_npc_initiation_ready){
+      const dx=monaMeeting[0]-latest.x,dy=monaMeeting[1]-latest.y;
+      if(Math.abs(dy)>12)await nudgeY(dy>0);
+      else if(dx>0)await moveDiagonal(155);
+      else await walkBack(155);
+    }
+    await page.waitForTimeout(2100);
+    if((traces.E4_VISITOR_INITIATED||[]).length>visitorInitiatedIndex){
+      visitorJoined=true;break;
+    }
   }
-  check(visitorJoined,"could not approach Mona's actual visit pose");
-  const visitorStarted = await until("E4_VISITOR_STARTED",visitorStartedIndex);
-  check(visitorStarted.mona_story_phase === "running","Mona's visit didn't start a P6 story");
-  await press("Enter");
-  const visitorLine = await until("E4_VISITOR_LINE");
-  check(visitorLine.player_knows_mona_visit && visitorLine.mona_story_phase === "running",
-    "Mona's actual spoken Ink beat didn't teach canonical P2 knowledge");
-  await press("Enter");
-  const visitorWaiting = await until("E4_VISITOR_WAITING");
-  check(visitorWaiting.mona_story_phase === "choice" && visitorWaiting.mona_story_choices?.length === 2,
-    "Mona dialogue didn't expose real player options");
+  check(visitorJoined,"actual nonbuyer failed to initiate when player was near");
+  const visitorWaiting=await until("E4_VISITOR_INITIATED",visitorInitiatedIndex);
+  check(visitorWaiting.mona_story_phase==="choice" &&
+    visitorWaiting.mona_story_choices?.length===2 &&
+    visitorWaiting.mona_story_deadline>visitorWaiting.minute &&
+    visitorWaiting.player_knows_mona_visit,
+    "Mona spontaneous Ink must teach the heard P2 fact and offer true timed choices");
   await press("1");
   await until("E4_VISITOR_CHOICE");
   await press("Enter"); await until("E4_VISITOR_LINE",1);
@@ -553,7 +544,7 @@ try {
   check(errors.length === 0, "browser errors");
   await page.screenshot({path:"/tmp/nile-e6-game-entry.png"});
   console.log("E4_NONBUYER_CHROMIUM_PASS: Mona independently visits without order, optional Ink speech learns P2 fact, choices and hard reload persist");
-  console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: real delivered tea triggered Mahmoud invite; player consent, native Ink choice and no repeat persisted after hard reload");
+  console.log("E4_NPC_INITIATIVE_CHROMIUM_PASS: post-service Mahmoud and visiting Mona initiated authored Ink without Talk; choice/replay verified");
   console.log("E4_STORY_CHROMIUM_PASS: real player-selected Salma Ink, branch, mid-choice hard Web reload, no repeat");
   console.log("E6_GAME_CHROMIUM_PASS: production entry, autonomous service, save/reload");
   console.log("E6_AMBIENCE_CHROMIUM_PASS: live roof/kiosk/kettle audio context, persistent mute and hard browser reload");
