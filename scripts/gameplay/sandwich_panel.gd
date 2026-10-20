@@ -39,8 +39,13 @@ static func draw(canvas: CanvasItem, context: Dictionary,
     var can_start: bool = bool(context.get("can_start",false))
     var stage: String = str(context.get("stage",""))
     var offers: Array = context.get("offers",[])
-    if stage.is_empty() and not can_start:
-        _text(canvas,Vector2(140,411),"Counter stock",17,Color("#f2d5a1"))
+    var remaining: int = 0
+    for offer in offers:
+        if not bool(offer.get("resolved",false)): remaining += 1
+    if stage.is_empty() and remaining > 0:
+        _text(canvas,Vector2(140,411),
+            "Counter stock · Ready to cook" if can_start else "Counter stock",
+            17,Color("#f2d5a1"))
         if selected_offer_index>=0 and selected_offer_index<offers.size():
             var offer: Dictionary = offers[selected_offer_index]
             var id: String = str(offer.get("ingredient_id","")).replace("_"," ")
@@ -48,10 +53,7 @@ static func draw(canvas: CanvasItem, context: Dictionary,
                 [id,int(offer.get("cost",0))],16,Color("#f5e1b6"),408)
         _text(canvas,Vector2(140,465),str(context.get("service_note","")),13,
             Color("#ccd8cd"),408)
-        var missing: int = 0
-        for offer in offers:
-            if not bool(offer.get("resolved",false)): missing+=1
-        _text(canvas,Vector2(140,493),"%d ingredient lots still available" % missing,
+        _text(canvas,Vector2(140,493),"%d ingredient lots still available" % remaining,
             14,Color("#c7d1c7"))
     else:
         _text(canvas,Vector2(140,411),str(context.get("phase_label","Cooking")),
