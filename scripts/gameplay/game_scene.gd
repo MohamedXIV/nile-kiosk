@@ -101,6 +101,9 @@ func report(marker: String) -> void:
     diagnostic["dialogue_id"] = story_id
     diagnostic["help_visible"] = controls_open
     diagnostic["sandwich_visible"] = sandwich_open
+    # Read-only live interaction selection is part of Web acceptance evidence:
+    # show the actual primary/alternate verbs when NPC windows are brief.
+    diagnostic["context_actions"] = _context_actions(diagnostic)
     var guide: Dictionary = NextStepGuide.describe(diagnostic)
     diagnostic["next_step_phase"] = guide["phase"]
     diagnostic["next_step_text"] = guide["text"]
