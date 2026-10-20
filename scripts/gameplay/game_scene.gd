@@ -56,6 +56,8 @@ var story_pending: bool = false
 var story_line: String = ""
 var story_speaker: String = "" # View-only position hint from the authored P6 line.
 var story_id: String = Game.RIVER_STORY_ID
+var npc_auto_start: bool = false # View driver only; P6 owns story and deadline.
+var npc_led_active: bool = false # Allow ordinary movement while NPC speaks.
 
 func _ready() -> void:
     call_deferred("_boot")
@@ -145,6 +147,14 @@ func _process(delta: float) -> void:
                 report("E6_GAME_SAVE_UNCONFIRMED")
     if story_pending and (game.memory_story_ready() if story_id.begins_with("memory:") else game.session.ink_ready(story_id)):
         _story_action("begin")
+        if npc_auto_start and story_open:
+            _advance_npc_invitation()
+    if npc_led_active and story_open and not game.mahmoud_invite_near():
+        # Walking away never forges a P6 answer. Its real pending deadline
+        # still expires on future canonical world time, even off-screen.
+        _dismiss_story()
+        notice = "Mahmoud carries on with his evening."
+        report("E4_NPC_LEFT")
     if story_open and story_id.begins_with("river_neighbors:") and not game.conversation.near(game.session,game.graph):
         story_open=false
         story_pending=false
@@ -158,7 +168,7 @@ func _process(delta: float) -> void:
         move_elapsed = 0.0
     elif move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
-        if (story_open or story_pending) and not story_id.begins_with("river_neighbors:"):
+        if (story_open or story_pending) and not (story_id.begins_with("river_neighbors:") or npc_led_active):
             move_elapsed = 0.0
         else:
             _process_movement()
@@ -216,6 +226,8 @@ func _process_clock() -> void:
                     render_state.get("mahmoud_story_outcome","") == "silence":
                 story_open = false
                 story_pending = false
+                npc_auto_start = false
+                npc_led_active = false
                 story_line = ""
                 story_speaker = ""
                 notice = "Mahmoud waits a little, then carries on with his evening."
@@ -224,6 +236,9 @@ func _process_clock() -> void:
             if soundscape != null:
                 var state: Dictionary = render_state
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
+            # A true P1 advance (never a wall-clock pop-up timer) makes an
+            # authored NPC opportunity eligible. NPCs may initiate without E.
+            _try_npc_initiated_conversation()
             # This is display-only: heat cues follow the actual P1 tick,
             # without a UI-owned timer or extra simulation command.
             if sandwich_buttons != null and sandwich_open:
@@ -408,6 +423,31 @@ func _act(kind: String, offer_index: int = -1) -> void:
             "Saved locally; browser persistence could not be confirmed."
     report("E6_GAME_" + kind.to_upper())
 
+func _try_npc_initiated_conversation() -> void:
+    if story_open or story_pending or sandwich_open or controls_open or \
+            (room_fade != null and room_fade.fading):
+        return
+    if not game.mahmoud_npc_initiation_ready(): return
+    story_id = Game.MAHMOUD_STORY_ID
+    npc_auto_start = true
+    npc_led_active = true
+    _story_action("begin")
+    if story_open:
+        _advance_npc_invitation()
+
+func _advance_npc_invitation() -> void:
+    if not npc_auto_start or not story_open or story_id != Game.MAHMOUD_STORY_ID:
+        return
+    npc_auto_start = false
+    # The actual authored Ink opening line is spoken first. Reaching the
+    # real choice.wait commits the P4b deadline in the canonical P6 session.
+    # No scene-generated dialogue, choices, relationship changes or clock.
+    if game.mahmoud_story_session().get("phase","") == "running":
+        _story_action("next")
+    if story_open and game.mahmoud_story_session().get("phase","") == "running":
+        _story_action("next")
+    report("E4_NPC_INITIATED")
+
 func _story_action(kind: String, option_id: String = "") -> void:
     var result: Dictionary = {}
     if story_id.begins_with("river_neighbors:"):
@@ -459,9 +499,12 @@ func _story_action(kind: String, option_id: String = "") -> void:
             if not story_line.begins_with(speaker): story_line = speaker + story_line
         "WAITING":
             story_open = true
-            story_line = "What would you like to say?"
+            if story_line.is_empty() or not npc_led_active:
+                story_line = "What would you like to say?"
         "FINISHED":
             story_open = false
+            npc_led_active = false
+            npc_auto_start = false
             story_line = ""
             story_speaker = ""
             notice = "The conversation settles. You return to the evening."
@@ -617,6 +660,8 @@ func _touch_action(action: String) -> void:
 func _dismiss_story() -> void:
     story_open = false
     story_pending = false
+    npc_auto_start = false
+    npc_led_active = false
     story_line = ""
     story_speaker = ""
     notice = "You can return to the conversation later."
