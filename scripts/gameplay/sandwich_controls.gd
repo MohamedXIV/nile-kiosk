@@ -36,6 +36,9 @@ static func shopping(context: Dictionary) -> bool:
 
 static func next_offer(offers: Array, current: int, include_current: bool = false) -> int:
     if offers.is_empty(): return -1
+    # The hidden startup state has cursor -1: never treat negative Godot
+    # array indexing as the last ingredient in a fresh purchase flow.
+    if current < 0 or current >= offers.size(): current = 0
     for delta in range(0 if include_current else 1,offers.size() + (0 if include_current else 1)):
         var idx: int = (current + delta) % offers.size()
         if not bool(offers[idx].get("resolved",false)):
