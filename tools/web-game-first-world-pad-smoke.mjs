@@ -202,7 +202,7 @@ try{
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
   const quoted=await touch(785,158,"E6_GAME_SERVE");
-  check(quoted.order_payment==="quoted",
+  check(quoted.order_payment==="awaiting_ledger",
     "touch primary must quote actual delivered tea after NPC-led conversation");
   const settled=await touch(785,158,"E6_GAME_SERVE");
   check(settled.order_payment==="settled" && settled.money>quoted.money,
