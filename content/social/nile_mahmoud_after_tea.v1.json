@@ -49,7 +49,7 @@
     }
   },
   "npc_initiation": {
-    "after_minutes": 1,
+    "after_minutes": 0,
     "within_minutes": 8
   }
 }
