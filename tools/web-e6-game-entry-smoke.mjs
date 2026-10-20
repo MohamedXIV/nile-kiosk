@@ -48,12 +48,20 @@ function checkRoomFrame(state, label) {
     x: state.view_origin_x + (x-y)*1.36*state.view_zoom,
     y: state.view_origin_y + (x+y)*0.68*state.view_zoom
   });
-  for (const point of [[0,0],[room.width,0],[room.width,room.height],[0,room.height]]) {
-    const pixel = projected(point);
-    check(pixel.x >= 99.8 && pixel.x <= 860.2 &&
-      pixel.y >= 113.8 && pixel.y <= 352.2,
-      label + " room corner hidden behind interface");
-  }
+  // Player-follow camera deliberately crops distant room corners; require
+  // the *visible player* to stay inside the safe playfield instead of
+  // enforcing the previous zoom-to-fit-whole-room camera.
+  const visibleActor={x:state.camera_actor_x,y:state.camera_actor_y};
+  check(Number.isFinite(visibleActor.x) && Number.isFinite(visibleActor.y) &&
+    visibleActor.x >= 100 && visibleActor.x <= 860 &&
+    visibleActor.y >= 114 && visibleActor.y <= 352,
+    label + " player hidden behind interface in new follow camera");
+  check(state.view_zoom >= 1.15,
+    label + " camera shrunk back to unreadable full-room zoom");
+  const origin=projected([0,0]),right=projected([18,0]),up=projected([0,18]);
+  check(Math.abs((right.x-origin.x)+(up.x-origin.x))<0.02 &&
+    Math.abs((right.y-origin.y)-(up.y-origin.y))<0.02,
+    label + " isometric axes changed during camera follow");
   const actor = projected([state.x,state.y]);
   check(Math.abs(actor.x-state.view_actor_x) < 0.2 &&
     Math.abs(actor.y-state.view_actor_y) < 0.2,

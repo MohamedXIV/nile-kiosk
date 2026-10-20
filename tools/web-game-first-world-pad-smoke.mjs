@@ -14,7 +14,7 @@ const traces={};
 const errors=[];
 page.on("console",m=>{
   const line=m.text();
-  const hit=/^((?:E6_GAME|E6_TOUCH|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(line);
+  const hit=/^((?:E6_GAME|E6_TOUCH|E6_CAMERA|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(line);
   if(hit){try{(traces[hit[1]]??=[]).push(JSON.parse(hit[2]));}
     catch(e){errors.push("Malformed game trace "+e)}}
   if(/SCRIPT ERROR:|Parse Error:|E6_GAME_BOOT_FAILED/.test(line))errors.push(line);
@@ -63,6 +63,23 @@ try{
   const start=await until("E6_GAME_READY");
   check(start.location==="roof"&&start.x===175&&start.money===6000,
     "unexpected canonical starter world");
+  // Real browser wheel event changes only isometric presentation, not
+  // replay/saved P2 position, world digest, inventory or passage of time.
+  const wheelAt=await pixel(450,260);
+  await page.mouse.move(wheelAt.x,wheelAt.y);
+  await page.mouse.wheel(0,-110);
+  const wheel=await until("E6_CAMERA_ZOOM");
+  check(wheel.camera_target_zoom > start.camera_target_zoom &&
+    wheel.camera_target_zoom<=3.2 &&
+    wheel.digest===start.digest && wheel.x===start.x && wheel.y===start.y,
+    "real Web wheel must dolly in without writing P1/P2 world state");
+  await page.waitForTimeout(350);
+  const wheelIndex=(traces["E6_CAMERA_ZOOM"]||[]).length;
+  await page.mouse.wheel(0,110);
+  const out=await until("E6_CAMERA_ZOOM",wheelIndex);
+  check(out.camera_target_zoom < wheel.camera_target_zoom &&
+    out.digest===wheel.digest,
+    "scrolling out must undo the zoom without changing the canonical world");
   // Production Godot at 640×360: buttons exceed 44 physical CSS pixels,
   // and the world camera stays inside the gap between the two control columns.
   const canvas=await page.locator("canvas").first().boundingBox();
