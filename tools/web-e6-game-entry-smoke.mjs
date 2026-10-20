@@ -163,7 +163,7 @@ try {
   // Going straight to the shop is a player choice. Spending 12 minutes on
   // rooftop radio first can genuinely miss the first closed-demand slot.
   // Exercise radio use after the shift, without holding NPCs for this test.
-  check(!listenedRadio.bed_owned && !listenedRadio.bed_placed, "bed gifted at boot");
+  check(!placedRadio.bed_owned && !placedRadio.bed_placed, "bed gifted at boot");
   await press("t");
   const boughtBed = await until("E6_GAME_BED",0);
   check(boughtBed.bed_owned && !boughtBed.bed_placed && boughtBed.money === placedRadio.money - boughtBed.bed_price,
