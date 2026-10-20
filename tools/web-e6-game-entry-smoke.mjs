@@ -38,6 +38,22 @@ async function until(marker, index=0) {
   }
   throw new Error("Missing "+marker+" #"+index+"; "+JSON.stringify(errors));
 }
+// Do not treat save_game's synchronous Godot receipt as browser durability.
+// The Web filesystem sync runs asynchronously; require the exact same
+// revision in its confirmed IndexedDB acknowledgement before hard reload.
+async function confirmBrowserSave(revision) {
+  for(let i=0;i<300;i++) {
+    const latest=(traces.E6_GAME_SAVE_CONFIRMED||[]).at(-1);
+    if(latest?.save_storage_revision===revision && latest.save_storage_status==="confirmed")
+      return latest;
+    const rejected=(traces.E6_GAME_SAVE_UNCONFIRMED||[]).at(-1);
+    if(rejected?.save_storage_revision===revision)
+      throw new Error("Browser refused save persistence at revision "+revision);
+    if(errors.length) throw new Error("Save persistence errors: "+errors.join("; "));
+    await page.waitForTimeout(50);
+  }
+  throw new Error("Browser did not confirm latest IndexedDB revision "+revision);
+}
 // Read-only presentation acceptance at real 960×540 Godot resolution.
 function checkRoomFrame(state, label) {
   const room = sceneRooms[state.location];
@@ -448,7 +464,7 @@ try {
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "delivered" && saved.location === "kiosk", "save after customer delivery");
   // Godot Web syncs user:// into browser storage asynchronously; match established Chromium save gates.
-  await page.waitForTimeout(1600);
+  await confirmBrowserSave(saved.revision);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   checkRoomFrame(restored,"browser hard reload");
@@ -517,7 +533,7 @@ try {
     "player did not reach canonical next-day morning");
   await press("p");
   const morningSaved = await until("E6_GAME_SAVE",1);
-  await page.waitForTimeout(1700);
+  await confirmBrowserSave(morningSaved.revision);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
