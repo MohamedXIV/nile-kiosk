@@ -5,6 +5,7 @@ const GameScene = preload("res://scripts/gameplay/game_scene.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
+const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
@@ -51,20 +52,54 @@ func _run() -> void:
         var closer: Dictionary = GameScene.camera_frame(Vector2(220,140),actor,2.8,touch_mode)
         check(float(closer["zoom"]) > float(follow["zoom"]),
             "closer camera setting should dolly toward player in both UI layouts")
-    # Native Godot controls are input-only; their arrows never represent a
-    # second canonical character position or persisted movement state.
+    # P1: never put more than E/F on the world HUD or offer disabled actions.
+    var empty_ctx: Array[Dictionary] = Contextual.resolve(
+        {"location":"street"},"",false,false,"",false)
+    check(empty_ctx.is_empty(),"street with no nearby interactable must show zero actions")
+    var doorway_ctx: Array[Dictionary] = Contextual.resolve(
+        {"location":"landing"},"street",false,false,"",false)
+    check(doorway_ctx.size()==1 and doorway_ctx[0]["kind"]=="door",
+        "nearby accessible portal must be primary E")
+    var work_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,"tea_stage":"active",
+        "tea_action":"U","tea_ready_in":0,"active_order":"order:1",
+        "order_status":"accepted"}, "street",true,true,"mahmoud",true)
+    check(work_ctx.size()==2 and work_ctx[0]["kind"]=="tea_pour" and
+        work_ctx[1]["kind"]=="talk",
+        "in-range cooking and nearby Ink must be E/F, not a wall of actions")
+    var tea_wait: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,"tea_stage":"active",
+        "tea_action":"H","tea_ready_in":3},"",true,false,"",false)
+    check(tea_wait.size()==1 and tea_wait[0]["kind"]=="wait",
+        "timed kettle must not offer a premature Heat command")
+    var snack_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":true,"tea_stage":"",
+        "active_order":"order:2","order_status":"accepted",
+        "order_recipe":"liver_sandwich"},"",true,false,"",true)
+    check(snack_ctx.size()==1 and snack_ctx[0]["kind"]=="sandwich",
+        "real liver order exposes hand-worked workstation, not auto service")
+    var closed_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"kiosk","kiosk_open":false,"active_order":"order:3",
+        "order_status":"offered"},"",true,false,"",false)
+    check(closed_ctx.size()==1 and closed_ctx[0]["kind"]=="open",
+        "closed kiosk cannot expose unavailable P4 service")
+    var bed_ctx: Array[Dictionary] = Contextual.resolve({
+        "location":"roof","bed_placed":true},"landing",false,false,"",false)
+    check(bed_ctx.size()==2 and bed_ctx[0]["kind"]=="door" and
+        bed_ctx[1]["kind"]=="sleep",
+        "roof doorway and rest must fit exactly two available actions")
+    # P1 touchscreen stays movement-only + at most two contextual verbs.
     var touch: Control = WorldTouchControls.new()
     root.add_child(touch)
-    touch.build() # SceneTree._initialize precedes the first READY frame.
-    check(touch.arrows.size()==8 and touch.actions.size()==8 and touch.dialogue_buttons.size()==4,
-        "on-screen traversal has eight directions, eight world actions and four Ink controls")
+    touch.build()
+    check(touch.arrows.size()==8 and touch.actions.size()==2 and
+        touch.dialogue_buttons.size()==4 and touch.utility_buttons.size()==2,
+        "contextual touch UI must not present eight persistent action buttons")
     check(not touch.mode_enabled and not touch.arrows[0].visible,
-        "on-screen pad is optional rather than covering the initial scene")
-    # The compact 640px landscape browser maps logical 70px buttons to
-    # 46.7 physical CSS pixels; framing keeps every room corner clear.
-    check(touch.toggle.size.y >= 68.0 and touch.arrows[7].size == Vector2(70,70) and
-        touch.actions["door"].size == Vector2(104,68),
-        "landscape touch targets must remain easy to press after Web scaling")
+        "pad is optional and hidden at boot")
+    check(touch.toggle.size.y >= 68 and touch.arrows[7].size==Vector2(70,70) and
+        touch.actions["primary"].size==Vector2(104,68),
+        "landscape E and movement targets must remain thumb-sized")
     var pad_frame: Dictionary = GameScene.frame_for_room(Vector2(220,140),true)
     var corners_clear: bool = true
     for point in [Vector2.ZERO,Vector2(220,0),Vector2(220,140),Vector2(0,140)]:
@@ -72,62 +107,58 @@ func _run() -> void:
         if projected.x < 245.8 or projected.x > 720.2 or \
                 projected.y < 113.8 or projected.y > 352.2:
             corners_clear = false
-    check(corners_clear,"pad camera must not hide traversable space under touch Buttons")
+    check(corners_clear,"baseline camera math still supports touch safe framing")
     check(GameScene.frame_for_room(Vector2(220,140),false)["origin"] != pad_frame["origin"],
-        "disabling the optional pad must restore the normal room camera")
+        "touchsafe and keyboardsafe regions still differ")
     touch._toggle()
-    touch.update_view({"location":"roof","kiosk_open":false},true,false,false,false)
+    touch.update_view({"location":"roof"},true,false,false,false,"",false,[],
+        [{"kind":"door","label":"Go to landing"}])
     check(touch.mode_enabled and touch.arrows[7].visible and
-        not touch.actions["door"].disabled and
-        touch.actions["sleep"].disabled==false and touch.actions["serve"].disabled,
-        "world buttons must be gated by actual room and nearby portal")
+        touch.actions["primary"].visible and
+        touch.actions["primary"].text.contains("Door") and
+        not touch.actions["alternate"].visible,
+        "one nearby door must show only contextual E, no disabled F")
     touch._direction_down(Vector2i(1,1))
     check(touch.held_direction==Vector2i(1,1),
-        "holding SE produces the exact existing screen movement vector")
+        "holding SE produces the existing canonical movement intent")
     touch._direction_up(Vector2i(1,1))
-    check(touch.held_direction==Vector2i.ZERO,
-        "releasing movement must stop player input immediately")
-    touch._direction_down(Vector2i(-1,-1))
-    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,false,true)
-    check(touch.held_direction==Vector2i.ZERO and
-        not touch.arrows[0].visible and not touch.actions["serve"].visible,
-        "F7/help must hide and release held player controls")
-    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,false,false)
-    check(touch.actions["serve"].visible and not touch.actions["serve"].disabled and
-        touch.actions["shop"].text=="Close shop" and touch.actions["sleep"].disabled,
-        "service is available only near the true kitchen counter")
-    touch.update_view({"location":"kiosk","kiosk_open":true},false,true,true,false,
-        "",true,[{"option_id":"yes"},{"option_id":"no"}])
-    check(not touch.toggle.visible and not touch.actions["save"].visible and
+    check(touch.held_direction==Vector2i.ZERO,"release stops movement")
+    touch.update_view({"location":"roof"},true,false,false,false,"",false,[],
+        [{"kind":"door","label":"Go to landing"},{"kind":"sleep","label":"Sleep"}])
+    check(touch.actions["alternate"].visible and
+        touch.actions["alternate"].text.contains("Sleep"),
+        "two reachable verbs must appear as E and F")
+    touch._utility_toggle()
+    touch.update_view({"location":"roof"},true,false,false,false,"",false,[],
+        [{"kind":"door","label":"Go to landing"}])
+    check(touch.utility_buttons["save"].visible and
+        touch.utility_buttons["wait"].visible and
+        not touch.actions["primary"].visible and not touch.arrows[0].visible,
+        "utility menu must be separate and suppress world actions")
+    touch._utility_toggle()
+    touch.update_view({"location":"kiosk"},false,true,true,false,"",true,
+        [{"option_id":"yes"},{"option_id":"no"}])
+    check(not touch.toggle.visible and not touch.actions["primary"].visible and
         touch.dialogue_buttons["choice_0"].visible and
         touch.dialogue_buttons["choice_1"].visible and
         not touch.dialogue_buttons["next"].visible and
         touch.dialogue_buttons["leave"].visible,
-        "Ink choices must replace world controls and use real option IDs")
+        "Ink choices must replace nearby E/F and retain real option identities")
     touch.update_view({"location":"kiosk"},false,true,true,false,"",true,[])
     check(touch.dialogue_buttons["next"].visible and
         not touch.dialogue_buttons["choice_0"].visible,
-        "Ink line without choices must allow touch continuation")
+        "authored Ink line without choices retains advance path until P4")
     touch.update_view({"location":"kiosk"},false,true,true,true,"",true,[])
     check(not touch.dialogue_buttons["next"].visible and
         not touch.dialogue_buttons["leave"].visible,
-        "F1/F7 modal overlays must suppress all conversation controls")
+        "existing overlays must suppress Ink responses")
     check(WorldTouchControls.dialogue_target({"location":"kiosk",
         "conversation_near":true,"mahmoud_invite_near":true},false)=="mahmoud" and
         WorldTouchControls.dialogue_target({"location":"kiosk",
         "conversation_near":true},false)=="neighbors" and
         WorldTouchControls.dialogue_target({"location":"roof",
         "mahmoud_invite_near":true},false).is_empty(),
-        "contextual talk must use canonical proximity instead of UI story flags")
-    touch.update_view({"location":"kiosk","tea_stage":"active","tea_action":"U"},
-        false,true,false,false,"neighbors")
-    check(touch.actions["tea"].visible and not touch.actions["tea"].disabled and
-        touch.actions["tea"].text=="Pour" and not touch.actions["talk"].disabled,
-        "real P3 pour action and nearby Ink talk should be touch-reachable")
-    touch.update_view({"location":"kiosk","tea_stage":"active","tea_action":"H"},
-        false,false,false,false,"")
-    check(touch.actions["tea"].disabled and touch.actions["talk"].disabled,
-        "tea/talk must not bypass physical counter or NPC proximity")
+        "contextual Talk never grants ungrounded NPC proximity")
     root.remove_child(touch)
     touch.free()
     # P12 station: each of six *real* numbered purchase actions remains
