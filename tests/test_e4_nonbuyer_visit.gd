@@ -45,7 +45,9 @@ func _run() -> void:
     command(remote.start(OFFSITE),"offsite world")
     check(remote.session.world.npc("mona").get("location_id","")=="street","not based on P2 street origin")
     check(remote.mona_story_begin().get("code","")=="VISIT_NOT_AVAILABLE","unearned story before visit")
-    progress(remote,43)
+    # Offsite player has not commuted, so the 16:30 starter clock needs
+    # 30 more minutes before Mona's unchanged autonomous visit schedule.
+    progress(remote,73)
     check(remote.session.world.npc("mona").get("location_id","")=="street","early NPC teleport")
     progress(remote,1)
     check(remote.session.world.npc("mona").get("location_id","")=="kiosk","independent P2 NPC didn't arrive offscreen")
