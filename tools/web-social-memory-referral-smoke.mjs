@@ -20,7 +20,7 @@ try {
     let last;
     page.on('console',msg=>{
       const text=msg.text();
-      const match=/^((?:E6_GAME|E4_MEMORY)_[A-Z_]+) (\{.*\})$/.exec(text);
+      const match=/^((?:E6_GAME|E4_MEMORY|E4_NPC)_[A-Z_]+) (\{.*\})$/.exec(text);
       if (match) {
         try { last=JSON.parse(match[2]); const a=traces.get(match[1])||[]; a.push(last); traces.set(match[1],a); }
         catch(e) {errors.push(String(e));}
@@ -110,7 +110,20 @@ try {
       await action('h','E6_GAME_TEA_HEAT');await action('u','E6_GAME_TEA_POUR');
       await readyTea();s=await action('u','E6_GAME_TEA_POUR');
       check(s.tea_quality===outcome,'real cup quality not expected history',s);
-      await action('g','E6_GAME_SERVE');await action('g','E6_GAME_SERVE');await action('g','E6_GAME_SERVE');
+      const npcInitiatedBefore=count('E4_NPC_INITIATED');
+      await action('g','E6_GAME_SERVE');
+      if(outcome==='good') {
+        const initiated=await until('E4_NPC_INITIATED',npcInitiatedBefore);
+        check(initiated.mahmoud_story_phase==='choice' &&
+          initiated.mahmoud_story_choices?.length===2,
+          'actual post-delivery Mahmoud did not initiate authored Ink',initiated);
+      }
+      // Unsolicited NPC talk cannot steal G/Serve or prevent payment,
+      // even when the player has not responded to the P6 choices.
+      await action('g','E6_GAME_SERVE');
+      s=await action('g','E6_GAME_SERVE');
+      check(s.order_payment==='settled',
+        'NPC-initiated Ink must remain non-modal through real P5 payment',s);
     }
     console.log(outcome+' earlier service complete at '+last.minute);
     s=await waitTo(2479);
