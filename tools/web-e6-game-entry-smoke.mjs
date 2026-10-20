@@ -128,26 +128,32 @@ async function nudgeY(towardsPositive) {
   await page.keyboard.up(keys[0]);
 }
 async function walkBackThroughDoor(destination, doorwayX) {
-  // Timed key-holds are frame-rate-dependent in Chromium; don't assume a
-  // 1400 ms walk lands precisely within the 38-unit world portal radius.
-  await walkBack(1060);
-  for (let attempt=0; attempt<9; attempt++) {
-    const index = (traces.E6_GAME_DOOR || []).length;
-    await press("e");
-    const seen = await until("E6_GAME_DOOR", index);
-    if (seen.location === destination) return seen;
-    const dx = doorwayX - seen.x;
-    const dy = 70 - seen.y;
-    if (Math.abs(dy) > 20) await nudgeY(dy > 0);
-    else if (Math.abs(dx) > 8) {
-      if (dx > 0) await moveDiagonal(155);
-      else await walkBack(155);
-    } else {
-      // Within the axis tolerances but just outside a circular doorway.
-      await nudgeY(dy > 0);
+  // Real P2 travel is a contextual verb: in a closed shop the primary
+  // action may be "Open", NOT "Door", until physically in reach.
+  // Never press E blindly and accidentally reopen the closed kiosk.
+  await walkBack(830);
+  for(let attempt=0;attempt<17;attempt++){
+    const snapshotAt=(traces.E6_GAME_SAVE||[]).length;
+    await press("p");
+    const state=await until("E6_GAME_SAVE",snapshotAt);
+    const actionIndex=(state.context_actions||[]).findIndex(
+      a=>a.kind==="door" && a.label.toLowerCase().includes(destination));
+    if(actionIndex>=0){
+      const doorAt=(traces.E6_GAME_DOOR||[]).length;
+      await press(actionIndex===0?"e":"f");
+      const traveled=await until("E6_GAME_DOOR",doorAt);
+      if(traveled.location===destination)return traveled;
+      throw new Error("Wrong real doorway: expected "+destination+
+        " got "+traveled.location);
     }
+    const dx=doorwayX-state.x,dy=70-state.y;
+    if(Math.abs(dy)>10)await nudgeY(dy>0);
+    else if(Math.abs(dx)>8){
+      if(dx>0)await moveDiagonal(135);
+      else await walkBack(135);
+    }else await nudgeY(dy>0);
   }
-  throw new Error("Could not traverse return doorway to " + destination);
+  throw new Error("Could not physically reach return doorway to "+destination);
 }
 try {
   const base = process.argv[2] || "http://127.0.0.1:8765";
