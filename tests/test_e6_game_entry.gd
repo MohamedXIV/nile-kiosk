@@ -23,6 +23,34 @@ func check(value: bool, label: String) -> void:
     if not value: failures.append(label)
 
 func _run() -> void:
+    # P0 game-feel: constant-speed view-only traversal is not a repeated
+    # ease-out tween and never overshoots or persists a second P2 position.
+    var physical_target := Vector2(17.0,0)
+    var visual := Vector2.ZERO
+    for frame in range(8):
+        var next: Vector2 = GameScene.visual_step_toward(visual,physical_target,0.01625)
+        check(next.x > visual.x and next.x <= 17.0 and next.y == 0.0,
+            "visual movement must be monotonically smooth without overshoot")
+        visual = next
+    check(visual.distance_to(physical_target)<0.001,
+        "130ms of frame playback must arrive exactly at one real P2 step")
+    check(GameScene.visual_step_toward(visual,physical_target,0.01625)==physical_target and
+        GameScene.visual_step_toward(Vector2.ZERO,physical_target,-1.0)==Vector2.ZERO,
+        "visual movement must be still at rest and safe on invalid delta")
+    check(is_equal_approx(GameScene.clamped_camera_zoom(2.0,10.0),
+        GameScene.CAMERA_MAX_ZOOM) and is_equal_approx(
+        GameScene.clamped_camera_zoom(2.0,0.001),
+        GameScene.CAMERA_MIN_ZOOM),
+        "wheel and pinch zoom must respect comfortable bounds")
+    for touch_mode in [false,true]:
+        var actor := Vector2(135,70)
+        var follow: Dictionary = GameScene.camera_frame(Vector2(220,140),actor,2.0,touch_mode)
+        var safe_rect: Rect2 = GameScene.TOUCH_PLAYFIELD if touch_mode else GameScene.PLAYFIELD
+        check(GameScene.project_in_frame(actor,follow).distance_to(
+            safe_rect.get_center())<0.01,"camera must follow current visual feet in HUD-safe area")
+        var closer: Dictionary = GameScene.camera_frame(Vector2(220,140),actor,2.8,touch_mode)
+        check(float(closer["zoom"]) > float(follow["zoom"]),
+            "closer camera setting should dolly toward player in both UI layouts")
     # Native Godot controls are input-only; their arrows never represent a
     # second canonical character position or persisted movement state.
     var touch: Control = WorldTouchControls.new()
