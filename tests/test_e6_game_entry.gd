@@ -661,7 +661,15 @@ func _run() -> void:
     check(greeting.session.world.narrative_session(Game.MAHMOUD_STORY_ID).is_empty(),
         "checking NPC initiative cannot automatically forge a P6 session")
     greeting.dispose()
+    var paid_touch: Array[Dictionary] = Contextual.resolve(
+        restored.status(),"",true,false,"mahmoud",false)
+    check(not paid_touch.is_empty() and paid_touch[0]["kind"]=="serve" and
+        paid_touch[0]["label"]=="Settle payment",
+        "P4c: real P5 payment must outrank unsolicited Talk on phone primary action")
     check(restored.service_near().get("kind","")=="economy.order.quote","quote")
+    paid_touch = Contextual.resolve(restored.status(),"",true,false,"mahmoud",false)
+    check(not paid_touch.is_empty() and paid_touch[0]["kind"]=="serve",
+        "P4c: quoted payment must stay touch-reachable through NPC Ink")
     check(restored.service_near().get("kind","")=="economy.order.settle","settle")
     check(restored.status()["money"]==6200,"no duplicate payment")
     check(restored.save_game().get("ok",false),"save settled state")
