@@ -137,7 +137,7 @@ try {
   await page.goto(base + "/game/index.html", { waitUntil: "load", timeout: 30000 });
   await page.locator("canvas").first().click({ position: {x:500,y:290} });
   const initial = await until("E6_GAME_READY");
-  check(initial.location === "roof" && initial.minute === 1020 && initial.money === 6000, "not starter world");
+  check(initial.location === "roof" && initial.minute === 990 && initial.money === 6000, "not starter world");
   checkRoomFrame(initial,"fresh rooftop");
   check(initial.sound_enabled === true && initial.sound_room === "roof" && !initial.sound_kettle,
     "roof ambience not initialized in real playable scene");
@@ -200,6 +200,8 @@ try {
   const kiosk = await until("E6_GAME_DOOR",2);
   check(kiosk.location === "kiosk" && kiosk.sound_room === "kiosk",
     "street/kiosk portal or location-based ambient transition missing");
+  check(kiosk.minute >= street.minute+30 && kiosk.minute <= street.minute+33,
+    "30 canonical travel minutes must elapse across street/kiosk portal");
   checkRoomFrame(kiosk,"street-to-kiosk");
   await moveDiagonal(520);
   await press("o");
