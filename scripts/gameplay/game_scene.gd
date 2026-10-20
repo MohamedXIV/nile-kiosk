@@ -155,8 +155,7 @@ func _advance_visual_camera(delta: float) -> void:
     var old_actor: Vector2 = player_visual_position
     var old_focus: Vector2 = camera_visual_focus
     var old_zoom: float = camera_zoom
-    player_visual_position = player_visual_position.move_toward(
-        game.position(), VISUAL_WORLD_UNITS_PER_SECOND * minf(delta, 0.1))
+    player_visual_position = visual_step_toward(player_visual_position,game.position(),delta)
     var t: float = 1.0 - exp(-CAMERA_FOLLOW_RATE * minf(delta,0.1))
     camera_visual_focus = camera_visual_focus.lerp(player_visual_position,t)
     camera_zoom = lerpf(camera_zoom,camera_target_zoom,t)
@@ -233,6 +232,13 @@ func _player_move_clear(delta: Vector2) -> bool:
     if game.room() != "kiosk" or player_body == null: return true
     player_body.global_position = game.position()
     return not player_body.test_move(player_body.global_transform,delta)
+
+# Fixed-rate, non-easing chase: at 30/60/120fps the same canonical
+# displacement takes the same time, never overshoots a target or influences P2.
+static func visual_step_toward(previous: Vector2, target: Vector2, delta: float) -> Vector2:
+    if not previous.is_finite() or not target.is_finite() or not is_finite(delta):
+        return previous
+    return previous.move_toward(target,VISUAL_WORLD_UNITS_PER_SECOND*maxf(0.0,delta))
 
 # World P2 owns positions; view snap is reserved for boot/actual room changes.
 func _snap_player_visual() -> void:
@@ -678,7 +684,7 @@ static func camera_frame(room_size: Vector2, focus: Vector2, factor: float,
     var frame: Dictionary = frame_for_room(room_size,pad_visible)
     if frame.is_empty() or not focus.is_finite(): return {}
     var safe: Rect2 = TOUCH_PLAYFIELD if pad_visible else PLAYFIELD
-    frame["zoom"] = float(frame["zoom"]) * clampf(factor,CAMERA_MIN_ZOOM,CAMERA_MAX_ZOOM)
+    frame["zoom"] = maxf(1.15,float(frame["zoom"]) * clampf(factor,CAMERA_MIN_ZOOM,CAMERA_MAX_ZOOM))
     frame["origin"] = safe.get_center() - Vector2(
         (focus.x - focus.y)*ISO_X,(focus.x + focus.y)*ISO_Y) * float(frame["zoom"])
     return frame
