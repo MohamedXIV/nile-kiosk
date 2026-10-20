@@ -422,6 +422,11 @@ func _act(kind: String, offer_index: int = -1) -> void:
         notice = "Verifying the browser save..." if save_confirmation.status == "pending" else \
             "Saved locally; browser persistence could not be confirmed."
     report("E6_GAME_" + kind.to_upper())
+    # A genuine delivered P4 order can open Mahmoud's own authored
+    # invitation before his autonomous return route takes him out of reach.
+    # All Ink/world mutations still go through the existing command path.
+    if kind == "serve" and result.get("ok",false):
+        _try_npc_initiated_conversation()
 
 func _try_npc_initiated_conversation() -> void:
     if story_open or story_pending or sandwich_open or controls_open or \
