@@ -530,7 +530,7 @@ func _story_choices(state: Dictionary) -> Array:
     return state["mona_story_choices"] if story_id == MONA_STORY_ID else (state["mahmoud_story_choices"] if story_id == Game.MAHMOUD_STORY_ID else state["river_story_choices"])
 
 func _toggle_sandwich() -> void:
-    if story_open or story_pending or controls_open: return
+    if ((story_open or story_pending) and not npc_led_active) or controls_open: return
     if not sandwich_open and not bool(game.sandwich_context().get("near",false)):
         notice = "Move within reach of the sandwich counter."
         report("E6_SANDWICH_TOGGLE")
@@ -546,17 +546,17 @@ func _close_sandwich() -> void:
     report("E6_SANDWICH_TOGGLE")
 
 func _buy_sandwich(index: int) -> void:
-    if sandwich_open and not story_open and not story_pending:
+    if sandwich_open and (not (story_open or story_pending) or npc_led_active):
         _act("sandwich_purchase",index)
 
 func _ui_sandwich_step() -> void:
-    if sandwich_open and not story_open and not story_pending: _act("sandwich_step")
+    if sandwich_open and (not (story_open or story_pending) or npc_led_active): _act("sandwich_step")
 
 func _ui_sandwich_wait() -> void:
-    if sandwich_open and not story_open and not story_pending: _act("wait")
+    if sandwich_open and (not (story_open or story_pending) or npc_led_active): _act("wait")
 
 func _ui_sandwich_save() -> void:
-    if sandwich_open and not story_open and not story_pending: _act("save")
+    if sandwich_open and (not (story_open or story_pending) or npc_led_active): _act("save")
 
 func _sync_touch_pad(state: Dictionary) -> void:
     if touch_pad == null or not initialized: return
@@ -686,7 +686,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
             controls_open = false
             report("E6_HELP_TOGGLE")
         return
-    if event.keycode == KEY_F7 and not (story_open or story_pending):
+    if event.keycode == KEY_F7 and (not (story_open or story_pending) or npc_led_active):
         _toggle_sandwich()
         return
     if sandwich_open:
