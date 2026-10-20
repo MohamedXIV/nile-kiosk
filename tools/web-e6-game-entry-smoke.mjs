@@ -533,7 +533,10 @@ try {
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
-    morningRestored.location === "roof" && morningRestored.day === 2, "sleep/day save replay failed");
+    morningRestored.location === "roof" && morningRestored.day === 2,
+    "sleep/day save replay failed: " + JSON.stringify({
+      saved:{revision:morningSaved.revision,digest:morningSaved.digest,minute:morningSaved.minute,day:morningSaved.day,radio_uses:morningSaved.radio_uses,quiet_count:morningSaved.quiet_count,save_storage_status:morningSaved.save_storage_status},
+      restored:{revision:morningRestored.revision,digest:morningRestored.digest,minute:morningRestored.minute,day:morningRestored.day,radio_uses:morningRestored.radio_uses,quiet_count:morningRestored.quiet_count,sleep_count:morningRestored.sleep_count,bed_placed:morningRestored.bed_placed,location:morningRestored.location}}));
   // Exercise F1 only AFTER timed P1/P4 social beats and all core journey
   // assertions: a live-world help test must not alter scheduled-story timing.
   // F1 is a view-only help overlay in the actual Chromium game canvas.
