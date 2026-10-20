@@ -124,12 +124,13 @@ func _run() -> void:
         return
     check(resumed.mona_story_begin().get("code","")=="RESUMED","Ink restarted after reload")
     check(resumed.status()["mona_story_choices"].size()==2 and
-        int(resumed.status().get("mona_story_deadline",-1)) == int(resumed.status()["minute"]) + 8,
-        "Mona's authored eight-minute reply deadline was not saved")
+        int(resumed.status().get("mona_story_deadline",-1)) == int(resumed.status()["minute"]) + 12,
+        "Mona's authored twelve-minute reply deadline was not saved")
     var ignored: RefCounted = Game.new()
     check(ignored.start(SAVE).get("code","")=="RESTORED","load ignored Mona choice branch")
     command(ignored.wait_minutes(5),"ignore first five P1 minutes")
-    command(ignored.wait_minutes(3),"ignore remaining three P1 minutes")
+    command(ignored.wait_minutes(5),"ignore next five P1 minutes")
+    command(ignored.wait_minutes(2),"ignore remaining two P1 minutes")
     check(ignored.status().get("mona_story_outcome","")=="silence" and
         ignored.status().get("mona_story_phase","")=="finished" and
         not ignored.mona_npc_initiation_ready(),
