@@ -149,9 +149,10 @@ func _process(delta: float) -> void:
         _story_action("begin")
         if npc_auto_start and story_open:
             _advance_npc_invitation()
-    if npc_led_active and story_open and not game.mahmoud_invite_near():
-        # Walking away never forges a P6 answer. Its real pending deadline
-        # still expires on future canonical world time, even off-screen.
+    if npc_led_active and story_open and not game.mahmoud_story_exchange_available():
+        # A departing NPC or expired canonical P6 deadline dismisses the view.
+        # Brief movement outside Talk radius alone cannot cancel a reply;
+        # the NPC's schedule continues without pausing.
         _dismiss_story()
         notice = "Mahmoud carries on with his evening."
         report("E4_NPC_LEFT")
