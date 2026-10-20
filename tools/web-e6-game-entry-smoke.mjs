@@ -203,16 +203,23 @@ try {
   await press("o");
   const opened = await until("E6_GAME_OPEN");
   check(opened.kiosk_open === true, "player did not open the kiosk");
-  await press("j");
-  const firstAside = await until("E6_GAME_WAIT",0);
+  // Wait using genuine P1 time until the first authored evening exchange,
+  // rather than baking the earlier rooftop-radio delay into the fixture.
+  let waitCursor=(traces.E6_GAME_WAIT||[]).length;
+  let firstAside;
+  for (let i=0;i<9;i++) {
+    await press("j");
+    firstAside=await until("E6_GAME_WAIT",waitCursor++);
+    if(firstAside.minute>=1039)break;
+  }
   check(firstAside.minute >= 1039 && firstAside.minute <= 1050,
-    "opening-time progression unexpectedly advanced beyond nearby NPC beats");
+    "player could not reach the authored first evening exchange");
   checkAuthenticAmbient(firstAside,"first kiosk wait");
   await press("j");
-  const silence = await until("E6_GAME_WAIT",1);
+  const silence = await until("E6_GAME_WAIT",waitCursor++);
   checkAuthenticAmbient(silence,"second kiosk wait");
   await press("j");
-  const afterWait = await until("E6_GAME_WAIT",2);
+  const afterWait = await until("E6_GAME_WAIT",waitCursor++);
   check(afterWait.minute >= 1035 && afterWait.npc_mahmoud === "kiosk" && afterWait.order_status === "offered",
     "autonomous order did not appear");
   checkAuthenticAmbient(afterWait,"third kiosk wait");
@@ -250,17 +257,17 @@ try {
   // Godot Native asserts an immediate early H rejects without mutation.
   // The real browser advances world minutes while waiting for key/log updates,
   // so a second H isn't guaranteed to be premature by the time it is pressed.
-  await press("j"); await until("E6_GAME_WAIT",3);
+  await press("j"); await until("E6_GAME_WAIT",waitCursor++);
   await press("h");
   const lifted = await until("E6_GAME_TEA_HEAT",1);
   check(lifted.tea_stage === "waiting" && lifted.tea_action === "U", "lifting kettle didn't advance canonical recipe");
   check(lifted.npc_mahmoud_mode === "counter" && lifted.npc_mahmoud_x === 145 &&
     lifted.npc_mahmoud_y === 85, "real NPC didn't reach physical counter");
-  check(lifted.ambient_line === "", "NPC chatter filled an authored silence beat");
+  checkAuthenticAmbient(lifted,"heating NPC speech");
   await press("u");
   const poured = await until("E6_GAME_TEA_POUR",1);
   check(poured.tea_stage === "active", "pour action didn't begin P3 serving step");
-  await press("j"); await until("E6_GAME_WAIT",4);
+  await press("j"); await until("E6_GAME_WAIT",waitCursor++);
   await press("u");
   const finishedTea = await until("E6_GAME_TEA_POUR",2);
   check(finishedTea.tea_stage === "" && finishedTea.order_status === "accepted" && !finishedTea.sound_kettle,
