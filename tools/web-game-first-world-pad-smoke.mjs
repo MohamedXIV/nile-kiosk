@@ -177,7 +177,23 @@ try{
     conversation.mahmoud_story_deadline>conversation.minute &&
     conversation.mahmoud_invitation?.initiator_npc_id==="mahmoud",
     "NPC did not autonomously open a saved, timed Ink choice from his real delivery");
-  conversation=await touch(685,338,"E4_NPC_CHOICE");
+  check(conversation.mahmoud_story_exchange_available,
+    "authoritative NPC exchange not available in the kiosk when reply appears");
+  const rejectedCount=(traces.E4_NPC_REJECTED||[]).length;
+  const leftCount=(traces.E4_NPC_LEFT||[]).length;
+  const choiceCount=(traces.E4_NPC_CHOICE||[]).length;
+  const replyAt=await pixel(685,338);
+  await page.touchscreen.tap(replyAt.x,replyAt.y);
+  for(let i=0;i<220 && (traces.E4_NPC_CHOICE||[]).length===choiceCount &&
+    (traces.E4_NPC_REJECTED||[]).length===rejectedCount &&
+    (traces.E4_NPC_LEFT||[]).length===leftCount;i++)
+    await page.waitForTimeout(75);
+  check((traces.E4_NPC_CHOICE||[]).length>choiceCount,
+    "touch reply lost before P6 commit (rejected/left or hidden): "+
+    JSON.stringify({rejected:(traces.E4_NPC_REJECTED||[]).at(-1),
+      left:(traces.E4_NPC_LEFT||[]).at(-1),
+      initiated:(traces.E4_NPC_INITIATED||[]).at(-1)}));
+  conversation=traces.E4_NPC_CHOICE.at(-1);
   check(conversation.mahmoud_story_phase==="running",
     "touch reply did not commit the NPC-initiated authored Ink option");
   await touch(270,405,"E4_NPC_LINE");
