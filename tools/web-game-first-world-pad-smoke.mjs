@@ -168,25 +168,25 @@ try{
   check(delivered.order_status==="delivered" && delivered.customer_reaction_npc==="mahmoud",
     "touch service did not deliver a canonical P3 item to P4 customer");
   check(delivered.mahmoud_invite_near,"touch player is outside real invitation range");
-  let conversation=await touch(785,158,"E4_NPC_STARTED");
-  check(conversation.mahmoud_story_phase==="" || conversation.mahmoud_story_phase==="running",
-    "touch Talk did not open authored Ink");
-  conversation=await touch(270,405,"E4_NPC_LINE");
-  check(conversation.mahmoud_story_phase==="running",
-    "touch Continue did not advance real Ink line");
-  conversation=await touch(270,405,"E4_NPC_WAITING");
-  check(conversation.mahmoud_story_choices?.length===2,
-    "real Ink choices not made available to touch");
+  // No Talk/E is pressed. After one genuine P1 minute, Mahmoud must
+  // initiate the opportunity, say his real Ink line and offer both replies.
+  // The world clock keeps ticking; this is not a UI-owned delayed callback.
+  let conversation=await until("E4_NPC_INITIATED");
+  check(conversation.mahmoud_story_phase==="choice" &&
+    conversation.mahmoud_story_choices?.length===2 &&
+    conversation.mahmoud_story_deadline>conversation.minute &&
+    conversation.mahmoud_invitation?.initiator_npc_id==="mahmoud",
+    "NPC did not autonomously open a saved, timed Ink choice from his real delivery");
   conversation=await touch(685,338,"E4_NPC_CHOICE");
   check(conversation.mahmoud_story_phase==="running",
-    "touch Reply 2 did not commit the real authored option");
+    "touch reply did not commit the NPC-initiated authored Ink option");
   await touch(270,405,"E4_NPC_LINE");
   await touch(270,405,"E4_NPC_LINE");
   conversation=await touch(270,405,"E4_NPC_FINISHED");
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
   check(errors.length===0,"Godot scripting errors");
-  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P1 contextual E/F, utility Save/Wait and touch-only P3 tea, P4 delivery, authored NPC Ink choice");
+  console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P1 contextual E/F, touch-only P3 tea and P4 delivery, autonomous NPC-led authored Ink choice");
 }finally{
   await context.close();
   await browser.close();
