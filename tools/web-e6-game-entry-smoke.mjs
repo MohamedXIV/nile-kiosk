@@ -356,7 +356,9 @@ try {
     if((traces.E4_VISITOR_INITIATED||[]).length>visitorInitiatedIndex){
       visitorJoined=true;break;
     }
-    const latest=await action("p","E6_GAME_SAVE");
+    const saveIndex=(traces.E6_GAME_SAVE||[]).length;
+    await press("p");
+    const latest=await until("E6_GAME_SAVE",saveIndex);
     if(!latest.mona_npc_initiation_ready){
       const dx=monaMeeting[0]-latest.x,dy=monaMeeting[1]-latest.y;
       if(Math.abs(dy)>12)await nudgeY(dy>0);
