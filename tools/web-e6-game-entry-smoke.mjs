@@ -544,8 +544,12 @@ try {
   const slept = await until("E6_GAME_SLEEP");
   check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open && slept.bed_placed && slept.rest >= rooftopMoment.rest,
     "player did not reach canonical next-day morning");
+  const morningSaveIndex = (traces.E6_GAME_SAVE || []).length;
   await press("p");
-  const morningSaved = await until("E6_GAME_SAVE",1);
+  const morningSaved = await until("E6_GAME_SAVE",morningSaveIndex);
+  check(morningSaved.revision === slept.revision &&
+    morningSaved.day === 2 && morningSaved.location === "roof",
+    "morning save must be the newly committed second-day state");
   await confirmBrowserSave(morningSaved.revision);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
