@@ -1,0 +1,23 @@
+# Game-feel reboot — shipped scope and remaining acceptance
+
+**Status 2026-10-20:** game-feel slices P0, P1, P2a, P2b are merged and passed **exact-head Godot Native and real production Chromium**. These tests establish functional behavior, **not human or physical-device comfort approval**. Parent [issue #120](https://github.com/MohamedXIV/nile-kiosk/issues/120) remains OPEN. Human-gated V001 [PR #20](https://github.com/MohamedXIV/nile-kiosk/pull/20) / [issue #19](https://github.com/MohamedXIV/nile-kiosk/issues/19) stay untouched.
+
+## Shipped / verified
+
+| Slice | Main merge | Native and Chromium evidence | Real behavior |
+| --- | --- | --- | --- |
+| P0 Movement & camera | [#121](https://github.com/MohamedXIV/nile-kiosk/pull/121), `7e8faf0` | [Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39361385982), [Chromium](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39361386101) | Continuous frame-paced **visual-only** motion replacing repeated easing per canonical P2 step; player-follow isometric camera, bounded wheel/pinch zoom. The underlying **17-unit canonical movement step remains** and subjective jitter is not signed off. |
+| P1 Contextual controls | [#122](https://github.com/MohamedXIV/nile-kiosk/pull/122), `85167f8` | [Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39369267914), [Chromium](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39369267972) | Re-resolved E primary / F alternate from actual position, orders, tea and nearby characters; absent actions hidden; two contextual mobile buttons and separate utility Save/Wait. Late Mahmoud Talk prioritized over passive market offers. Some legacy keyboard-only furniture/supplier/audio interactions remain, **not** full phone-only parity. |
+| P2a Room fade | [#123](https://github.com/MohamedXIV/nile-kiosk/pull/123), `7ee52dd` | [Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39440705648), [Chromium](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39440705629) | Input-blocking view-only fade-out -> **one** real P2 room traversal -> fade-in. No second clock, locations or storage. |
+| P2b World-time travel | [#124](https://github.com/MohamedXIV/nile-kiosk/pull/124), `b7c944a` | [Native](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39448152283), [Chromium](https://github.com/MohamedXIV/nile-kiosk/actions/runs/39448152375) | Exactly **30 canonical P1 minutes** for street↔kiosk portal, **zero** for rooftop/landing/interior stairs. P2 transition plus P1 time command replay under existing deterministic WorldKernel; NPCs, needs, service and cooking see time. First playable home start shifted to 16:30 so direct departure arrives near 17:00. Late player departures can miss people/orders. |
+
+## In-flight and not yet accepted
+
+- **P3:** [PR #125](https://github.com/MohamedXIV/nile-kiosk/pull/125) implements a compact bottom 160px cooking strip, allowing the upper 70% of the isometric scene to remain visible. Two state-dependent actions replace the full-screen six-BUY + hotkey overlay. Each of six real P5 lots is still individually payable. **No merge or Web approval claimed here before its own exact-head checks pass.**
+- **P4:** Timed/free-choice Ink and NPC-led conversation remain **NOT IMPLEMENTED** in this reboot. Existing autonomous P1/P2 ambient exchanges and Mahmoud's post-service invitation already exist, but the P6 player-choice session still waits indefinitely after choice.wait and relies on Enter progression. Future implementation must derive reaction windows from **canonical P1 minutes**, commit deterministic no-response/leave consequences, preserve inkgd cursor/save/replay, and handle NPC schedules without mutating the world from UI timers. Do not claim that existing Ink choices have timers.
+- **Movement granularity:** P0 solved the repeated easing discontinuity in the renderer but did not change the canonical P2 17-unit step or camera/zoom's subjective comfort. Real device/human playtest is mandatory before calling smoothness done.
+- **Visual approval:** The isometric schematic remains provisional; human-signoff-gated V001 art is unchanged.
+
+## Manual playtest needed (NOT RUN)
+
+Try both PC and real phone landscape with the new deployed build **only after a verified release**. Check whether walking feels physically smooth rather than hopping, camera follow/zoom can avoid touch overlays, E/F have no hidden busywork, actual missed 17:00 visits after late departure make sense, room fade cannot double-trigger, and cooking turns/lifts have legible timing without stealing the world view. Confirm save/reload from mid-P3 and unfinished P6. Record failures in #120 before expanding features.
