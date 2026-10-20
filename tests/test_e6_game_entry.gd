@@ -4,6 +4,7 @@ const Game = preload("res://scripts/gameplay/game_entry.gd")
 const GameScene = preload("res://scripts/gameplay/game_scene.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
+const SandwichPanel = preload("res://scripts/gameplay/sandwich_panel.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
 const TravelTime = preload("res://scripts/gameplay/travel_time_policy.gd")
@@ -204,53 +205,45 @@ func _run() -> void:
         "contextual Talk never grants ungrounded NPC proximity")
     root.remove_child(touch)
     touch.free()
-    # P12 station: each of six *real* numbered purchase actions remains
-    # independently tap-sized and cannot intersect another purchasing target.
+    # P3: six real stock lots are still each purchasable, but only one
+    # selection and one optional Next are shown in a bottom 160px strip.
     var station: Control = SandwichControls.new()
     root.add_child(station)
     station.build()
-    check(station.purchases.size() == 6 and station.opener.size.y >= 68,
-        "sandwich workstation must have six intact offers and thumb-sized opener")
-    var station_buttons: Array[Button] = []
-    for buy in station.purchases:
-        station_buttons.append(buy)
-        check(buy.size.x >= 100 and buy.size.y >= 68,
-            "ingredient purchase target is too small for 640x360 landscape")
-    station_buttons.append_array([station.action_button,station.wait_button,
-        station.save_button,station.close_button])
-    var no_overlap: bool = true
-    for i in range(station_buttons.size()):
-        var a: Button = station_buttons[i]
-        if i >= 6 and a.size.y < 68: no_overlap = false
-        for j in range(i+1,station_buttons.size()):
-            var b: Button = station_buttons[j]
-            if Rect2(a.position,a.size).intersects(Rect2(b.position,b.size)):
-                no_overlap = false
-    check(no_overlap,"purchase/step/wait/save/close targets must not overlap")
+    check(station.opener.size.y >= 68 and station.action_button.size.y >= 68 and
+        station.wait_button.size.y >= 68,
+        "compact cooking controls must remain thumb-sized")
+    check(SandwichPanel.STRIP_TOP >= 380 and
+        SandwichPanel.STRIP_HEIGHT <= 160,
+        "the upper 70% of the actual 960x540 world must remain visible")
     check(not Rect2(station.opener.position,station.opener.size).intersects(
         Rect2(810,455,136,70)),
-        "station opener must not intercept the P10/P11 touch pad toggle")
+        "station opener must not intercept the optional movement pad")
+    check(not Rect2(station.action_button.position,station.action_button.size).intersects(
+        Rect2(station.wait_button.position,station.wait_button.size)),
+        "two simultaneously visible cooking touch actions overlap")
     var lots: Array = []
     for ingredient in ["bread","cooking_oil","garlic","green_pepper",
             "lemon_juice","liver"]:
         lots.append({"ingredient_id":ingredient,"cost":100,"resolved":false})
-    var station_state: Dictionary = {"near":true,"offers":lots,"cue":"Start pan"}
+    var station_state: Dictionary = {"near":true,"offers":lots,
+        "stage":"","can_start":false,"cue":"Stock station"}
     station.update_view(station_state,false,false,false)
-    check(station.opener.visible and not station.purchases[0].visible,
-        "closed station must expose its touch opener without leaking stock controls")
+    check(station.opener.visible and not station.action_button.visible,
+        "closed station exposes only its nearby opener")
     station.update_view(station_state,true,false,false)
-    check(not station.opener.visible and station.purchases[5].visible and
-        not station.purchases[5].disabled and station.close_button.visible,
-        "open station must expose all six canonical offers and close affordance")
+    check(not station.opener.visible and station.action_button.visible and
+        station.action_button.text.contains("bread") and station.wait_button.visible and
+        station.close_button.visible,
+        "open station must show current paid ingredient and optional Next")
     lots[0]["resolved"] = true
     station.update_view(station_state,true,false,false)
-    check(station.purchases[0].disabled and station.purchases[0].text=="BOUGHT" and
-        not station.purchases[1].disabled,
-        "already purchased ingredient must stay disabled while other real offers remain")
+    check(station.selected_offer_index==1 and
+        station.action_button.text.contains("cooking oil"),
+        "already purchased lot is skipped, not rendered as a disabled control")
     station.update_view(station_state,true,true,false)
-    check(not station.purchases[0].visible and not station.action_button.visible and
-        not station.close_button.visible,
-        "authored Ink overlay must hide every sandwich touch action")
+    check(not station.action_button.visible and not station.close_button.visible,
+        "real Ink conversation hides the compact cooking controls")
     root.remove_child(station)
     station.free()
     # Every authored floor corner must remain inside the visible playfield,
