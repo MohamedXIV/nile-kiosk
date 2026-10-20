@@ -56,6 +56,14 @@ func _run() -> void:
         controls.action_button.text.contains("bread") and
         controls.wait_button.visible and controls.wait_button.text=="Start cooking",
         "remaining stock must not disappear just because cooking is ready")
+    # No supplies and no active P3 recipe is not an actionable context.
+    var unavailable: Dictionary = stock_view.duplicate(true)
+    for offer in unavailable["offers"]:
+        offer["resolved"]=true
+    unavailable["can_start"]=false
+    controls.update_view(unavailable,true,false,false)
+    check(not controls.action_button.visible and not controls.wait_button.visible,
+        "sold-out unready workstation must not render a bogus Start action")
     var cooking: Dictionary = stock_view.duplicate(true)
     cooking["stage"]="active"
     cooking["can_start"]=true
