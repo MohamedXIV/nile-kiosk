@@ -47,6 +47,15 @@ func _run() -> void:
     check(controls.selected_offer_index==0 and
         not controls.wait_button.visible,
         "buy cursor must skip purchased lots and hide unavailable Next")
+    # A recipe can become cookable before all optional P5 lots are bought.
+    # The player decides: E can still buy the remaining lot, F can start.
+    var ready_with_optional: Dictionary = stock_view.duplicate(true)
+    ready_with_optional["can_start"]=true
+    controls.update_view(ready_with_optional,true,false,false)
+    check(controls.action_kind=="buy" and
+        controls.action_button.text.contains("bread") and
+        controls.wait_button.visible and controls.wait_button.text=="Start cooking",
+        "remaining stock must not disappear just because cooking is ready")
     var cooking: Dictionary = stock_view.duplicate(true)
     cooking["stage"]="active"
     cooking["can_start"]=true
