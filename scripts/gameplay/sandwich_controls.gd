@@ -1,6 +1,7 @@
 extends Control
-## Built-in Godot Buttons for the live F7 counter. Drawing and the P3/P5
-## world authority remain separate. No simulation or persisted UI state.
+## P3 game-feel: one nearby hand-action and one context action over a small
+## bottom cooking strip. All stock, timing and orders remain P1/P3/P5 facts.
+## Choosing an ingredient is a disposable view index, never a persisted item.
 var on_toggle: Callable
 var on_purchase: Callable
 var on_step: Callable
@@ -8,11 +9,16 @@ var on_wait: Callable
 var on_save: Callable
 var on_close: Callable
 var opener: Button
-var purchases: Array[Button] = []
 var action_button: Button
 var wait_button: Button
 var save_button: Button
+var menu_button: Button
 var close_button: Button
+var selected_offer_index: int = 0
+var utility_open: bool = false
+var action_kind: String = ""
+var view_context: Dictionary = {}
+var panel_active: bool = false
 
 static func action_label(context: Dictionary) -> String:
     var cue: String = str(context.get("cue",""))
@@ -25,6 +31,17 @@ static func action_label(context: Dictionary) -> String:
     if cue.contains("heat") or cue.contains("pan"): return "Start pan"
     return "Start sandwich"
 
+static func shopping(context: Dictionary) -> bool:
+    return str(context.get("stage","")).is_empty() and not bool(context.get("can_start",false))
+
+static func next_offer(offers: Array, current: int, include_current: bool = false) -> int:
+    if offers.is_empty(): return -1
+    for delta in range(0 if include_current else 1,offers.size() + (0 if include_current else 1)):
+        var idx: int = (current + delta) % offers.size()
+        if not bool(offers[idx].get("resolved",false)):
+            return idx
+    return -1
+
 func _style(btn: Button, background: Color) -> void:
     btn.add_theme_font_size_override("font_size",16)
     btn.add_theme_color_override("font_color",Color("#f5e5c8"))
@@ -36,10 +53,8 @@ func _style(btn: Button, background: Color) -> void:
         if variant == "hover": box.bg_color = Color("#516d65")
         if variant == "pressed": box.bg_color = Color("#728671")
         if variant == "disabled": box.bg_color = Color("#334744")
-        box.border_width_left = 2
-        box.border_width_right = 2
-        box.border_width_top = 2
-        box.border_width_bottom = 2
+        for side in ["left","right","top","bottom"]:
+            box.set("border_width_" + side,2)
         box.border_color = Color("#ddb982") if variant in ["hover","focus"] else Color("#51665d")
         btn.add_theme_stylebox_override(variant,box)
 
@@ -54,77 +69,92 @@ func _button(text: String, area: Rect2, background: Color) -> Button:
     add_child(b)
     return b
 
-func _ready() -> void:
-    build()
+func _ready() -> void: build()
 
-# Headless SceneTree tests may inspect this Control before the first frame
-# delivers NOTIFICATION_READY. Building twice must never duplicate Buttons.
 func build() -> void:
     if opener != null: return
     size = Vector2(960,540)
     mouse_filter = Control.MOUSE_FILTER_IGNORE
-    # All actionable surfaces stay >= 68 logical px in compact landscape:
-    # 640x360 Web maps 70 logical px to ~46.7 physical CSS pixels.
-    # The opener lives below the guidance and away from the P10/P11 pad.
     opener = _button("Sandwich counter",Rect2(366,455,228,70),Color("#365e53"))
     opener.pressed.connect(_toggle_pressed)
-    # Six honest P5 lots, arranged in two 3-row columns beside the pan.
-    # Every button remains attached to its original offer index.
-    for i in range(6):
-        var column: int = int(i / 3)
-        var row: int = i % 3
-        var buy: Button = _button("BUY",
-            Rect2(204+column*300,153+row*78,104,70),Color("#3c6156"))
-        buy.tooltip_text = "Purchase real ingredient lot %d" % (i+1)
-        buy.pressed.connect(_buy_pressed.bind(i))
-        purchases.append(buy)
-    # Four full-sized controls occupy the bottom action bar, with no overlap.
-    action_button = _button("Start sandwich",Rect2(22,454,218,70),Color("#496c55"))
-    action_button.pressed.connect(_step_pressed)
-    wait_button = _button("Wait 5 min",Rect2(252,454,218,70),Color("#34515b"))
-    wait_button.pressed.connect(_wait_pressed)
-    save_button = _button("Save",Rect2(482,454,218,70),Color("#34515b"))
-    save_button.pressed.connect(_save_pressed)
-    close_button = _button("Close",Rect2(712,454,218,70),Color("#5d4c45"))
+    # Exactly two contextual cooking controls in the bottom strip.
+    action_button = _button("Buy ingredient",Rect2(572,456,174,70),Color("#496c55"))
+    action_button.pressed.connect(_primary_pressed)
+    wait_button = _button("Next ingredient",Rect2(754,456,174,70),Color("#34515b"))
+    wait_button.pressed.connect(_secondary_pressed)
+    # Explicit close/utility are separate non-cooking affordances.
+    menu_button = _button("Menu",Rect2(798,382,72,68),Color("#34515b"))
+    menu_button.pressed.connect(_utility_toggle)
+    close_button = _button("X",Rect2(880,382,68,68),Color("#5d4c45"))
     close_button.pressed.connect(_close_pressed)
+    save_button = _button("Save",Rect2(572,456,174,70),Color("#34515b"))
+    save_button.pressed.connect(_save_pressed)
     update_view({},false,true,false)
 
 func _toggle_pressed() -> void:
     if on_toggle.is_valid(): on_toggle.call()
 
-func _buy_pressed(index: int) -> void:
-    if on_purchase.is_valid(): on_purchase.call(index)
+func _primary_pressed() -> void:
+    if not panel_active or utility_open: return
+    if action_kind == "buy":
+        if selected_offer_index >= 0 and on_purchase.is_valid():
+            on_purchase.call(selected_offer_index)
+    elif action_kind == "step" and on_step.is_valid():
+        on_step.call()
 
-func _step_pressed() -> void:
-    if on_step.is_valid(): on_step.call()
+func _secondary_pressed() -> void:
+    if not panel_active or utility_open: return
+    if action_kind == "buy":
+        var offers: Array = view_context.get("offers",[])
+        var next: int = next_offer(offers,selected_offer_index)
+        if next >= 0:
+            selected_offer_index = next
+            update_view(view_context,true,false,false)
+    elif action_kind == "step" and on_wait.is_valid():
+        on_wait.call()
 
-func _wait_pressed() -> void:
-    if on_wait.is_valid(): on_wait.call()
+func _utility_toggle() -> void:
+    if not panel_active: return
+    utility_open = not utility_open
+    update_view(view_context,true,false,false)
 
 func _save_pressed() -> void:
-    if on_save.is_valid(): on_save.call()
+    if on_save.is_valid() and utility_open:
+        utility_open = false
+        on_save.call()
 
 func _close_pressed() -> void:
+    utility_open = false
     if on_close.is_valid(): on_close.call()
 
 func update_view(context: Dictionary, panel_open: bool, story_busy: bool,
         help_open: bool) -> void:
+    if opener == null: return
+    view_context = context
     var near: bool = bool(context.get("near",false))
+    var visible: bool = panel_open and not story_busy and not help_open and near
+    panel_active = visible
     opener.visible = not panel_open and not story_busy and not help_open and near
-    var show_panel: bool = panel_open and not story_busy and not help_open
+    menu_button.visible = visible
+    close_button.visible = visible
+    save_button.visible = visible and utility_open
     var offers: Array = context.get("offers",[])
-    for i in range(purchases.size()):
-        var button: Button = purchases[i]
-        button.visible = show_panel and i < offers.size()
-        if i >= offers.size(): continue
-        var offer: Dictionary = offers[i]
-        var bought: bool = bool(offer["resolved"])
-        button.text = "BOUGHT" if bought else "BUY"
-        button.disabled = bought or not near
-        button.tooltip_text = ("Already paid for this day's lot" if bought else
-            "Pay %d piastres for %s" % [int(offer["cost"]),str(offer["ingredient_id"]).replace("_"," ")])
-    for button in [action_button,wait_button,save_button,close_button]:
-        button.visible = show_panel
-    action_button.text = action_label(context)
+    var offer_index: int = next_offer(offers,selected_offer_index,true)
+    selected_offer_index = offer_index
+    action_kind = "buy" if shopping(context) and offer_index>=0 else "step"
+    var buy_mode: bool = action_kind == "buy"
+    action_button.visible = visible and not utility_open and (not shopping(context) or offer_index>=0)
     action_button.disabled = not near
+    if buy_mode:
+        var offer: Dictionary = offers[offer_index]
+        action_button.text = "Buy %s · %dp" % [
+            str(offer.get("ingredient_id","")).replace("_"," "),
+            int(offer.get("cost",0))]
+    else:
+        action_button.text = action_label(context)
+    wait_button.visible = visible and not utility_open and (
+        (buy_mode and next_offer(offers,offer_index)>=0 and
+            next_offer(offers,offer_index)!=offer_index) or
+        (not buy_mode and not str(context.get("stage","")).is_empty()))
+    wait_button.text = "Next ingredient" if buy_mode else "Wait 5 min"
     wait_button.disabled = not near
