@@ -455,9 +455,14 @@ func _advance_npc_invitation() -> void:
     # The actual authored Ink opening line is spoken first. Reaching the
     # real choice.wait commits the P4b deadline in the canonical P6 session.
     # No scene-generated dialogue, choices, relationship changes or clock.
-    if game.mahmoud_story_session().get("phase","") == "running":
+    var current_session: Dictionary = (
+        game.mona_story_session() if story_id == MONA_STORY_ID
+        else game.mahmoud_story_session())
+    if current_session.get("phase","") == "running":
         _story_action("next")
-    if story_open and game.mahmoud_story_session().get("phase","") == "running":
+    current_session = (game.mona_story_session() if story_id == MONA_STORY_ID
+        else game.mahmoud_story_session())
+    if story_open and current_session.get("phase","") == "running":
         _story_action("next")
     report("E4_VISITOR_INITIATED" if story_id == MONA_STORY_ID else "E4_NPC_INITIATED")
 
