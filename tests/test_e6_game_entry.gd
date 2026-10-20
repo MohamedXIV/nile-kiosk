@@ -137,7 +137,7 @@ func _run() -> void:
     root.add_child(touch)
     touch.build()
     check(touch.arrows.size()==8 and touch.actions.size()==2 and
-        touch.dialogue_buttons.size()==4 and touch.utility_buttons.size()==2,
+        touch.dialogue_buttons.size()==6 and touch.utility_buttons.size()==2,
         "contextual touch UI must not present eight persistent action buttons")
     check(not touch.mode_enabled and not touch.arrows[0].visible,
         "pad is optional and hidden at boot")
@@ -196,6 +196,35 @@ func _run() -> void:
     check(not touch.dialogue_buttons["next"].visible and
         not touch.dialogue_buttons["leave"].visible,
         "existing overlays must suppress Ink responses")
+    # P4a: replies are directly selectable even with the optional pad off,
+    # and their actual authored P6 text/IDs replace generic Reply 1/2.
+    touch._toggle()
+    touch.update_view({"location":"kiosk"},false,true,true,false,"",true,
+        [{"option_id":"real_yes","text":"Yes, I remember that tea."},
+         {"option_id":"real_no","text":"Not tonight."}])
+    check(not touch.mode_enabled and touch.dialogue_buttons["choice_0"].visible and
+        touch.dialogue_buttons["choice_0"].text=="Yes, I remember that tea." and
+        touch.dialogue_buttons["choice_1"].text=="Not tonight." and
+        touch.dialogue_buttons["choice_0"].size.y>=68 and
+        not touch.dialogue_buttons["next"].visible,
+        "authored Ink reply labels must be clickable without activating movement pad")
+    var four_options: Array = []
+    for number in range(4):
+        four_options.append({"option_id":"option_%d" % number,
+            "text":"Authored answer %d" % number})
+    touch.update_view({"location":"kiosk"},false,true,true,false,"",true,four_options)
+    check(touch.dialogue_buttons["choice_3"].visible and
+        touch.dialogue_buttons["choice_3"].text=="Authored answer 3" and
+        not touch.dialogue_buttons["next"].visible,
+        "up to four current Ink options can appear without fake extra options")
+    touch.update_view({"location":"kiosk"},false,true,true,false,"",true,[])
+    check(touch.dialogue_buttons["next"].visible and
+        not touch.dialogue_buttons["choice_0"].visible,
+        "between authored lines only Continue/Leave are clickable")
+    var bubble: PackedStringArray = GameScene.dialogue_bubble_lines(
+        "Mahmoud: It was a long evening, but I think the tea helped us both.")
+    check(bubble.size()>=2 and bubble.size()<=3 and bubble[0].begins_with("Mahmoud"),
+        "spatial dialogue bubble should wrap real authored prose without changing P6 text")
     check(WorldTouchControls.dialogue_target({"location":"kiosk",
         "conversation_near":true,"mahmoud_invite_near":true},false)=="mahmoud" and
         WorldTouchControls.dialogue_target({"location":"kiosk",

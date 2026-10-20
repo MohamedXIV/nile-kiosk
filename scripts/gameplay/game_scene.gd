@@ -54,6 +54,7 @@ var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
 var story_pending: bool = false
 var story_line: String = ""
+var story_speaker: String = "" # View-only position hint from the authored P6 line.
 var story_id: String = Game.RIVER_STORY_ID
 
 func _ready() -> void:
@@ -436,12 +437,13 @@ func _story_action(kind: String, option_id: String = "") -> void:
     match code:
         "STARTED", "RESUMED":
             story_open = true
-            story_line = ("Salma and Mahmoud turn toward you." if story_id.begins_with("river_neighbors:") else "Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Press Enter to listen."
+            story_line = ("Salma and Mahmoud turn toward you." if story_id.begins_with("river_neighbors:") else "Mahmoud remembers your last encounter." if story_id.begins_with("memory:") else ("Mona came by for Salma." if story_id == MONA_STORY_ID else ("Mahmoud called you over." if story_id == Game.MAHMOUD_STORY_ID else "Salma is here."))) + " Listen, or choose to leave."
             notice = "A moment beside the Nile."
         "LINE":
             story_open = true
             story_line = str(result.get("text", ""))
-            var speaker: String = str(result.get("speaker_id", "salma")).capitalize() + ": "
+            story_speaker = str(result.get("speaker_id", "salma")).to_lower()
+            var speaker: String = story_speaker.capitalize() + ": "
             if not story_line.begins_with(speaker): story_line = speaker + story_line
         "WAITING":
             story_open = true
@@ -449,10 +451,11 @@ func _story_action(kind: String, option_id: String = "") -> void:
         "FINISHED":
             story_open = false
             story_line = ""
+            story_speaker = ""
             notice = "The conversation settles. You return to the evening."
         _:
             story_open = true
-            story_line = "Press Enter to continue."
+            story_line = "Continue the conversation when you are ready."
     report(_story_prefix() + (code if code in ["STARTED","RESUMED","LINE","WAITING","FINISHED"] else "CHOICE"))
 
 func _story_prefix() -> String:
@@ -579,18 +582,19 @@ func _touch_action(action: String) -> void:
     if action == "menu":
         report("E6_TOUCH_MENU")
         return
-    if not touch_pad.mode_enabled: return
+    # Direct dialogue Buttons remain usable even with the optional pad Off.
     if story_open and not controls_open and not sandwich_open:
         var choices: Array = _story_choices(game.status())
         match action:
             "next":
                 if choices.is_empty(): _story_action("next")
-            "choice_0", "choice_1":
-                var index: int = 0 if action == "choice_0" else 1
-                if index < choices.size():
+            "choice_0", "choice_1", "choice_2", "choice_3":
+                var index: int = int(action.trim_prefix("choice_"))
+                if index < choices.size() and not str(choices[index].get("option_id","")).is_empty():
                     _story_action("choose",str(choices[index]["option_id"]))
             "leave": _dismiss_story()
         return
+    if not touch_pad.mode_enabled: return
     if story_pending or controls_open or sandwich_open: return
     match action:
         "primary": _context_action(0)
@@ -602,6 +606,7 @@ func _dismiss_story() -> void:
     story_open = false
     story_pending = false
     story_line = ""
+    story_speaker = ""
     notice = "You can return to the conversation later."
     report("E4_STORY_DISMISS")
 
@@ -637,7 +642,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
         report("E6_AUDIO_TOGGLE")
         return
     if story_open or story_pending:
-        if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_ESCAPE,KEY_P]:
+        if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_3,KEY_4,KEY_ESCAPE,KEY_P]:
             # Keep the actual cooking/movement controls usable while listening.
             if event.keycode == KEY_H: _act("tea_heat")
             elif event.keycode == KEY_U: _act("tea_pour")
@@ -648,10 +653,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
         match event.keycode:
             KEY_ENTER, KEY_KP_ENTER:
                 if story_open: _story_action("next")
-            KEY_1, KEY_2:
+            KEY_1, KEY_2, KEY_3, KEY_4:
                 if story_open:
                     var options: Array = _story_choices(game.status())
-                    var index: int = 0 if event.keycode == KEY_1 else 1
+                    var index: int = int(event.keycode - KEY_1)
                     if index < options.size(): _story_action("choose",str(options[index]["option_id"]))
             KEY_ESCAPE: _dismiss_story()
             KEY_P: _act("save")
@@ -803,6 +808,37 @@ func _figure(at: Vector2, color: Color, label: String) -> void:
     _text(foot+Vector2(-22,-46)*size_factor,label,
         maxi(12,roundi(12.0*size_factor)),Color("#fff2d5"))
 
+# Pure text layout for the provisional spatial caption; authored P6
+# remains the only source of words, choices and conversational truth.
+static func dialogue_bubble_lines(message: String, max_chars: int = 48,
+        max_lines: int = 3) -> PackedStringArray:
+    var wrapped := PackedStringArray()
+    if max_chars < 8 or max_lines < 1: return wrapped
+    var line: String = ""
+    for word in message.replace("\n"," ").split(" ",false):
+        if not line.is_empty() and line.length() + word.length() + 1 > max_chars:
+            wrapped.append(line)
+            line = word
+        else:
+            line = word if line.is_empty() else line + " " + word
+    if not line.is_empty(): wrapped.append(line)
+    if wrapped.size() > max_lines:
+        wrapped.resize(max_lines)
+        wrapped[max_lines-1] = wrapped[max_lines-1].substr(0,max_chars-3) + "..."
+    return wrapped
+
+# Only a projected position: never a persisted speaker, NPC route or timer.
+func _story_anchor() -> Vector2:
+    if story_speaker == "player": return _iso(game.position())
+    var speaker_id: String = story_speaker
+    if speaker_id.is_empty():
+        speaker_id = "mahmoud" if story_id == Game.MAHMOUD_STORY_ID or story_id.begins_with("memory:") else "mona" if story_id == MONA_STORY_ID else "salma"
+    if speaker_id in ["salma","mahmoud","mona"]:
+        var pose: Dictionary = game.npc_pose(speaker_id)
+        if not pose.is_empty() and str(pose.get("room_id","")) == game.room():
+            return _iso(pose["position"])
+    return _iso(game.position())
+
 func _draw() -> void:
     draw_rect(Rect2(0,0,960,540),Color("#101a21"))
     if not initialized:
@@ -943,18 +979,22 @@ func _draw() -> void:
         _text(Vector2(555,526),str(state["order_recipe"]).replace("_"," ") + " · " + str(state["order_status"]),14,Color("#d2b98c"))
     # Market/referral verbs are already shown by the live E/F resolver below.
     # Do not paint parallel F3/F4/F5/F6 shortcut walls over the isometric scene.
+    # Spatial speech follows the current P2 NPC pose (or the player when
+    # narrating), leaving the actual isometric world visible. Godot Buttons
+    # in WorldTouchControls provide direct authored choices below the caption.
     if story_open or story_pending:
-        draw_rect(Rect2(60,242,840,192),Color("#162d31"))
-        draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))
-        _text(Vector2(84,280),"Salma & Mahmoud · By the river" if story_id.begins_with("river_neighbors:") else "Mahmoud · A familiar customer" if story_id.begins_with("memory:") else ("Mona · Here to see Salma" if story_id == MONA_STORY_ID else ("Mahmoud · A word after tea" if story_id == Game.MAHMOUD_STORY_ID else "By the Nile · Salma")),20,Color("#f0d8a8"))
-        _text(Vector2(84,315),story_line if not story_pending else "Opening conversation...",17)
-        var choices: Array = _story_choices(state)
-        if choices.is_empty():
-            _text(Vector2(84,394),"Enter · Continue       Esc · Leave       P · Save",15,Color("#ddbb7f"))
-        else:
-            for i in range(mini(choices.size(),2)):
-                _text(Vector2(84,356+i*25),"%d · %s" % [i+1, str(choices[i]["text"])],16,Color("#ddbb7f"))
-            _text(Vector2(610,411),"Esc · Leave   P · Save",13,Color("#ddbb7f"))
+        var actor_at: Vector2 = _story_anchor()
+        var bubble_left: float = clampf(actor_at.x-210.0,72.0,468.0)
+        var bubble_top: float = clampf(actor_at.y-166.0,76.0,188.0)
+        draw_rect(Rect2(bubble_left,bubble_top,420.0,110.0),Color("#162d31"))
+        draw_rect(Rect2(bubble_left,bubble_top,420.0,3.0),Color("#e1bd81"))
+        var line_text: String = "Someone is getting ready to talk..." if story_pending else story_line
+        var wrapped: PackedStringArray = dialogue_bubble_lines(line_text)
+        for i in range(wrapped.size()):
+            _text(Vector2(bubble_left+14.0,bubble_top+28.0+i*26.0),
+                wrapped[i],16,Color("#f0d8a8"),392.0)
+        draw_line(Vector2(clampf(actor_at.x,bubble_left+12.0,bubble_left+408.0),
+            bubble_top+110.0),actor_at+Vector2(0,-36),Color("#c9ac83"),1.5)
     if controls_open:
         # Built-in draw primitives form an intentionally provisional overlay;
         # later approved visual assets can replace presentation independently.

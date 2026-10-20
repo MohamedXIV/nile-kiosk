@@ -106,16 +106,22 @@ func build() -> void:
         button.pressed.connect(_utility_pressed.bind(kind))
         utility_buttons[kind] = button
     # Conversational controls replace world actions without a separate Ink UI.
+    # Direct authored Ink replies are visible without enabling the optional
+    # movement pad. Four slots fit the existing scene; no invented choices.
+    # Two rows are used only when the canonical P6 session offers >2 choices.
     for spec in [
-        {"key":"next","label":"Continue","column":0},
-        {"key":"leave","label":"Leave","column":1},
-        {"key":"choice_0","label":"Reply 1","column":0},
-        {"key":"choice_1","label":"Reply 2","column":1}
+        {"key":"next","label":"Continue","column":0,"row":1},
+        {"key":"leave","label":"Leave","column":1,"row":1},
+        {"key":"choice_0","label":"Reply 1","column":0,"row":0},
+        {"key":"choice_1","label":"Reply 2","column":1,"row":0},
+        {"key":"choice_2","label":"Reply 3","column":0,"row":1},
+        {"key":"choice_3","label":"Reply 4","column":1,"row":1}
     ]:
         var key: String = str(spec["key"])
         var btn: Button = _button(str(spec["label"]),
-            Rect2(Vector2(728+int(spec["column"])*114,344),Vector2(104,68)),
-            Color("#425e68"))
+            Rect2(Vector2(100+int(spec["column"])*390,302+int(spec["row"])*70),
+                Vector2(370,68)),Color("#425e68"))
+        btn.clip_text = true
         btn.pressed.connect(_action_pressed.bind(key))
         dialogue_buttons[key] = btn
     update_view({},false,false,false,false)
@@ -137,7 +143,9 @@ func _direction_up(direction: Vector2i) -> void:
         held_direction = Vector2i.ZERO
 
 func _action_pressed(kind: String) -> void:
-    if on_action.is_valid() and mode_enabled and not utility_open:
+    # Ink replies are world-visible click/touch actions even with pad Off.
+    # The scene revalidates the current P6 option_id at press time.
+    if on_action.is_valid() and (mode_enabled or dialogue_buttons.has(kind)) and not utility_open:
         on_action.call(kind)
 
 func _utility_toggle() -> void:
@@ -179,17 +187,19 @@ func update_view(state: Dictionary, portal_near: bool, counter_near: bool,
     toggle.text = "Hide pad" if mode_enabled else "On-screen"
     if not allowed: release()
     var showing: bool = mode_enabled and allowed
-    var showing_dialogue: bool = mode_enabled and conversation_open and not overlay_busy
+    var showing_dialogue: bool = conversation_open and not overlay_busy
     menu_button.visible = showing
     for kind in utility_buttons:
         utility_buttons[kind].visible = showing and utility_open
     for key in dialogue_buttons:
         var btn: Button = dialogue_buttons[key]
-        btn.visible = showing_dialogue and (
+        var index: int = int(key.trim_prefix("choice_")) if key.begins_with("choice_") else -1
+        btn.visible = showing_dialogue and (key == "leave" or
             (key == "next" and choices.is_empty()) or
-            (key == "leave") or
-            (key == "choice_0" and choices.size() > 0) or
-            (key == "choice_1" and choices.size() > 1))
+            (index >= 0 and index < choices.size()))
+        if index >= 0 and index < choices.size():
+            btn.text = str(choices[index].get("text","Reply"))
+            btn.tooltip_text = btn.text
     for arrow in arrows: arrow.visible = showing and not utility_open
     for i in range(2):
         var button: Button = actions["primary" if i == 0 else "alternate"]

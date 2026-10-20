@@ -171,18 +171,18 @@ try{
   let conversation=await touch(785,158,"E4_NPC_STARTED");
   check(conversation.mahmoud_story_phase==="" || conversation.mahmoud_story_phase==="running",
     "touch Talk did not open authored Ink");
-  conversation=await touch(785,378,"E4_NPC_LINE");
+  conversation=await touch(270,405,"E4_NPC_LINE");
   check(conversation.mahmoud_story_phase==="running",
     "touch Continue did not advance real Ink line");
-  conversation=await touch(785,378,"E4_NPC_WAITING");
+  conversation=await touch(270,405,"E4_NPC_WAITING");
   check(conversation.mahmoud_story_choices?.length===2,
     "real Ink choices not made available to touch");
-  conversation=await touch(897,378,"E4_NPC_CHOICE");
+  conversation=await touch(685,338,"E4_NPC_CHOICE");
   check(conversation.mahmoud_story_phase==="running",
     "touch Reply 2 did not commit the real authored option");
-  await touch(785,378,"E4_NPC_LINE");
-  await touch(785,378,"E4_NPC_LINE");
-  conversation=await touch(785,378,"E4_NPC_FINISHED");
+  await touch(270,405,"E4_NPC_LINE");
+  await touch(270,405,"E4_NPC_LINE");
+  conversation=await touch(270,405,"E4_NPC_FINISHED");
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
   check(errors.length===0,"Godot scripting errors");
