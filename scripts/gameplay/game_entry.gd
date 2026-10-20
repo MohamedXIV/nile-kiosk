@@ -2,6 +2,7 @@ extends RefCounted
 ## E6/P0: game entry adapter over the one canonical WorldSession.
 ## No scene-local cash, NPC, location, order, or clock authority.
 const Session = preload("res://scripts/integration/world_session.gd")
+const WorldState = preload("res://scripts/core/world_state.gd")
 const Graph = preload("res://scripts/integration/room_traversal.gd")
 const TravelTime = preload("res://scripts/gameplay/travel_time_policy.gd")
 const Procurement = preload("res://scripts/gameplay/procurement_play.gd")
@@ -200,10 +201,17 @@ func start(save_path: String = DEFAULT_SAVE) -> Dictionary:
     if not FileAccess.file_exists(MAHMOUD_STORY_POLICY):
         return {"ok":false,"code":"MAHMOUD_STORY_MANIFEST_NOT_FOUND"}
     var mahmoud_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(MAHMOUD_STORY_POLICY))
-    if typeof(mahmoud_raw) != TYPE_DICTIONARY or mahmoud_raw.size() != 5 or mahmoud_raw.get("schema") != 1 or mahmoud_raw.get("opportunity_id") != MAHMOUD_STORY_ID or mahmoud_raw.get("session_id") != MAHMOUD_STORY_ID or typeof(mahmoud_raw.get("story")) != TYPE_DICTIONARY or typeof(mahmoud_raw.get("ink_path")) != TYPE_STRING:
+    if typeof(mahmoud_raw) != TYPE_DICTIONARY or mahmoud_raw.size() != 6 or mahmoud_raw.get("schema") != 1 or mahmoud_raw.get("opportunity_id") != MAHMOUD_STORY_ID or mahmoud_raw.get("session_id") != MAHMOUD_STORY_ID or typeof(mahmoud_raw.get("story")) != TYPE_DICTIONARY or typeof(mahmoud_raw.get("ink_path")) != TYPE_STRING:
         return {"ok":false,"code":"INVALID_MAHMOUD_STORY_MANIFEST"}
     if not str(mahmoud_raw["ink_path"]).begins_with("res://content/ink/") or not str(mahmoud_raw["ink_path"]).ends_with(".ink.json") or str(mahmoud_raw["ink_path"]).contains("..") or mahmoud_raw["story"].get("story_id","") != MAHMOUD_STORY_ID:
         return {"ok":false,"code":"INVALID_MAHMOUD_STORY_PATH"}
+    var initiative: Variant = mahmoud_raw.get("npc_initiation")
+    if typeof(initiative) != TYPE_DICTIONARY or initiative.size() != 2 or \
+            not initiative.has("after_minutes") or not initiative.has("within_minutes") or \
+            not WorldState.integral(initiative["after_minutes"],0,120) or \
+            not WorldState.integral(initiative["within_minutes"],1,120) or \
+            int(initiative["within_minutes"]) <= int(initiative["after_minutes"]):
+        return {"ok":false,"code":"INVALID_MAHMOUD_NPC_INITIATION"}
     mahmoud_story_pack = mahmoud_raw.duplicate(true)
     if not session.world.narrative_view()["stories"].has(MAHMOUD_STORY_ID):
         var registered_mahmoud: Dictionary = session.command("game:e4:mahmoud:story:v1", "system:narrative",
@@ -609,6 +617,41 @@ func mahmoud_invite_near() -> bool:
     var pose: Dictionary = npc_pose("mahmoud")
     return not pose.is_empty() and position().distance_to(pose["position"]) <= Graph.RADIUS
 
+# Deterministic, read-only NPC initiative policy. The authored P4 delivery
+# opportunity and canonical world time decide whether Mahmoud speaks first.
+# The scene must still use the real P6 begin/Ink commands to materialize it.
+static func npc_initiation_window(offered_minute: int, now_minute: int,
+        after_minutes: int, within_minutes: int) -> bool:
+    if offered_minute < 0 or now_minute < offered_minute:
+        return false
+    var elapsed: int = now_minute - offered_minute
+    return elapsed >= after_minutes and elapsed < within_minutes
+
+func mahmoud_npc_initiation_ready() -> bool:
+    var invitation: Dictionary = mahmoud_invitation()
+    if invitation.is_empty() or not mahmoud_story_session().is_empty() or \
+            not mahmoud_invite_near():
+        return false
+    var initiative: Dictionary = mahmoud_story_pack.get("npc_initiation",{})
+    if initiative.is_empty(): return false
+    return npc_initiation_window(
+        int(invitation.get("world_minute",-1)),
+        int(session.world.view()["world_minute"]),
+        int(initiative["after_minutes"]),int(initiative["within_minutes"]))
+
+# Beginning requires genuine P2 speaking reach. After Mahmoud speaks,
+# listening/answering may continue while he walks across the SAME kiosk;
+# neither a UI radius change nor player motion freezes the P1 schedule.
+# Leaving the room or the canonical deadline ends that chance.
+func mahmoud_story_exchange_available() -> bool:
+    var active: Dictionary = mahmoud_story_session()
+    if active.get("phase","") not in ["running","choice"]:
+        return false
+    if room() != "kiosk" or session.world.npc("mahmoud").get("location_id","") != "kiosk":
+        return false
+    var deadline: int = int(active.get("reply_deadline_minute",-1))
+    return deadline < 0 or int(session.world.view()["world_minute"]) < deadline
+
 func mahmoud_story_begin() -> Dictionary:
     var offer: Dictionary = mahmoud_invitation()
     if offer.is_empty(): return {"ok":false,"code":"STORY_NOT_UNLOCKED"}
@@ -634,10 +677,12 @@ func mahmoud_story_decline() -> Dictionary:
         {"opportunity_id":MAHMOUD_STORY_ID})
 
 func mahmoud_story_next() -> Dictionary:
+    if not mahmoud_story_exchange_available(): return {"ok":false,"code":"MAHMOUD_LEFT_OR_TIMED_OUT"}
     if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_next(MAHMOUD_STORY_ID,_id("mahmoud_next"))
 
 func mahmoud_story_choose(option_id: String) -> Dictionary:
+    if not mahmoud_story_exchange_available(): return {"ok":false,"code":"MAHMOUD_LEFT_OR_TIMED_OUT"}
     if not session.ink_ready(MAHMOUD_STORY_ID): return {"ok":false,"code":"INK_NOT_READY"}
     return session.ink_choose(MAHMOUD_STORY_ID,option_id,_id("mahmoud_choose"))
 
@@ -791,6 +836,8 @@ func status() -> Dictionary:
         "river_story_choices": session.ink_choices(RIVER_STORY_ID) if session.ink_ready(RIVER_STORY_ID) else [],
         "mahmoud_invitation": mahmoud_invitation(),
         "mahmoud_invite_near": mahmoud_invite_near(),
+        "mahmoud_npc_initiation_ready": mahmoud_npc_initiation_ready(),
+        "mahmoud_story_exchange_available": mahmoud_story_exchange_available(),
         "mahmoud_story_phase": str(mahmoud_story_session().get("phase","")),
         "mahmoud_story_deadline": int(mahmoud_story_session().get("reply_deadline_minute",-1)),
         "mahmoud_story_outcome": str(mahmoud_story_session().get("outcome","")),

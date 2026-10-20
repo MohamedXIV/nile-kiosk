@@ -38,6 +38,22 @@ async function until(marker, index=0) {
   }
   throw new Error("Missing "+marker+" #"+index+"; "+JSON.stringify(errors));
 }
+// Do not treat save_game's synchronous Godot receipt as browser durability.
+// The Web filesystem sync runs asynchronously; require the exact same
+// revision in its confirmed IndexedDB acknowledgement before hard reload.
+async function confirmBrowserSave(revision) {
+  for(let i=0;i<300;i++) {
+    const latest=(traces.E6_GAME_SAVE_CONFIRMED||[]).at(-1);
+    if(latest?.save_storage_revision===revision && latest.save_storage_status==="confirmed")
+      return latest;
+    const rejected=(traces.E6_GAME_SAVE_UNCONFIRMED||[]).at(-1);
+    if(rejected?.save_storage_revision===revision)
+      throw new Error("Browser refused save persistence at revision "+revision);
+    if(errors.length) throw new Error("Save persistence errors: "+errors.join("; "));
+    await page.waitForTimeout(50);
+  }
+  throw new Error("Browser did not confirm latest IndexedDB revision "+revision);
+}
 // Read-only presentation acceptance at real 960×540 Godot resolution.
 function checkRoomFrame(state, label) {
   const room = sceneRooms[state.location];
@@ -112,26 +128,32 @@ async function nudgeY(towardsPositive) {
   await page.keyboard.up(keys[0]);
 }
 async function walkBackThroughDoor(destination, doorwayX) {
-  // Timed key-holds are frame-rate-dependent in Chromium; don't assume a
-  // 1400 ms walk lands precisely within the 38-unit world portal radius.
-  await walkBack(1060);
-  for (let attempt=0; attempt<9; attempt++) {
-    const index = (traces.E6_GAME_DOOR || []).length;
-    await press("e");
-    const seen = await until("E6_GAME_DOOR", index);
-    if (seen.location === destination) return seen;
-    const dx = doorwayX - seen.x;
-    const dy = 70 - seen.y;
-    if (Math.abs(dy) > 20) await nudgeY(dy > 0);
-    else if (Math.abs(dx) > 8) {
-      if (dx > 0) await moveDiagonal(155);
-      else await walkBack(155);
-    } else {
-      // Within the axis tolerances but just outside a circular doorway.
-      await nudgeY(dy > 0);
+  // Real P2 travel is a contextual verb: in a closed shop the primary
+  // action may be "Open", NOT "Door", until physically in reach.
+  // Never press E blindly and accidentally reopen the closed kiosk.
+  await walkBack(830);
+  for(let attempt=0;attempt<17;attempt++){
+    const snapshotAt=(traces.E6_GAME_SAVE||[]).length;
+    await press("p");
+    const state=await until("E6_GAME_SAVE",snapshotAt);
+    const actionIndex=(state.context_actions||[]).findIndex(
+      a=>a.kind==="door" && a.label.toLowerCase().includes(destination));
+    if(actionIndex>=0){
+      const doorAt=(traces.E6_GAME_DOOR||[]).length;
+      await press(actionIndex===0?"e":"f");
+      const traveled=await until("E6_GAME_DOOR",doorAt);
+      if(traveled.location===destination)return traveled;
+      throw new Error("Wrong real doorway: expected "+destination+
+        " got "+traveled.location);
     }
+    const dx=doorwayX-state.x,dy=70-state.y;
+    if(Math.abs(dy)>10)await nudgeY(dy>0);
+    else if(Math.abs(dx)>8){
+      if(dx>0)await moveDiagonal(135);
+      else await walkBack(135);
+    }else await nudgeY(dy>0);
   }
-  throw new Error("Could not traverse return doorway to " + destination);
+  throw new Error("Could not physically reach return doorway to "+destination);
 }
 try {
   const base = process.argv[2] || "http://127.0.0.1:8765";
@@ -283,13 +305,10 @@ try {
     finishedTea.tea_quality_score < 60 && finishedTea.tea_quality_item.startsWith("item:play:c3:prep:"),
     "late player actions did not create a distinct real P3 tea quality");
   check(finishedTea.customer_reaction === "", "NPC reacted before actually receiving the tea");
-  // Respond to the NPC's brief, physically proximity-gated invitation
-  // immediately after delivery, before browser assertions consume time and
-  // the independent P1 schedule moves Mahmoud out of speaking distance.
-  // Both are real sequential keyboard inputs, not injected world state.
-  const npcStarted = (traces.E4_NPC_STARTED || []).length;
+  // Mahmoud initiates his own Ink greeting at genuine P4 delivery, without
+  // pressing M/Talk. Observe the real authoring/clock, not a fake dialogue.
+  const npcInitiatedIndex = (traces.E4_NPC_INITIATED || []).length;
   await press("g");
-  await press("m");
   const deliveredTea = await until("E6_GAME_SERVE",3);
   check(deliveredTea.order_status === "delivered" && deliveredTea.ambient_line === "" &&
     deliveredTea.customer_reaction_npc === "mahmoud" &&
@@ -301,18 +320,16 @@ try {
     "customer snapped back before he left the counter");
   check(deliveredTea.mahmoud_invitation?.source_event_id === deliveredTea.customer_reaction_event &&
     deliveredTea.mahmoud_invitation?.initiator_npc_id === "mahmoud" &&
-    deliveredTea.mahmoud_invite_near && deliveredTea.mahmoud_story_phase === "",
-    "Mahmoud didn't originate an optional proximity-gated call after HIS real delivery");
-  // Starting Ink remains opt-in; the actual invitation appeared because
-  // the player served real prepared tea and then chose to listen.
-  await until("E4_NPC_STARTED",npcStarted);
-  await press("Enter");
+    deliveredTea.mahmoud_invite_near,
+    "Mahmoud didn't originate a real proximity-gated call after HIS delivery");
+  const npcChoices = await until("E4_NPC_INITIATED",npcInitiatedIndex);
+  check(npcChoices.mahmoud_story_phase === "choice" &&
+    npcChoices.mahmoud_story_choices?.length === 2 &&
+    npcChoices.mahmoud_story_deadline > npcChoices.minute,
+    "automatic NPC initiative did not commit the genuine timed Ink choices");
   const npcLine = await until("E4_NPC_LINE");
-  check(npcLine.mahmoud_story_phase === "running", "Mahmoud's real Ink line didn't commit");
-  await press("Enter");
-  const npcChoices = await until("E4_NPC_WAITING");
-  check(npcChoices.mahmoud_story_phase === "choice" && npcChoices.mahmoud_story_choices?.length === 2,
-    "NPC initiation skipped player choice");
+  check(npcLine.dialogue_text.includes("Before I go"),
+    "NPC initiation did not speak the genuine authored Ink opening line");
   await press("2"); // Stable option ID order: busy, listen.
   const npcChoice = await until("E4_NPC_CHOICE");
   check(npcChoice.mahmoud_story_phase === "running", "accepting NPC dialogue didn't commit Ink choice");
@@ -460,7 +477,7 @@ try {
   const saved = await until("E6_GAME_SAVE");
   check(saved.order_status === "delivered" && saved.location === "kiosk", "save after customer delivery");
   // Godot Web syncs user:// into browser storage asynchronously; match established Chromium save gates.
-  await page.waitForTimeout(1600);
+  await confirmBrowserSave(saved.revision);
   await page.reload({ waitUntil: "load" });
   const restored = await until("E6_GAME_RESTORED");
   checkRoomFrame(restored,"browser hard reload");
@@ -527,9 +544,13 @@ try {
   const slept = await until("E6_GAME_SLEEP");
   check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open && slept.bed_placed && slept.rest >= rooftopMoment.rest,
     "player did not reach canonical next-day morning");
+  const morningSaveIndex = (traces.E6_GAME_SAVE || []).length;
   await press("p");
-  const morningSaved = await until("E6_GAME_SAVE",1);
-  await page.waitForTimeout(1700);
+  const morningSaved = await until("E6_GAME_SAVE",morningSaveIndex);
+  check(morningSaved.revision === slept.revision &&
+    morningSaved.day === 2 && morningSaved.location === "roof",
+    "morning save must be the newly committed second-day state");
+  await confirmBrowserSave(morningSaved.revision);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
   check(morningRestored.digest === morningSaved.digest && morningRestored.bed_placed && morningRestored.sleep_count === 1 && morningRestored.quiet_count === 3 && morningRestored.radio_uses === 1 &&
