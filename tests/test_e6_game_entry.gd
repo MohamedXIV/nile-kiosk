@@ -488,6 +488,82 @@ func _run() -> void:
     check(g.tea_action_near("H").get("code","")=="STEP_NOT_READY","cannot lift kettle early")
     check(g.save_game().get("ok",false),"save mid-cooking")
     var before_load: Dictionary = g.session.world.view()
+    # P4b: the existing legitimate kiosk visit provides real canonical P1,
+    # P2 and P6 context; no Ink cursor has permission to control world time.
+    # A trusted narrative command simulates the already-authored choice.wait
+    # while exercising the actual Kernel and complete event replay.
+    var timed: RefCounted = Kernel.new()
+    check(timed.restore_snapshot(before_load),"timed-choice baseline must replay")
+    var timed_story: Dictionary = timed.narrative_view()["stories"]["mahmoud_after_tea"]
+    check(timed_story.get("choice_windows",{}).get("mahmoud_choice",{}).get("minutes",-1)==12,
+        "Mahmoud needs an explicit authored reply window, not a frontend timer")
+    var invalid_window: Dictionary = timed_story.duplicate(true)
+    invalid_window["choice_windows"]["mahmoud_choice"]["minutes"] = 0
+    var Narrative = load("res://scripts/core/narrative_world.gd")
+    check(not Narrative.new()._validate_story(invalid_window).get("ok",false),
+        "zero-length narrative reply window must be rejected at registration")
+    var timed_id: String = "p4b:mahmoud:reply"
+    var began_timed: Dictionary = timed.dispatch({"id":"p4b:start",
+        "actor_id":"system:narrative","kind":"narrative.session.start",
+        "payload":{"session_id":timed_id,"story_id":"mahmoud_after_tea",
+            "participants":["mahmoud","player"],"ink_state":["test-ink-cursor"]}})
+    check(began_timed.get("ok",false),"real P6 session must accept the co-present actors")
+    var waited_timed: Dictionary = timed.dispatch({"id":"p4b:choice:wait",
+        "actor_id":"system:narrative","kind":"narrative.choice.wait",
+        "payload":{"session_id":timed_id,"point_id":"mahmoud_choice",
+            "ink_state":["pending-ink-choice"]}})
+    check(waited_timed.get("ok",false),"authored P6 choice.wait must be committed")
+    var choice_start: Dictionary = timed.narrative_session(timed_id)
+    var due: int = int(before_load["world_minute"])+12
+    check(choice_start.get("reply_deadline_minute",-1)==due and
+        choice_start.get("phase","")=="choice" and
+        timed.narrative_choices(timed_id).size()==2,
+        "reply window and eligible authored options must be canonical")
+    var early: RefCounted = Kernel.new()
+    check(early.restore_snapshot(timed.view()),
+        "world with pending timed Ink choice must restore byte-identically")
+    check(timed.advance_time(11,"p4b:before-due").get("ok",false) and
+        timed.narrative_session(timed_id).get("phase","")=="choice",
+        "world must not force silence before the actual P1 deadline")
+    check(early.advance_time(11,"p4b:early").get("ok",false),
+        "normal WorldKernel time should run with pending P6 response")
+    var picked: Dictionary = early.dispatch({"id":"p4b:choose:early",
+        "actor_id":"system:narrative","kind":"narrative.choice.select",
+        "payload":{"session_id":timed_id,"point_id":"mahmoud_choice",
+            "option_id":"listen","ink_state":["selected-ink-branch"]}})
+    check(picked.get("ok",false) and
+        early.narrative_session(timed_id).get("phase","")=="running",
+        "authored timely choice should win over a future silence outcome")
+    check(early.advance_time(1,"p4b:after-timely-choice").get("ok",false) and
+        early.narrative_session(timed_id).get("phase","")=="running",
+        "a genuinely chosen response must not be overwritten at the deadline")
+    var known_before: bool = timed.player_knows("salma:evening-boats")
+    check(timed.advance_time(1,"p4b:at-due").get("ok",false),
+        "world-minute deadline should be crossed by ordinary P1 progression")
+    var silent: Dictionary = timed.narrative_session(timed_id)
+    check(silent.get("phase","")=="finished" and
+        silent.get("outcome","")=="silence" and
+        silent.get("silence_minute",-1)==due and
+        str(silent.get("last_event_id","")).begins_with("evt:") and
+        timed.narrative_choices(timed_id).is_empty(),
+        "no-response must commit a source-attributed, replayable P6 outcome")
+    var frozen_digest: String = JSON.stringify(timed.view()).sha256_text()
+    check(not timed.dispatch({"id":"p4b:late:choose",
+        "actor_id":"system:narrative","kind":"narrative.choice.select",
+        "payload":{"session_id":timed_id,"point_id":"mahmoud_choice",
+            "option_id":"listen","ink_state":["late-ink"]}}).get("ok",false) and
+        JSON.stringify(timed.view()).sha256_text()==frozen_digest,
+        "late button press must neither revive the NPC nor alter canon")
+    check(timed.player_knows("salma:evening-boats")==known_before,
+        "silence must never leak a private social fact")
+    check(timed.save_to_file(SAVE+".p4b"),
+        "expired P6 session should save with the canonical event history")
+    var on_disk: RefCounted = Kernel.new()
+    check(on_disk.load_from_file(SAVE+".p4b") and
+        JSON.stringify(on_disk.view())==JSON.stringify(timed.view()),
+        "timed silence and its deadline must be byte-identical after disk replay")
+    if FileAccess.file_exists(SAVE+".p4b"):
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE+".p4b"))
     var restored: RefCounted = Game.new()
     check(restored.start(SAVE).get("code","")=="RESTORED","restore existing opening game")
     check(JSON.stringify(restored.session.world.view())==JSON.stringify(before_load),"entire world state preserved")
