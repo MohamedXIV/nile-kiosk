@@ -76,14 +76,15 @@ function checkAuthenticAmbient(state, label) {
   const beat = Math.floor(elapsed/10);
   const active = elapsed>=0 && beat<3 && elapsed%10<5;
   const speaker = ["salma","mahmoud","salma"][beat];
-  if(active) {
-    check(state.ambient_npc===speaker && state.ambient_beat===beat &&
+  // The NPC scheduler can have an active authored beat even when the player
+  // cannot hear it: walls, distance and autonomous NPC movement still apply.
+  if(state.ambient_npc!=="") {
+    check(active && state.ambient_npc===speaker && state.ambient_beat===beat &&
       typeof state.ambient_line==="string" && state.ambient_line.length>0,
-      label+" missed an authored NPC remark while its P1 window was open");
+      label+" projected unearned or out-of-window NPC speech");
   } else {
-    check(state.ambient_npc==="" && state.ambient_beat===-1 &&
-      state.ambient_line==="",
-      label+" kept NPCs speaking outside their authored P1 window");
+    check(state.ambient_beat===-1 && state.ambient_line==="",
+      label+" kept a stale ambient beat after the NPCs fell out of hearing");
   }
 }
 async function moveDiagonal(ms) {
