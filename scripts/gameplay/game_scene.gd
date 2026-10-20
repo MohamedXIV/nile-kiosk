@@ -864,7 +864,7 @@ func _draw() -> void:
                 draw_rect(Rect2(radio_pos + Vector2(-10,-17),Vector2(20,16)),Color("#bb9a69"))
                 draw_circle(radio_pos + Vector2(-4,-9),4,Color("#343d3c"))
                 draw_rect(Rect2(radio_pos + Vector2(4,-14),Vector2(5,10)),Color("#3d4e50"))
-                _text(radio_pos+Vector2(-20,-24),"R: Radio",12)
+                _text(radio_pos+Vector2(-20,-24),"Radio",12)
             else:
                 _text(radio_pos+Vector2(-26,-18),"Radio nook",12,Color("#b2a391"))
     for door in game.graph.visible_exits(location):
@@ -908,7 +908,6 @@ func _draw() -> void:
     _need(Vector2(245,53),"Hunger",state["hunger"],Color("#d4ae78"))
     _need(Vector2(385,53),"Rest",state["rest"],Color("#8badc6"))
     _need(Vector2(525,53),"Mood",state["mood"],Color("#96b79a"))
-    _text(Vector2(768,53),"0 Sound: " + ("On" if soundscape != null and soundscape.enabled else "Off"),13,Color("#d2b98c"))
     var counter_near: bool = location == "kiosk" and game.position().distance_to(Game.COUNTER) <= Game.COUNTER_RADIUS
     var portal_near: Dictionary = game.nearest_portal()
     var exit_name: String = ""
@@ -918,9 +917,9 @@ func _draw() -> void:
             exit_name = str(portal_near["to"])
     if location == "kiosk" and not state["tea_stage"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
-        var guidance: String = "Tea · %s: %s" % [state["tea_action"],
-            "Give it %d world minute(s)" % state["tea_ready_in"] if state["tea_ready_in"] > 0 else
-            ("Lift / finish" if state["tea_stage"] == "active" else "Start the next step")]
+        var guidance: String = "Tea · %s" % [
+            "Ready in %d world minute(s)" % state["tea_ready_in"] if state["tea_ready_in"] > 0 else
+            ("Ready to lift" if state["tea_stage"] == "active" else "Next step ready")]
         _text(Vector2(28,431),guidance,18,Color("#f0d6a2"))
     if location == "kiosk" and state["tea_stage"].is_empty() and not state["tea_quality"].is_empty():
         draw_rect(Rect2(0,408,960,38),Color("#263a3d"))
@@ -937,15 +936,8 @@ func _draw() -> void:
         _text(Vector2(28,502),"     ".join(prompts),16,Color("#e2c18b"),904)
     if not state["active_order"].is_empty():
         _text(Vector2(555,526),str(state["order_recipe"]).replace("_"," ") + " · " + str(state["order_status"]),14,Color("#d2b98c"))
-    var market: Dictionary = state["market_offer"]
-    if counter_near and not story_open and not state["conversation_near"] and state["tea_stage"].is_empty() and not market.is_empty():
-        var buyable: bool = market["status"] == "available"
-        _text(Vector2(28,266),("F5 Buy / F6 Decline · " if buyable else "Market unavailable · ") + "%dg / %d / %d min" % [market["quantity"],market["goods_minor"],market["minutes"]],14,Color("#f1ca80"))
-        _text(Vector2(28,284),"PROPOSED · 17:00–19:00 · one 30g lot · " + str(market["status"]),13,Color("#d2b98c"))
-    var referral: Dictionary = state["referral_offer"]
-    if counter_near and referral.get("status","") == "available" and not story_open and state["tea_stage"].is_empty():
-        _text(Vector2(28,300),"Hoda: 30g leaves · 450 + 100 delivery · 15 min · F3 buy / F4 decline",14,Color("#f1ca80"))
-        _text(Vector2(28,320),"Call from the counter; offer lasts %d more world minutes." % int(referral["remaining_minutes"]),13,Color("#d2b98c"))
+    # Market/referral verbs are already shown by the live E/F resolver below.
+    # Do not paint parallel F3/F4/F5/F6 shortcut walls over the isometric scene.
     if story_open or story_pending:
         draw_rect(Rect2(60,242,840,192),Color("#162d31"))
         draw_rect(Rect2(60,242,840,3),Color("#e1bd81"))
