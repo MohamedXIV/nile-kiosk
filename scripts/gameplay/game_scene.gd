@@ -100,6 +100,9 @@ func report(marker: String) -> void:
     diagnostic["save_storage_revision"] = save_confirmation.revision
     if not visual_frame.is_empty():
         diagnostic["view_zoom"] = visual_frame["zoom"]
+        diagnostic["camera_target_zoom"] = camera_target_zoom
+        diagnostic["camera_actor_x"] = _iso(player_visual_position).x
+        diagnostic["camera_actor_y"] = _iso(player_visual_position).y
         diagnostic["view_origin_x"] = visual_frame["origin"].x
         diagnostic["view_origin_y"] = visual_frame["origin"].y
         var avatar: Vector2 = _iso(game.position())
