@@ -111,12 +111,18 @@ try {
       await readyTea();s=await action('u','E6_GAME_TEA_POUR');
       check(s.tea_quality===outcome,'real cup quality not expected history',s);
       const npcInitiatedBefore=count('E4_NPC_INITIATED');
-      await action('g','E6_GAME_SERVE');
+      const delivered=await action('g','E6_GAME_SERVE');
       if(outcome==='good') {
-        const initiated=await until('E4_NPC_INITIATED',npcInitiatedBefore);
-        check(initiated.mahmoud_story_phase==='choice' &&
-          initiated.mahmoud_story_choices?.length===2,
-          'actual post-delivery Mahmoud did not initiate authored Ink',initiated);
+        if(delivered.mahmoud_invite_near) {
+          const initiated=await until('E4_NPC_INITIATED',npcInitiatedBefore);
+          check(initiated.mahmoud_story_phase==='choice' &&
+            initiated.mahmoud_story_choices?.length===2,
+            'nearby real delivery must offer the NPC-authored Ink choices',initiated);
+        } else {
+          check(count('E4_NPC_INITIATED')===npcInitiatedBefore &&
+            delivered.mahmoud_story_phase==='',
+            'NPC began distant/inaudible conversation with no physical reach',delivered);
+        }
       }
       // Unsolicited NPC talk cannot steal G/Serve or prevent payment,
       // even when the player has not responded to the P6 choices.
