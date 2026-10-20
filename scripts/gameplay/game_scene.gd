@@ -209,6 +209,18 @@ func _process_clock() -> void:
         var tick: Dictionary = game.wait_minutes(1)
         if tick.get("ok", false):
             render_state = game.status()
+            # The UI only observes a P1 event-sourced deadline. An unanswered
+            # P6 choice closes because the world settled it, not due to a
+            # wall-clock countdown or a scene-driven social mutation.
+            if story_open and story_id == Game.MAHMOUD_STORY_ID and \
+                    render_state.get("mahmoud_story_outcome","") == "silence":
+                story_open = false
+                story_pending = false
+                story_line = ""
+                story_speaker = ""
+                notice = "Mahmoud waits a little, then carries on with his evening."
+                report("E4_NPC_SILENCE")
+                return
             if soundscape != null:
                 var state: Dictionary = render_state
                 soundscape.set_context(str(state["location"]),not str(state["tea_stage"]).is_empty(),int(state["hour"]) >= 18 or int(state["hour"]) < 6)
@@ -993,6 +1005,12 @@ func _draw() -> void:
         for i in range(wrapped.size()):
             _text(Vector2(bubble_left+14.0,bubble_top+28.0+i*26.0),
                 wrapped[i],16,Color("#f0d8a8"),392.0)
+        if story_id == Game.MAHMOUD_STORY_ID and not _story_choices(state).is_empty():
+            var deadline: int = int(state.get("mahmoud_story_deadline",-1))
+            if deadline >= 0:
+                _text(Vector2(bubble_left+14.0,bubble_top+103.0),
+                    "Reply: %d world min left" % maxi(0,deadline-int(state["minute"])),
+                    12,Color("#d4bb94"),390.0)
         draw_line(Vector2(clampf(actor_at.x,bubble_left+12.0,bubble_left+408.0),
             bubble_top+110.0),actor_at+Vector2(0,-36),Color("#c9ac83"),1.5)
     if controls_open:
