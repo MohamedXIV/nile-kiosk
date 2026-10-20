@@ -131,7 +131,7 @@ func report(marker: String) -> void:
     render_state = diagnostic
     if sandwich_buttons != null:
         sandwich_buttons.update_view(diagnostic["sandwich"],sandwich_open,
-            story_open or story_pending,controls_open)
+            (story_open or story_pending) and not npc_led_active,controls_open)
     _sync_touch_pad(diagnostic)
     queue_redraw()
 
@@ -208,7 +208,7 @@ func _process_movement() -> void:
                 render_state = game.status()
                 if sandwich_buttons != null:
                     sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
-                        story_open or story_pending,controls_open)
+                        (story_open or story_pending) and not npc_led_active,controls_open)
                 if touch_pad != null and touch_pad.mode_enabled:
                     _sync_touch_pad(render_state)
                 queue_redraw()
@@ -243,7 +243,7 @@ func _process_clock() -> void:
             # without a UI-owned timer or extra simulation command.
             if sandwich_buttons != null and sandwich_open:
                 sandwich_buttons.update_view(render_state["sandwich"],sandwich_open,
-                    story_open or story_pending,controls_open)
+                    (story_open or story_pending) and not npc_led_active,controls_open)
             if touch_pad != null and touch_pad.mode_enabled:
                 _sync_touch_pad(render_state)
             queue_redraw()
@@ -312,7 +312,7 @@ func _pinch_distance() -> float:
     return Vector2(points[0]).distance_to(Vector2(points[1]))
 
 func _input(event: InputEvent) -> void:
-    if not initialized or controls_open or sandwich_open or story_open: return
+    if not initialized or controls_open or sandwich_open or (story_open and not npc_led_active): return
     if event is InputEventMouseButton and event.pressed:
         if event.button_index == MOUSE_BUTTON_WHEEL_UP: _apply_camera_zoom(1.12)
         elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN: _apply_camera_zoom(1.0 / 1.12)
@@ -571,7 +571,7 @@ func _sync_touch_pad(state: Dictionary) -> void:
         game.room() == "kiosk" and game.position().distance_to(salma["position"]) <= Graph.RADIUS
     var talk_action: String = WorldTouchControls.dialogue_target(state,near_salma)
     touch_pad.update_view(state,portal_near,counter_near,
-        story_open or story_pending,controls_open or sandwich_open,talk_action,
+        (story_open or story_pending) and not npc_led_active,controls_open or sandwich_open,talk_action,
         story_open,_story_choices(state) if story_open else [],
         _context_actions(state))
 
@@ -616,7 +616,7 @@ func _begin_context_talk() -> void:
     _story_action("begin")
 
 func _context_action(index: int) -> void:
-    if story_open or story_pending or sandwich_open or controls_open: return
+    if ((story_open or story_pending) and not npc_led_active) or sandwich_open or controls_open: return
     var choices: Array[Dictionary] = _context_actions(game.status())
     if index < 0 or index >= choices.size(): return
     var kind: String = str(choices[index]["kind"])
@@ -625,7 +625,7 @@ func _context_action(index: int) -> void:
     else: _act(kind)
 
 func _touch_move_now() -> void:
-    if not initialized or story_open or story_pending or controls_open or sandwich_open or (room_fade != null and room_fade.fading):
+    if not initialized or ((story_open or story_pending) and not npc_led_active) or controls_open or sandwich_open or (room_fade != null and room_fade.fading):
         return
     move_elapsed = 0.0
     _process_movement()
@@ -643,7 +643,8 @@ func _touch_action(action: String) -> void:
         report("E6_TOUCH_MENU")
         return
     # Direct dialogue Buttons remain usable even with the optional pad Off.
-    if story_open and not controls_open and not sandwich_open:
+    if story_open and not controls_open and not sandwich_open and \
+            (not npc_led_active or action not in ["primary","alternate","save","wait"]):
         var choices: Array = _story_choices(game.status())
         match action:
             "next":
@@ -704,13 +705,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
         report("E6_AUDIO_TOGGLE")
         return
     if story_open or story_pending:
-        if story_id.begins_with("river_neighbors:") and event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_3,KEY_4,KEY_ESCAPE,KEY_P]:
-            # Keep the actual cooking/movement controls usable while listening.
+        if (story_id.begins_with("river_neighbors:") or npc_led_active) and \
+                event.keycode not in [KEY_ENTER,KEY_KP_ENTER,KEY_1,KEY_2,KEY_3,KEY_4,KEY_ESCAPE,KEY_P]:
+            # NPC-initiated speech is non-modal; the kitchen, payment,
+            # contextual actions and player movement never freeze.
             if event.keycode == KEY_H: _act("tea_heat")
             elif event.keycode == KEY_U: _act("tea_pour")
             elif event.keycode == KEY_G: _act("serve")
             elif event.keycode == KEY_J: _act("wait")
-            elif event.keycode == KEY_E: _act("door")
+            elif event.keycode == KEY_E:
+                if npc_led_active: _context_action(0)
+                else: _act("door")
+            elif event.keycode == KEY_F and npc_led_active: _context_action(1)
             return
         match event.keycode:
             KEY_ENTER, KEY_KP_ENTER:
