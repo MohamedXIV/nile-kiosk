@@ -40,13 +40,9 @@ static func resolve(state: Dictionary, portal_name: String,
                 _append(actions,"sandwich","Prepare sandwich")
             else:
                 _append(actions,"serve","Serve customer")
-        elif state.get("market_offer",{}).get("status","") == "available":
-            _append(actions,"market_buy","Buy market leaves")
-            _append(actions,"market_decline","Decline market offer")
-        elif state.get("referral_offer",{}).get("status","") == "available":
-            _append(actions,"supply_buy","Buy delivered leaves")
-            _append(actions,"supply_decline","Decline supplier offer")
-
+    # An actual nearby person must never disappear behind two vending
+    # choices. Conversation after serving has only a brief genuine P1/P4
+    # proximity window; unattended procurement can wait or expire.
     if not dialogue_target.is_empty():
         _append(actions,"talk","Talk to " + dialogue_target.capitalize())
     if not portal_name.is_empty():
@@ -55,9 +51,18 @@ static func resolve(state: Dictionary, portal_name: String,
     if place == "kiosk":
         if not kiosk_open:
             _append(actions,"open","Open kiosk")
-        elif counter_near and sandwich_near and current_order.is_empty():
-            _append(actions,"sandwich","Sandwich counter")
-        elif not counter_near:
+        elif counter_near:
+            # The counter has a separate physically reachable P12 opener.
+            # Show genuine available business offers only after nearby people.
+            if state.get("market_offer",{}).get("status","") == "available":
+                _append(actions,"market_buy","Buy market leaves")
+                _append(actions,"market_decline","Decline market offer")
+            elif state.get("referral_offer",{}).get("status","") == "available":
+                _append(actions,"supply_buy","Buy delivered leaves")
+                _append(actions,"supply_decline","Decline supplier offer")
+            if sandwich_near and current_order.is_empty():
+                _append(actions,"sandwich","Sandwich counter")
+        else:
             _append(actions,"close","Close kiosk")
     elif place == "roof" and bool(state.get("bed_placed",false)):
         _append(actions,"sleep","Sleep")
