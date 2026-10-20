@@ -358,42 +358,14 @@ try {
     "nonbuyer Mona didn't arrive through the independent P1/P2 routine");
   check(riverMoment.player_knows_mona_visit === false,
     "Mona taught the player a fact before the authored conversation");
-  // Q is a life.activity_done elapsed-time event. The explicitly-authored
-  // opportunity listens to canonical time.advanced instead; the next real
-  // world-time step must observe Mona's actual presence before offering Ink.
-  const visitorClockIndex = (traces.E6_GAME_WAIT || []).length;
-  await press("j");
-  const visitorClock = await until("E6_GAME_WAIT",visitorClockIndex);
-  check(visitorClock.npc_mona === "kiosk" &&
-    visitorClock.npc_mona_mode === "visiting" &&
-    visitorClock.story_opportunities?.mona_visits_salma &&
-    !visitorClock.player_knows_mona_visit,
-    "Mona opportunity didn't unlock on canonical time.advanced with player present");
-  // Genuine independent nonbuyer Mona initiates her own P6 greeting
-  // without L/Talk when the player approaches the authored P2 meeting spot.
-  // A scheduled P1 minute, not a frontend timeout, commits her Ink beats.
-  const visitorInitiatedIndex=(traces.E4_VISITOR_INITIATED||[]).length;
-  let visitorJoined=false;
-  for(let attempt=0;attempt<12;attempt++){
-    if((traces.E4_VISITOR_INITIATED||[]).length>visitorInitiatedIndex){
-      visitorJoined=true;break;
-    }
-    const saveIndex=(traces.E6_GAME_SAVE||[]).length;
-    await press("p");
-    const latest=await until("E6_GAME_SAVE",saveIndex);
-    if(!latest.mona_npc_initiation_ready){
-      const dx=monaMeeting[0]-latest.x,dy=monaMeeting[1]-latest.y;
-      if(Math.abs(dy)>12)await nudgeY(dy>0);
-      else if(dx>0)await moveDiagonal(155);
-      else await walkBack(155);
-    }
-    await page.waitForTimeout(2100);
-    if((traces.E4_VISITOR_INITIATED||[]).length>visitorInitiatedIndex){
-      visitorJoined=true;break;
-    }
-  }
-  check(visitorJoined,"actual nonbuyer failed to initiate when player was near");
-  const visitorWaiting=await until("E4_VISITOR_INITIATED",visitorInitiatedIndex);
+  // Mona's authored opportunity was unlocked by an earlier genuine P1
+  // time.advanced event. The quiet action reaches her actual meeting spot,
+  // then the NEXT P1 tick starts her real Ink automatically. Do not press J:
+  // doing so skips five canonical minutes *after* she already spoke.
+  check(riverMoment.story_opportunities?.mona_visits_salma &&
+    riverMoment.mona_npc_initiation_ready && !riverMoment.player_knows_mona_visit,
+    "Mona must have a source-attributed, reachable invitation before speaking");
+  const visitorWaiting=await until("E4_VISITOR_INITIATED",0);
   check(visitorWaiting.mona_story_phase==="choice" &&
     visitorWaiting.mona_story_choices?.length===2 &&
     visitorWaiting.mona_story_deadline>visitorWaiting.minute &&
@@ -537,8 +509,12 @@ try {
   const slept = await until("E6_GAME_SLEEP");
   check(slept.day === 2 && slept.hour === 8 && slept.sleep_count === 1 && !slept.kiosk_open && slept.bed_placed && slept.rest >= rooftopMoment.rest,
     "player did not reach canonical next-day morning");
+  const morningSaveIndex = (traces.E6_GAME_SAVE || []).length;
   await press("p");
-  const morningSaved = await until("E6_GAME_SAVE",1);
+  const morningSaved = await until("E6_GAME_SAVE",morningSaveIndex);
+  check(morningSaved.revision === slept.revision &&
+    morningSaved.day === 2 && morningSaved.location === "roof",
+    "morning save must be the newly committed second-day state");
   await confirmBrowserSave(morningSaved.revision);
   await page.reload({ waitUntil: "load" });
   const morningRestored = await until("E6_GAME_RESTORED",1);
