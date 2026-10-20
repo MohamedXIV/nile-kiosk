@@ -9,6 +9,7 @@ const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
+const RoomFade = preload("res://scripts/gameplay/room_fade.gd")
 const WebSaveConfirmation = preload("res://scripts/gameplay/web_save_confirmation.gd")
 const MONA_STORY_ID = "mona_visits_salma"
 const MOVE_INTERVAL = 0.13
@@ -47,6 +48,7 @@ var controls_open: bool = false # Local view-only overlay; does not pause P1 wor
 var sandwich_open: bool = false # View-only P3 cooking workstation; time never pauses.
 var sandwich_buttons: Control # Standard Godot Buttons, no UI-owned domain data.
 var touch_pad: Control # Optional pointer/touch input; no P2 state authority.
+var room_fade: CanvasLayer # No canonical world state.
 var save_confirmation: RefCounted = WebSaveConfirmation.new() # Display-only; no save data.
 var furniture_bodies: Array[StaticBody2D] = []
 var story_open: bool = false # View only. P6 owns Ink cursor and narrative choices.
@@ -82,6 +84,8 @@ func _boot() -> void:
     add_child(touch_pad)
     touch_pad.on_move = Callable(self,"_touch_move_now")
     touch_pad.on_action = Callable(self,"_touch_action")
+    room_fade = RoomFade.new()
+    add_child(room_fade)
     initialized = true
     notice = "A quiet evening by the Nile."
     report("E6_GAME_RESTORED" if result["code"] != "NEW_WORLD" else "E6_GAME_READY")
@@ -146,7 +150,7 @@ func _process(delta: float) -> void:
     # Runtime input drives canonical integer movement; no extra scene position.
     move_elapsed += minf(delta, 0.25)
     minute_elapsed += minf(delta, 0.25)
-    if controls_open or sandwich_open:
+    if controls_open or sandwich_open or (room_fade != null and room_fade.fading):
         move_elapsed = 0.0
     elif move_elapsed >= MOVE_INTERVAL:
         move_elapsed = fmod(move_elapsed, MOVE_INTERVAL)
@@ -294,7 +298,32 @@ func _input(event: InputEvent) -> void:
             _apply_camera_zoom(distance / pinch_distance)
         pinch_distance = distance
 
+# Fade covers a genuine spatial.player.travel and releases input only after
+# the destination has appeared. Unlike a new loading scene, the WorldKernel,
+# clock, NPCs, Ink and P3 jobs remain alive throughout the transition.
+func _begin_door_fade() -> bool:
+    if room_fade == null or room_fade.fading or game.nearest_portal().is_empty():
+        return false
+    return room_fade.transition(
+        Callable(self,"_commit_door_covered"),
+        Callable(self,"_complete_door_fade"))
+
+func _commit_door_covered() -> void:
+    var result: Dictionary = game.travel_near()
+    if result.get("ok",false):
+        _snap_player_visual()
+        notice = "You step into " + game.room() + "."
+    else:
+        notice = "Door: " + str(result.get("code","UNKNOWN"))
+
+func _complete_door_fade() -> void:
+    report("E6_GAME_DOOR")
+
 func _act(kind: String, offer_index: int = -1) -> void:
+    if kind == "door" and _begin_door_fade():
+        return
+    if room_fade != null and room_fade.fading:
+        return
     var result: Dictionary = {}
     match kind:
         "door": result = game.travel_near()
@@ -523,13 +552,13 @@ func _context_action(index: int) -> void:
     else: _act(kind)
 
 func _touch_move_now() -> void:
-    if not initialized or story_open or story_pending or controls_open or sandwich_open:
+    if not initialized or story_open or story_pending or controls_open or sandwich_open or (room_fade != null and room_fade.fading):
         return
     move_elapsed = 0.0
     _process_movement()
 
 func _touch_action(action: String) -> void:
-    if not initialized or touch_pad == null: return
+    if not initialized or touch_pad == null or (room_fade != null and room_fade.fading): return
     # On-screen._toggle changes mode_enabled *before* emitting this callback.
     # Process both opening and closing; only gate subsequent world actions.
     if action == "toggle":
@@ -567,7 +596,7 @@ func _dismiss_story() -> void:
     report("E4_STORY_DISMISS")
 
 func _unhandled_key_input(event: InputEvent) -> void:
-    if not initialized or not (event is InputEventKey) or not event.pressed or event.echo:
+    if not initialized or (room_fade != null and room_fade.fading) or not (event is InputEventKey) or not event.pressed or event.echo:
         return
     if event.keycode == KEY_F1:
         controls_open = not controls_open
