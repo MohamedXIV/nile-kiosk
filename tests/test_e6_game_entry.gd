@@ -6,6 +6,7 @@ const WorldTouchControls = preload("res://scripts/gameplay/world_touch_controls.
 const SandwichControls = preload("res://scripts/gameplay/sandwich_controls.gd")
 const NextStepGuide = preload("res://scripts/gameplay/next_step_guide.gd")
 const Contextual = preload("res://scripts/gameplay/contextual_interactions.gd")
+const RoomFade = preload("res://scripts/gameplay/room_fade.gd")
 const Kernel = preload("res://scripts/core/world_kernel.gd")
 const SAVE = "user://nk-e6-game-entry-acceptance.json"
 var failures: Array[String] = []
@@ -52,6 +53,19 @@ func _run() -> void:
         var closer: Dictionary = GameScene.camera_frame(Vector2(220,140),actor,2.8,touch_mode)
         check(float(closer["zoom"]) > float(follow["zoom"]),
             "closer camera setting should dolly toward player in both UI layouts")
+    # P2a view-only transition owns no world time, portal, or save state.
+    var fade: CanvasLayer = RoomFade.new()
+    root.add_child(fade)
+    check(fade.shade != null and fade.shade.size == Vector2(960,540) and
+        not fade.shade.visible and not fade.fading and
+        fade.shade.mouse_filter == Control.MOUSE_FILTER_STOP,
+        "portal fade starts transparent with a full-size input-blocking cover")
+    var callback: Callable = func() -> void: pass
+    check(fade.transition(callback,callback) and fade.fading and
+        fade.shade.visible and not fade.transition(callback,callback),
+        "duplicate portal transitions must never stack or issue two commands")
+    root.remove_child(fade)
+    fade.free()
     # P1: never put more than E/F on the world HUD or offer disabled actions.
     var empty_ctx: Array[Dictionary] = Contextual.resolve(
         {"location":"street"},"",false,false,"",false)
