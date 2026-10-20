@@ -152,7 +152,10 @@ func update_view(context: Dictionary, panel_open: bool, story_busy: bool,
     selected_offer_index = offer_index
     action_kind = "buy" if shopping(context) and offer_index>=0 else "step"
     var buy_mode: bool = action_kind == "buy"
-    action_button.visible = visible and not utility_open and (not shopping(context) or offer_index>=0)
+    var can_step: bool = not str(context.get("stage","")).is_empty() or \
+        bool(context.get("can_start",false))
+    action_button.visible = visible and not utility_open and (
+        (buy_mode and offer_index>=0) or (not buy_mode and can_step))
     action_button.disabled = not near
     if buy_mode:
         var offer: Dictionary = offers[offer_index]
