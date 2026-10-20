@@ -304,9 +304,12 @@ func _input(event: InputEvent) -> void:
 func _begin_door_fade() -> bool:
     if room_fade == null or room_fade.fading or game.nearest_portal().is_empty():
         return false
-    return room_fade.transition(
+    var started: bool = room_fade.transition(
         Callable(self,"_commit_door_covered"),
         Callable(self,"_complete_door_fade"))
+    if started:
+        report("E6_TRAVEL_FADE_START")
+    return started
 
 func _commit_door_covered() -> void:
     var result: Dictionary = game.travel_near()
