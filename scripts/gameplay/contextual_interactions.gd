@@ -40,6 +40,11 @@ static func resolve(state: Dictionary, portal_name: String,
                 _append(actions,"sandwich","Prepare sandwich")
             else:
                 _append(actions,"serve","Serve customer")
+        elif not current_order.is_empty() and order_status == "delivered" and \
+                str(state.get("order_payment","none")) not in ["settled","none"]:
+            # P5 settlement survives a spontaneous NPC greeting. The same
+            # real Serve/ledger action stays first in reach on touch devices.
+            _append(actions,"serve","Settle payment")
     # An actual nearby person must never disappear behind two vending
     # choices. Conversation after serving has only a brief genuine P1/P4
     # proximity window; unattended procurement can wait or expire.
