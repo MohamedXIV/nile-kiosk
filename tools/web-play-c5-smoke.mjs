@@ -1,4 +1,5 @@
 import { chromium } from "playwright-core";
+import { waitForGodotSave } from "./browser-save-observer.mjs";
 
 // Real Godot/Web scene: authored NPC-to-NPC trust, zero base chance, no player action.
 const browser=await chromium.launch({executablePath:process.env.CHROME_BINARY||"/usr/bin/google-chrome",
@@ -49,7 +50,7 @@ try{
   await press("p");
   const saved=await until("PLAY_C1_SAVED",0);
   check(saved.digest===offered.digest,"Saving mutated social offer");
-  await page.waitForTimeout(1400);
+  await waitForGodotSave(page,"nk-play-c5-web-qa.json",data=>data.sequence===saved.revision);
   await page.reload({waitUntil:"load",timeout:30000});
   const restored=await until("PLAY_C1_RESTORED",0);
   check(restored.digest===saved.digest&&restored.auto_social?.peer_trusted===true&&
@@ -60,7 +61,7 @@ try{
     "Unattended relationship-influenced order never expired");
   await press("p");
   const saved2=await until("PLAY_C1_SAVED",1);
-  await page.waitForTimeout(1400);
+  await waitForGodotSave(page,"nk-play-c5-web-qa.json",data=>data.sequence===saved2.revision);
   await page.reload({waitUntil:"load",timeout:30000});
   const final=await until("PLAY_C1_RESTORED",1);
   check(final.digest===saved2.digest&&final.auto_status==="abandoned"&&
