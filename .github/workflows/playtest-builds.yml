@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/playtest-builds.yml"
+      - "docs/experience/PLAYTEST_RELEASE_REQUEST.md"
   workflow_dispatch:
 
 permissions:
