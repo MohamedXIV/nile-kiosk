@@ -88,10 +88,14 @@ func _run() -> void:
     progress(g,1)
     var invite: Dictionary = g.session.world.narrative_opportunities().get("mona_visits_salma",{})
     check(invite.get("trigger_event","")=="time.advanced","invite not tied to clock and P2 presence")
-    check(g.mona_visit_near(),"first moment not near guest")
+    check(g.mona_visit_near() and g.mona_npc_initiation_ready(),
+        "authored autonomous greeting needs true P1 source and live P2 contact")
+    check(g.mona_story_session().is_empty(),
+        "read-only initiative detection must not fabricate Ink events")
     progress(g,3)
     check(g.npc_pose("mona").get("mode","")=="visiting","visitor not at meeting spot")
-    check(g.mona_visit_near(),"offer not nearby after P2 visitor stops")
+    check(g.mona_visit_near() and g.mona_npc_initiation_ready(),
+        "Mona must still be able to initiate while physically visiting")
     check(no_mona_orders(g),"nonbuyer created order")
     check(not g.session.world.player_knows("mona:visiting-salma"),"learned fact before spoken")
     check(g.mona_story_session().is_empty(),"unexpected forced conversation")
@@ -119,7 +123,24 @@ func _run() -> void:
         _done()
         return
     check(resumed.mona_story_begin().get("code","")=="RESUMED","Ink restarted after reload")
-    check(resumed.status()["mona_story_choices"].size()==2,"pending choices weren't restored")
+    check(resumed.status()["mona_story_choices"].size()==2 and
+        int(resumed.status().get("mona_story_deadline",-1)) == int(resumed.status()["minute"]) + 12,
+        "Mona's authored twelve-minute reply deadline was not saved")
+    var ignored: RefCounted = Game.new()
+    check(ignored.start(SAVE).get("code","")=="RESTORED","load ignored Mona choice branch")
+    command(ignored.wait_minutes(5),"ignore first five P1 minutes")
+    command(ignored.wait_minutes(5),"ignore next five P1 minutes")
+    command(ignored.wait_minutes(2),"ignore remaining two P1 minutes")
+    check(ignored.status().get("mona_story_outcome","")=="silence" and
+        ignored.status().get("mona_story_phase","")=="finished" and
+        not ignored.mona_npc_initiation_ready(),
+        "Mona should naturally leave an unanswered timed canonical P6 choice")
+    var ignored_state: Dictionary = ignored.session.world.view()
+    var ignored_replay: RefCounted = Kernel.new()
+    check(ignored_replay.restore_snapshot(ignored_state) and
+        JSON.stringify(ignored_replay.view())==JSON.stringify(ignored_state),
+        "ignored Mona outcome must replay from actual P1 events")
+    ignored.dispose()
     command(resumed.mona_story_choose("looking"),"player choice")
     check(resumed.mona_story_next().get("beat_id","")=="mona_looking","Ink branch mismatch")
     check(resumed.mona_story_next().get("beat_id","")=="mona_goodbye","Ink merge beat")
@@ -141,7 +162,7 @@ func _run() -> void:
 
 func _done() -> void:
     if errors.is_empty():
-        print("E4 NONBUYER VISIT: PASS (independent P2 schedule, AStar path, offscreen lifecycle, player-chosen fact/Ink, hard disk replay)")
+        print("E4 NONBUYER VISIT: PASS (P1/P2 visit, authored spontaneous initiative, timed silence, alternate live Ink/disk replay)")
         quit(0)
     else:
         for err in errors: push_error(err)

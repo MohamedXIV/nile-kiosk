@@ -201,6 +201,12 @@ try{
   conversation=await touch(270,405,"E4_NPC_FINISHED");
   check(conversation.mahmoud_story_phase==="finished",
     "touchscreen could not conclude authored Ink encounter");
+  const quoted=await touch(785,158,"E6_GAME_SERVE");
+  check(quoted.order_payment==="awaiting_ledger",
+    "touch primary must quote actual delivered tea after NPC-led conversation");
+  const settled=await touch(785,158,"E6_GAME_SERVE");
+  check(settled.order_payment==="settled" && settled.money>quoted.money,
+    "touch primary must settle real P5 ledger, not be stolen by dialogue/market");
   check(errors.length===0,"Godot scripting errors");
   console.log("GAME_FIRST_WORLD_PAD_CHROMIUM_PASS: P1 contextual E/F, touch-only P3 tea and P4 delivery, autonomous NPC-led authored Ink choice");
 }finally{

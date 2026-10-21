@@ -51,6 +51,16 @@
           "speaker_id": ""
         }
       }
+    },
+    "choice_windows": {
+      "mona_visit_choice": {
+        "minutes": 12,
+        "outcome": "silence"
+      }
     }
+  },
+  "npc_initiation": {
+    "after_minutes": 0,
+    "within_minutes": 20
   }
 }

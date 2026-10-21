@@ -149,7 +149,9 @@ func _process(delta: float) -> void:
         _story_action("begin")
         if npc_auto_start and story_open:
             _advance_npc_invitation()
-    if npc_led_active and story_open and not game.mahmoud_story_exchange_available():
+    if npc_led_active and story_open and not (
+            game.mona_story_exchange_available() if story_id == MONA_STORY_ID
+            else game.mahmoud_story_exchange_available()):
         # A departing NPC or expired canonical P6 deadline dismisses the view.
         # Brief movement outside Talk radius alone cannot cancel a reply;
         # the NPC's schedule continues without pausing.
@@ -223,16 +225,17 @@ func _process_clock() -> void:
             # The UI only observes a P1 event-sourced deadline. An unanswered
             # P6 choice closes because the world settled it, not due to a
             # wall-clock countdown or a scene-driven social mutation.
-            if story_open and story_id == Game.MAHMOUD_STORY_ID and \
-                    render_state.get("mahmoud_story_outcome","") == "silence":
+            if story_open and (story_id == Game.MAHMOUD_STORY_ID or story_id == MONA_STORY_ID) and \
+                    render_state.get("mona_story_outcome" if story_id == MONA_STORY_ID else "mahmoud_story_outcome","") == "silence":
                 story_open = false
                 story_pending = false
                 npc_auto_start = false
                 npc_led_active = false
                 story_line = ""
                 story_speaker = ""
-                notice = "Mahmoud waits a little, then carries on with his evening."
-                report("E4_NPC_SILENCE")
+                notice = ("Mona finishes her visit without a reply." if story_id == MONA_STORY_ID else
+                    "Mahmoud waits a little, then carries on with his evening.")
+                report("E4_VISITOR_SILENCE" if story_id == MONA_STORY_ID else "E4_NPC_SILENCE")
                 return
             if soundscape != null:
                 var state: Dictionary = render_state
@@ -433,8 +436,12 @@ func _try_npc_initiated_conversation() -> void:
     if story_open or story_pending or sandwich_open or controls_open or \
             (room_fade != null and room_fade.fading):
         return
-    if not game.mahmoud_npc_initiation_ready(): return
-    story_id = Game.MAHMOUD_STORY_ID
+    if game.mahmoud_npc_initiation_ready():
+        story_id = Game.MAHMOUD_STORY_ID
+    elif game.mona_npc_initiation_ready():
+        story_id = MONA_STORY_ID
+    else:
+        return
     npc_auto_start = true
     npc_led_active = true
     _story_action("begin")
@@ -442,17 +449,22 @@ func _try_npc_initiated_conversation() -> void:
         _advance_npc_invitation()
 
 func _advance_npc_invitation() -> void:
-    if not npc_auto_start or not story_open or story_id != Game.MAHMOUD_STORY_ID:
+    if not npc_auto_start or not story_open or story_id not in [Game.MAHMOUD_STORY_ID,MONA_STORY_ID]:
         return
     npc_auto_start = false
     # The actual authored Ink opening line is spoken first. Reaching the
     # real choice.wait commits the P4b deadline in the canonical P6 session.
     # No scene-generated dialogue, choices, relationship changes or clock.
-    if game.mahmoud_story_session().get("phase","") == "running":
+    var current_session: Dictionary = (
+        game.mona_story_session() if story_id == MONA_STORY_ID
+        else game.mahmoud_story_session())
+    if current_session.get("phase","") == "running":
         _story_action("next")
-    if story_open and game.mahmoud_story_session().get("phase","") == "running":
+    current_session = (game.mona_story_session() if story_id == MONA_STORY_ID
+        else game.mahmoud_story_session())
+    if story_open and current_session.get("phase","") == "running":
         _story_action("next")
-    report("E4_NPC_INITIATED")
+    report("E4_VISITOR_INITIATED" if story_id == MONA_STORY_ID else "E4_NPC_INITIATED")
 
 func _story_action(kind: String, option_id: String = "") -> void:
     var result: Dictionary = {}
@@ -714,6 +726,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
             elif event.keycode == KEY_U: _act("tea_pour")
             elif event.keycode == KEY_G: _act("serve")
             elif event.keycode == KEY_J: _act("wait")
+            elif event.keycode == KEY_Q: _act("quiet")
+            elif event.keycode == KEY_K: _act("meal")
+            elif event.keycode == KEY_O: _act("open")
+            elif event.keycode == KEY_C: _act("close")
+            elif event.keycode == KEY_Z: _act("sleep")
+            elif event.keycode == KEY_B: _act("radio_buy")
+            elif event.keycode == KEY_V: _act("radio_place")
+            elif event.keycode == KEY_X: _act("radio_store")
+            elif event.keycode == KEY_R: _act("radio_listen")
+            elif event.keycode == KEY_Y: _act("bed_store")
+            elif event.keycode == KEY_F5: _act("market_buy")
+            elif event.keycode == KEY_F6: _act("market_decline")
+            elif event.keycode == KEY_F3: _act("supply_buy")
+            elif event.keycode == KEY_F4: _act("supply_decline")
             elif event.keycode == KEY_E:
                 if npc_led_active: _context_action(0)
                 else: _act("door")
